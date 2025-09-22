@@ -99,7 +99,7 @@ If you have a ROS 2 bag of your Ouster OS1-128 LiDAR and RGB Camera data, then d
 
 <details open>
 
-<summary><b>Path Planning from Object Retrieval</b></summary>
+<summary><b>Terrain-Aware Path Planning for Object Retrieval</b></summary>
 
 
 </details>
