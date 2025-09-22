@@ -18,7 +18,7 @@ This repository contains the code for *Terra: Hierarchical Terrain-Aware 3D Scen
 # Setup
 
 ### Requirements
-* Docker installed
+* [Docker](https://docs.docker.com/engine/install/ubuntu/)
 
 Our repository is designed for ROS 2 Humble. To handle dependency issues, our repository is built in Docker using the following container.
 
