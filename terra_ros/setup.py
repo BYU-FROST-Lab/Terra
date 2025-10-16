@@ -27,7 +27,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'save_data = terra_ros.save_data:main',
+            'save_metric_data = terra_ros.save_metric_data:main',
         ]
     },
 )

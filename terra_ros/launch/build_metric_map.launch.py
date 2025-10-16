@@ -10,46 +10,51 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    # Path to the launch file in the 'ouster-ros' package
+    metric_map_params_file = os.path.join(
+        get_package_share_directory('terra_ros'),
+        'config', 'params.yaml'
+    )
+    parameter_file = LaunchConfiguration('params_file')
+    params_declare = DeclareLaunchArgument(
+        'params_file',
+        default_value=metric_map_params_file)
+    with open(metric_map_params_file, 'r') as f:
+        raw_params = yaml.safe_load(f)
+    params = raw_params.get('/**', {}).get('ros__parameters', {})
+    publish_extrinsics = params['publish_extrinsics']
+    lidar_to_camera = params['lidar_to_camera']
+    rosbag_path = params['rosbag_path']
+    
+    
     lidar_launch_file = os.path.join(
-        get_package_share_directory('ouster_ros'),  # Replace with the exact package name
+        get_package_share_directory('ouster_ros'),
         'launch',
-        'driver.launch.py'  # Replace with the correct launch file name
+        'driver.launch.py'
     )
     ouster_params_file = os.path.join(
-        get_package_share_directory('ouster_ros'),  # Replace with your package name
+        get_package_share_directory('ouster_ros'),
         'config',
-        'driver_params.yaml'  # Make sure this file exists and contains the parameters
+        'driver_params.yaml'
     )
     
     oakd_launch_file = os.path.join(
-        get_package_share_directory('depthai_ros_driver'),  # Replace with the exact package name
+        get_package_share_directory('depthai_ros_driver'),
         'launch',
-        'rgbd_pcl.launch.py'#'camera.launch.py'
+        'camera.launch.py'
     )
     
     liosam_launch_file = os.path.join(
-        get_package_share_directory('lio_sam'),  # Replace with the exact package name
+        get_package_share_directory('lio_sam'),
         'launch',
-        'run.launch.py'  # Replace with the correct launch file name
+        'run.launch.py'
     )
     liosam_params_file = os.path.join(
-        get_package_share_directory('lio_sam'),  # Replace with your package name
+        get_package_share_directory('lio_sam'),
         'config',
-        'params.yaml'  # Make sure this file exists and contains the parameters
-    )
+        'params.yaml'
+    )  
     
-    transforms_file = os.path.join(
-        get_package_share_directory('oasis2'),  # Replace with your package name
-        'config',
-        'extrinsic_transforms.yaml'
-    )
-    with open(transforms_file, 'r') as f:
-        transforms = yaml.safe_load(f)
-    lidar_to_camera = transforms['camera_to_lidar']
-    
-    
-    return LaunchDescription([
+    actions = [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(lidar_launch_file),
             launch_arguments={'params_file': ouster_params_file}.items(),
@@ -57,9 +62,26 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(oakd_launch_file),
         ),
-
-        # Publish static extrinsic transformations
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(liosam_launch_file),
+            launch_arguments={'params_file': liosam_params_file}.items(),
+        ),
+        ExecuteProcess(
+            cmd=['ros2', 'bag', 'play', rosbag_path],
+            output='screen'
+        ),
         Node(
+            package='terra_ros',
+            executable='save_metric_data.py',
+            name='save_metric_data',
+            parameters=[parameter_file],
+            output='screen',
+        ),
+    ]
+    
+    if publish_extrinsics:
+        # Publish static extrinsic transformations
+        actions.append(Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             arguments=[
@@ -74,10 +96,6 @@ def generate_launch_description():
                 '--child-frame-id', lidar_to_camera['child_frame']
             ],
             output='screen',
-        ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(liosam_launch_file),
-            launch_arguments={'params_file': liosam_params_file}.items(),
-        ),
-    ])
+        ))
+    
+    return LaunchDescription(actions)
