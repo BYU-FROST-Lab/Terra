@@ -30,14 +30,14 @@ class SaveMetricData(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('save_folder', None),
-                ('lidar_topic', '/lio_sam/mapping/cloud_deskewed'),
-                ('camera_topic', '/oak/rgb/image_raw'),
-                ('publish_extrinsics', False),
-                ('lidar_to_camera.translation', None),
-                ('lidar_to_camera.rotation_quaternion', None),
-                ('lidar_to_camera.parent_frame', None),
-                ('lidar_to_camera.child_frame', None),
+                ('save_folder', rclpy.Parameter.Type.STRING),
+                ('lidar_topic', rclpy.Parameter.Type.STRING),
+                ('camera_topic', rclpy.Parameter.Type.STRING),
+                ('publish_extrinsics', rclpy.Parameter.Type.BOOL),
+                ('lidar_to_camera.translation', rclpy.Parameter.Type.DOUBLE_ARRAY),
+                ('lidar_to_camera.rotation_quaternion', rclpy.Parameter.Type.DOUBLE_ARRAY),
+                ('lidar_to_camera.parent_frame', rclpy.Parameter.Type.STRING),
+                ('lidar_to_camera.child_frame', rclpy.Parameter.Type.STRING),
             ]
         )
         # Get parameters
@@ -86,10 +86,10 @@ class SaveMetricData(Node):
         )
         
         if self.publish_extrinsics:
-            trans_C2L_in_C = translation  # [x, y, z]
-            rot = R.from_quat(rotation)
+            trans_C2L_in_C = np.array(translation)  # [x, y, z]
+            rot = R.from_quat(np.array(rotation))
             self.quat_l2c = rot.as_quat()  # [qx, qy, qz, qw]
-            self.trans_l2c = trans_C2L_in_C[:,0] # [x,y,z]
+            self.trans_l2c = trans_C2L_in_C # [x,y,z]
 
         self.base_dir = save_folder
         os.makedirs(self.base_dir, exist_ok=True)
