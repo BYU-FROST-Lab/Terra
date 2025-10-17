@@ -14,33 +14,12 @@ def generate_launch_description():
         get_package_share_directory('terra_ros'),
         'config', 'params.yaml'
     )
-    # params_declare = DeclareLaunchArgument(
-    #     'params_file',
-    #     default_value=metric_map_params_file)
-    # params_file = LaunchConfiguration('params_file')
     with open(metric_map_params_file, 'r') as f:
         raw_params = yaml.safe_load(f)
     params = raw_params.get('save_metric_data', {}).get('ros__parameters', {})
     publish_extrinsics = params['publish_extrinsics']
     lidar_to_camera = params['lidar_to_camera']
     rosbag_path = params['rosbag_path']
-    
-    # lidar_launch_file = os.path.join(
-    #     get_package_share_directory('ouster_ros'),
-    #     'launch',
-    #     'driver.launch.py'
-    # )
-    # ouster_params_file = os.path.join(
-    #     get_package_share_directory('ouster_ros'),
-    #     'config',
-    #     'driver_params.yaml'
-    # )
-    
-    # oakd_launch_file = os.path.join(
-    #     get_package_share_directory('depthai_ros_driver'),
-    #     'launch',
-    #     'camera.launch.py'
-    # )
     
     liosam_launch_file = os.path.join(
         get_package_share_directory('lio_sam'),
@@ -54,15 +33,6 @@ def generate_launch_description():
     )  
     
     actions = [
-        # params_declare,
-        
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(lidar_launch_file),
-        #     launch_arguments={'params_file': ouster_params_file}.items(),
-        # ),
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(oakd_launch_file),
-        # ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(liosam_launch_file),
             launch_arguments={'params_file': liosam_params_file}.items(),
