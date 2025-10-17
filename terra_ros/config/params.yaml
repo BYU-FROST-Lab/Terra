@@ -1,0 +1,14 @@
+save_metric_data:
+  ros__parameters:
+    rosbag_path: /ros2_bags/cb_4thfloor_calib_10_13_25
+    lidar_topic: /lio_sam/deskew/cloud_deskewed
+    camera_topic: /oak_d_lr_forward/rgb/image_raw
+    save_folder: /ros2_bags/metric_map_data_cb_4thfloor_calib_10_13_25
+
+    # extrinsic_transforms
+    publish_extrinsics: true
+    lidar_to_camera:
+      translation: [ -0.15976, 0.0231164, 0.0319886 ] # x, y, z in meters
+      rotation_quaternion: [ 0.999717, -0.00307403, -0.0236042, -0.0595019 ] # qx, qy, qz, qw
+      parent_frame:  oak_rgb_camera_frame
+      child_frame: os_lidar
