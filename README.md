@@ -48,6 +48,8 @@ source install/setup.bash
 
 # Datasets
 
+<details open>
+
 <summary><b>Dataset folder structure</b></summary>
 
 ```
@@ -112,8 +114,6 @@ If you have a ROS 2 bag of your Ouster OS1-128 LiDAR and RGB Camera data, then d
 ros2 launch terra_ros build_metric_map.launch.py
 ```
 </details>
-
-<details open>
 
 
 # Building Terra
