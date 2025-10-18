@@ -5,11 +5,15 @@ This repository contains the code for *Terra: Hierarchical Terrain-Aware 3D Scen
 
 
 # Table of Contents
-* [Paper](#Paper)
-* [Setup](#Setup)
-* [Datasets](#Datasets)
-* [Building Terra](#building-terra)
-* [Task Execution with Terra](#task-execution-with-terra)
+- [Terra](#terra)
+- [Table of Contents](#table-of-contents)
+- [Paper](#paper)
+- [Setup](#setup)
+    - [Requirements](#requirements)
+    - [Using Docker Container](#using-docker-container)
+- [Datasets](#datasets)
+- [Building Terra](#building-terra)
+- [Task-Execution with Terra](#task-execution-with-terra)
 
 # Paper
 
@@ -44,28 +48,8 @@ source install/setup.bash
 
 # Datasets
 
-### Simulation: Business Campus
+<summary><b>Dataset folder structure</b></summary>
 
-### Real-World: South Campus
-
-### Custom Datasets
-
-<details open>
-
-<summary><b>Preparing Data</b></summary>
-
-If you have a ROS 2 bag of your Ouster OS1-128 LiDAR and RGB Camera data, then do the following to run LIO-SAM:
-
-- Edit the `params.yaml` file in the `LIO-SAM/config` folder to match your LiDAR and IMU ros topics as well as the extrinsic transformation between the two.
-- Update the `params.yaml` ros parameters in `terra_ros/config` for your dataset and rosbag
-- Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
-```bash
-ros2 launch terra_ros build_metric_map.launch.py
-```
-
-</details>
-
-Our dataset folder structure:
 ```
 my_dataset
 ├── global_pc
@@ -84,6 +68,53 @@ my_dataset
 |   ├── transform_lidar_to_map_{timestamp}.npy
 |   └── ...
 ```
+
+</details>
+
+<details open>
+
+<summary><b>Simulation: Business Campus Dataset</b></summary>
+
+- Download the dataset [here](https://gofile.me/7dj2d/y7R2ETLpK) (~116 GB)
+- Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
+- Copy the contents of the `config/sim/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
+- Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
+```bash
+ros2 launch terra_ros build_metric_map_sim.launch.py
+```
+</details>
+
+
+<details open>
+
+<summary><b>Real-World: South Campus Dataset</b></summary>
+
+- Download the dataset [here](https://gofile.me/7dj2d/JvUpRm12E) (~263 GB)
+- Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
+- Copy the contents of the `config/south_campus/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
+- Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
+```bash
+ros2 launch terra_ros build_metric_map_sim.launch.py
+```
+</details>
+
+
+<details open>
+
+<summary><b>Custom Datasets</b></summary>
+
+If you have a ROS 2 bag of your Ouster OS1-128 LiDAR and RGB Camera data, then do the following to run LIO-SAM:
+
+- Edit the `params.yaml` file in the `LIO-SAM/config` folder to match your LiDAR and IMU ros topics as well as the extrinsic transformation between the two.
+- Update the `params.yaml` ros parameters in `terra_ros/config` for your dataset and rosbag
+- Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
+```bash
+ros2 launch terra_ros build_metric_map.launch.py
+```
+</details>
+
+<details open>
+
 
 # Building Terra
 

@@ -1,6 +1,6 @@
 save_metric_data:
   ros__parameters:
-    rosbag_path: /ros2_bags/cb_4thfloor_calib_10_13_25
+    rosbag_path: /ros2_bags/south_campus
     lidar_topic: /lio_sam/deskew/cloud_deskewed
     camera_topic: /oak_d_lr_forward/rgb/image_raw
     save_folder: /ros2_bags/metric_map_data_cb_4thfloor_calib_10_13_25
