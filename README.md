@@ -96,7 +96,7 @@ ros2 launch terra_ros build_metric_map_sim.launch.py
 - Copy the contents of the `config/south_campus/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
 - Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
 ```bash
-ros2 launch terra_ros build_metric_map_sim.launch.py
+ros2 launch terra_ros build_metric_map_south_campus.launch.py
 ```
 </details>
 
