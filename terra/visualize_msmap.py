@@ -1,19 +1,9 @@
 from argparse import ArgumentParser
 import os
-from tqdm import tqdm
-import time
 from pathlib import Path
 import numpy as np
 import pickle as pkl
-from scipy.spatial import KDTree
-from sklearn.cluster import SpectralClustering
-import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from scipy.ndimage import binary_dilation, binary_erosion
 
-import networkx as nx
-import clip
 import open3d as o3d
 
 def map_clipid_to_globalpts(global_pc, pc_clip_dict):
