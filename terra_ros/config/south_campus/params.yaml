@@ -9,6 +9,6 @@ save_metric_data:
     publish_extrinsics: true
     lidar_to_camera:
       translation: [ -0.15976, 0.0231164, 0.0319886 ] # x, y, z in meters
-      rotation_quaternion: [ 0.6856851, -0.0075367, 0.0092125, 0.727801 ] # qx, qy, qz, qw
+      rotation_quaternion: [ -0.0075367, -0.6856851, 0.727801, -0.0092125 ] # qx, qy, qz, qw (L to Cam)
       parent_frame:  oak_rgb_camera_frame
       child_frame: os_lidar

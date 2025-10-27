@@ -1,5 +1,6 @@
 import os
 import re
+import yaml
 from argparse import ArgumentParser
 import numpy as np
 import open3d as o3d
@@ -19,39 +20,24 @@ from utils import tensor_cosine_similarity, numeric_key
 
 class MS_Map:
     def __init__(self, args):
-        ## Extract arguments
-        self.data_folder = args.data_folder
-        self.scan_step_sz = args.step_size
-        self.yolo_model_path = args.yolo_model
-        self.continue_processing = args.continue_processing
-        self.DEBUG_MODE = True if args.debug_mode else False
-        self.sim = True if args.sim else False
+        ## Processing parameters
+        self.data_folder = args['data_folder']
+        self.scan_step_sz = args['save_step_size']
+        self.yolo_model_path = args['yolo_model_path']
+        self.continue_processing = args['continue_processing']
+        self.DEBUG_MODE = args['debug']
         if self.DEBUG_MODE:
             print("Running in DEBUG_MODE")
-        if self.sim:
-            print("Running for sim data")
-        else:
-            print("Running for real data")
-
+        self.unaligned_threshold = args['unaligned_threshold']
+        
         #######################
         ## Define Parameters ##
         #######################
-        if self.sim:
-            self.K = np.array([ 
-                [378.81963288,   0.0,         389.80067716],
-                [  0.0,         375.49008026, 238.34077718],
-                [  0.0,           0.0,           1.0        ]
-            ]) # Simulation Camera Intrinsics 768 x 480 [W x H] and FoV = 90 deg
-        else:
-            self.K = np.array([
-                [457.978759765625, 0.0, 387.35205078125], 
-                [0.0, 457.719482421875, 240.11021423339844], 
-                [0.0, 0.0, 1.0]
-            ]) # Real life Camera Intrinsics 768 x 480
-        self.theta_cos_sim = 0.9   # cos_sim threshold to determine a match
-        self.do_DBSCAN = True
-        self.dbscan_global = DBSCAN(eps=2.0, min_samples=5) # change depending on voxel sizes of global PC
-        self.cam2point_dist_thresh = 20 # Include images within 20 meters of points
+        self.K = np.array(args['cam_K']).reshape(3,3)
+        self.theta_cos_sim = args['match_threshold'] # cos_sim threshold to determine a match
+        self.use_dbscan = args['use_dbscan']
+        self.dbscan_global = DBSCAN(eps=args['dbscan_eps'], min_samples=args['dbscan_min_samples']) # change depending on voxel sizes of global PC
+        self.cam2point_dist_thresh = args['cam2point_dist_threshold'] # Include images within 20 meters of points
         self.num_scans = 0
 
         # Timing Lists TODO: Delete when done
@@ -84,29 +70,29 @@ class MS_Map:
         self.global_kdtree = KDTree(self.global_pc[:, :3])  # Dictionary to hold matching global points using the x, y, z columns
 
         # Load time-synced sensor data and transformation files
-        self.local_pc_folder = os.path.join(self.data_folder, "local_pc")
-        self.local_images_folder = os.path.join(self.data_folder, "local_images")
+        self.lidar_pc_folder = os.path.join(self.data_folder, "lidar_pc")
+        self.camera_images_folder = os.path.join(self.data_folder, "camera_images")
         self.transforms_lidar2cam_folder = os.path.join(self.data_folder, "transformations_lidar2cam") 
         self.transforms_lidar2global_folder = os.path.join(self.data_folder, "transformations_lidar2global")
 
         #Load timesteps
         self.camera_timestamps = []
-        for local_image_file in Path(self.local_images_folder).glob("*.jpg"):
-            # Assuming filename format: local_cam_img_{timestamp}.jpg
-            timestamp = float(local_image_file.stem.split("_")[-1])  # Extract timestamp as float
+        for camera_image_file in Path(self.camera_images_folder).glob("*.jpg"):
+            # Assuming filename format: lidar_cam_img_{timestamp}.jpg
+            timestamp = float(camera_image_file.stem.split("_")[-1])  # Extract timestamp as float
             self.camera_timestamps.append(timestamp)
         self.camera_timestamps.sort()  # Sort timestamps for easier matching
         
-        self.local_pc_timestamps = []
-        for local_pc_file in Path(self.local_pc_folder).glob("*.npy"):
-            # Assuming filename format: local_pc_{timestamp}.jpg
-            timestamp = float(local_pc_file.stem.split("_")[-1])  # Extract timestamp as float
-            self.local_pc_timestamps.append(timestamp)
-        self.local_pc_timestamps.sort()  # Sort timestamps for easier matching
+        self.lidar_pc_timestamps = []
+        for lidar_pc_file in Path(self.lidar_pc_folder).glob("*.npy"):
+            # Assuming filename format: lidar_pc_{timestamp}.jpg
+            timestamp = float(lidar_pc_file.stem.split("_")[-1])  # Extract timestamp as float
+            self.lidar_pc_timestamps.append(timestamp)
+        self.lidar_pc_timestamps.sort()  # Sort timestamps for easier matching
         
         self.tf_l2c_timestamps = []
         for tf_l2c_file in Path(self.transforms_lidar2cam_folder).glob("*.npy"):
-            # Assuming filename format: local_pc_{timestamp}.jpg
+            # Assuming filename format: lidar_pc_{timestamp}.jpg
             timestamp = float(tf_l2c_file.stem.split("_")[-1])  # Extract timestamp as float
             self.tf_l2c_timestamps.append(timestamp)
         self.tf_l2c_timestamps.sort()  # Sort timestamps for easier matching
@@ -143,33 +129,33 @@ class MS_Map:
                 continue # Skip over already processed scans
 
             itr_t0 = time.time()
-            timestamp = transform_lidar2global_file.stem.split("_")[-1]  # Assuming format local_pc_{timestamp}.npy
+            timestamp = transform_lidar2global_file.stem.split("_")[-1]  # Assuming format lidar_pc_{timestamp}.npy
             print(f"\nScan Index {scan_idx} at timestamp {timestamp}\n")
             
             ## Ensure files are available/time synced for this timestamp ##
-            closest_local_pc_timestamp = min(self.local_pc_timestamps, key=lambda x: abs(x - float(timestamp)))
-            if abs(closest_local_pc_timestamp - float(timestamp)) > 0.2: # larger than 0.2 sec diff
-                print("Local scan unaligned")
+            closest_lidar_pc_timestamp = min(self.lidar_pc_timestamps, key=lambda x: abs(x - float(timestamp)))
+            if abs(closest_lidar_pc_timestamp - float(timestamp)) > self.unaligned_threshold:
+                print("lidar scan unaligned")
                 continue
-            local_pc_file = os.path.join(self.local_pc_folder, f'local_pc_{closest_local_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
+            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
 
             closest_cam_timestamp = min(self.camera_timestamps, key=lambda x: abs(x - float(timestamp)))
-            if abs(closest_cam_timestamp - float(timestamp)) > 0.2: # larger than 0.2 sec diff
+            if abs(closest_cam_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("Camera unaligned")
                 continue
-            local_image_file = os.path.join(self.local_images_folder, f'local_cam_img_{closest_cam_timestamp}.jpg') #TODO Change this back to 4 decimal places
+            camera_image_file = os.path.join(self.camera_images_folder, f'local_cam_img_{closest_cam_timestamp}.jpg') #TODO Change this back to 4 decimal places
 
             closest_tf_l2c_timestamp = min(self.tf_l2c_timestamps, key=lambda x: abs(x - float(timestamp)))
-            if abs(closest_tf_l2c_timestamp - float(timestamp)) > 0.2: # larger than 0.2 sec diff
-                print("TF local-to-camera unaligned")
+            if abs(closest_tf_l2c_timestamp - float(timestamp)) > self.unaligned_threshold:
+                print("TF lidar-to-camera unaligned")
                 continue
             transform_lidar_to_cam_file = os.path.join(self.transforms_lidar2cam_folder, f'transform_lidar_to_cam_{closest_tf_l2c_timestamp}.npy')
 
-            ## Load Local Data ##
-            self.load_local_data(local_pc_file, local_image_file, transform_lidar_to_cam_file, transform_lidar2global_file)
+            ## Load lidar Data ##
+            self.load_lidar_data(lidar_pc_file, camera_image_file, transform_lidar_to_cam_file, transform_lidar2global_file)
 
             ## CLIP vector of base image ##
-            self.clip_base_image(local_image_file)
+            self.clip_base_image(camera_image_file)
 
             ## Keep only 3D Points in Image ##
             pcl_in_image_t0 = time.time()
@@ -199,15 +185,11 @@ class MS_Map:
             print(f"Iteration {scan_idx} runtime:",itr_t1 - itr_t0,"sec")
             self.scan_times.append(itr_t1 - itr_t0)
 
-            # if scan_idx == 24:
         print("Average scan time:", np.mean(self.scan_times))
         print("Average point cloud extraction time:", np.mean(self.pcl_in_image_times))
         print("Average YOLO time:", np.mean(self.yolo_times))
         print("Average FastSam Segmentation time:", np.mean(self.segment_with_fastsam_times))
         print("Average Extract Mask Embeddings time:", np.mean(self.extract_mask_embs_times))
-
-                #Exit
-                # break
 
         t_end = time.time()
         print("Finished iterating through all lidar scans in",t_end-t_begin,"seconds for",self.num_scans + 1,"scans")
@@ -218,36 +200,36 @@ class MS_Map:
         ## Visualize final global map colored by class ##
         self.display_global_pcl()
 
-    def load_local_data(self, local_pc_file, local_image_file, transform_lidar_to_cam_file, transform_local_to_global_file):
-        # Load local point cloud data
-        self.local_pc = np.load(local_pc_file)
+    def load_lidar_data(self, lidar_pc_file, camera_image_file, transform_lidar_to_cam_file, transform_lidar_to_global_file):
+        # Load lidar point cloud data
+        self.lidar_pc = np.load(lidar_pc_file)
     
-        # Load local image data
-        self.local_image = cv2.imread(local_image_file)
-        self.IMG_H, self.IMG_W = self.local_image.shape[:2]
+        # Load lidar image data
+        self.camera_image = cv2.imread(camera_image_file)
+        self.IMG_H, self.IMG_W = self.camera_image.shape[:2]
 
         # Load transformation data
         self.transform_lidar_to_cam = self.load_transformation(transform_lidar_to_cam_file)
-        self.transform_local_to_global = self.load_transformation(transform_local_to_global_file)
+        self.transform_lidar_to_global = self.load_transformation(transform_lidar_to_global_file)
 
-    def clip_base_image(self, local_image_file):
-        preprocessed_image = self.clip_preprocess(Image.fromarray(self.local_image)).unsqueeze(0).to(self.device)
+    def clip_base_image(self, camera_image_file):
+        preprocessed_image = self.clip_preprocess(Image.fromarray(self.camera_image)).unsqueeze(0).to(self.device)
         with torch.no_grad():
             img_encoded = self.clip_model.encode_image(preprocessed_image)
         self.img_clips.append(img_encoded)
-        self.saved_img_names.append(local_image_file)
+        self.saved_img_names.append(camera_image_file)
 
     def get_pcl_points_found_in_image(self, scan_idx):
         # Get the 3D point cloud points that correspond to the 2D image
         # This can be done using the camera intrinsics and the depth information
         self.map_yx2idx = {} # map from 2D image coord to 3D PC index
-        self.map_local2globalidx = {} # map from 3D local PC index to 3D global PC index
+        self.map_lidar2globalidx = {} # map from 3D lidar PC index to 3D global PC index
         self._pixel_to_global_idx = np.full((self.IMG_H, self.IMG_W), -1, dtype=np.int32)
         lidar_img = np.zeros((self.IMG_H,self.IMG_W))
         
         # Filter: Keep only points in front of the camera/lidar
-        mask = self.local_pc[:, 1] < 0
-        points = self.local_pc[mask]
+        mask = self.lidar_pc[:, 1] < 0
+        points = self.lidar_pc[mask]
 
         # Split into geometry + intensity
         points_xyz = points[:, :3]                # (N,3)
@@ -255,14 +237,6 @@ class MS_Map:
 
         #Add homogeneous coordinate (N, 4)
         points_h = np.hstack([points_xyz, np.ones((points_xyz.shape[0], 1))])
-
-        # if not self.sim:
-        #     R_sensor_to_lidar = np.array([[-1, 0, 0],
-        #                                     [0, -1, 0],
-        #                                     [0, 0, 1]])
-        #     transform_R = self.transform_local_to_cam[:3, :3] @ R_sensor_to_lidar
-        #     self.transform_local_to_cam[:3, :3] = transform_R
-        #     print(self.transform_local_to_cam)
 
         # Transform LiDAR -> camera frame (N, 4)
         cam_points_h = points_h @ self.transform_lidar_to_cam.T
@@ -273,7 +247,7 @@ class MS_Map:
         # Project onto image plane (N, 3)
         proj_points = cam_points @ self.K.T
 
-        #Normalize by z (N,)
+        # Normalize by z (N,) and round to nearest pixel
         zs = proj_points[:, 2]
         xs = np.round(proj_points[:, 0] / zs).astype(int)
         ys = np.round(proj_points[:, 1] / zs).astype(int)
@@ -289,7 +263,7 @@ class MS_Map:
         intensity = intensity[in_bounds]
 
         # LiDAR → global (N,3), avoids np.append per point
-        p_Gs = points_xyz @ self.transform_local_to_global[:3, :3].T + self.transform_local_to_global[:3, 3]
+        p_Gs = points_xyz @ self.transform_lidar_to_global[:3, :3].T + self.transform_lidar_to_global[:3, 3]
 
         # Batch KD-tree query
         dists, g_indices = self.global_kdtree.query(p_Gs)
@@ -299,7 +273,7 @@ class MS_Map:
             lidar_img[y, x] = inten  # use intensity
 
             # Nearest global point
-            self.map_local2globalidx[pt_idx] = g_idx
+            self.map_lidar2globalidx[pt_idx] = g_idx
             self._pixel_to_global_idx[y, x] = g_idx
 
 
@@ -326,7 +300,7 @@ class MS_Map:
             self.display_image("Lidar Image", lidar_img)
 
     def yolo_segmentation(self, scan_idx):
-        self.yolo_results = self.yolo_model(self.local_image, conf=0.1)
+        self.yolo_results = self.yolo_model(self.camera_image, conf=0.1)
         if self.DEBUG_MODE and (scan_idx % self.scan_step_sz == 0):
             img_with_masks = self.yolo_results[0].plot(
                 labels=True,
@@ -340,7 +314,7 @@ class MS_Map:
             self.display_image("YOLO Segmentation", img_with_masks)
 
         if self.yolo_results[0].masks is not None:
-            self.yolo_masks = self.get_yolo_class_masks(self.local_image, self.yolo_results)
+            self.yolo_masks = self.get_yolo_class_masks(self.camera_image, self.yolo_results)
 
             ## Associate Global Points to CLIP embs ##
             class_name = ["sidewalk","grass","asphalt"]
@@ -352,7 +326,7 @@ class MS_Map:
 
                 y_indices, x_indices = np.where(filtered_lidar_img > 0)
                 for y, x in zip(y_indices, x_indices):
-                    g_idx = self.map_local2globalidx[self.map_yx2idx[(y,x)]] # TODO: Check transformation from global to local
+                    g_idx = self.map_lidar2globalidx[self.map_yx2idx[(y,x)]]
                     if g_idx in self.pc_dict:
                         if cls_id in self.pc_dict[g_idx]:
                             self.pc_dict[g_idx][cls_id] += 1
@@ -380,15 +354,15 @@ class MS_Map:
 
     def prepare_filtered_image(self, scan_idx):
         """
-        Removes YOLO masks from the local image (if present) to prepare for FastSAM segmentation.
+        Removes YOLO masks from the lidar image (if present) to prepare for FastSAM segmentation.
         Optionally displays the debug image.
         Returns:
             filtered_image (np.ndarray): Image after mask removal.
         """
         if self.yolo_results[0].masks is not None:
-            filtered_image = self.remove_yolo_masks(self.local_image, self.yolo_masks)
+            filtered_image = self.remove_yolo_masks(self.camera_image, self.yolo_masks)
         else:
-            filtered_image = self.local_image
+            filtered_image = self.camera_image
 
         if self.DEBUG_MODE and (scan_idx % self.scan_step_sz == 0):
             self.display_image("Removed YOLO Masks", filtered_image)
@@ -444,7 +418,7 @@ class MS_Map:
         kernel = np.ones((5, 5), np.uint8)
 
         # --- Precompute boolean masks for faster overlap checks ---
-        local_nonzero = np.any(self.local_image != 0, axis=2)    # HxW bool
+        camera_nonzero = np.any(self.camera_image != 0, axis=2)    # HxW bool
         filtered_nonzero = np.any(filtered_image != 0, axis=2)   # HxW bool
 
         clip_input_list = []
@@ -456,8 +430,8 @@ class MS_Map:
                 continue
 
             # overlap checks
-            local_overlap = np.count_nonzero(mask_bool & local_nonzero)
-            if local_overlap == 0:
+            cam_overlap = np.count_nonzero(mask_bool & camera_nonzero)
+            if cam_overlap == 0:
                 continue
             filtered_overlap = np.count_nonzero(mask_bool & filtered_nonzero)
             if filtered_overlap / float(mask_bool.sum()) < 0.5:
@@ -495,7 +469,7 @@ class MS_Map:
                 continue
 
             # --- DBSCAN per-mask (reverted to original behavior) ---
-            if self.do_DBSCAN:
+            if self.use_dbscan:
                 # gather 3D points corresponding to candidate_global_idxs
                 corresponding_global_pc_arr = self.global_pc[candidate_global_idxs, :3]
                 if corresponding_global_pc_arr.size == 0:
@@ -711,38 +685,20 @@ class MS_Map:
         return trans_mat
 
 
+
 def arg_parser():
     parser = ArgumentParser()
-    # Point Cloud Data
-    parser.add_argument('--data_folder', 
+    parser.add_argument('--msmap_yaml', 
                         type=str, 
-                        # default="/docker_ros2_ws/src/oasis2/data/simulation/holo_data/",
-                        # default="/docker_ros2_ws/src/oasis2/data/south_campus/",
-                        default="/data/south_campus/",
-                        help='Directory to where folders of local and global scans were saved')
-    parser.add_argument('--continue_processing', 
-                        action='store_true', 
-                        help='Picks up where you last left off')
-    parser.add_argument('--yolo_model',
-                        type=str,
-                        # default='/holo_yolo_model.pt',
-                        default='/campus_yolo_model.pt',
-                        help='full path to yolo model for terrain segmentation')
-    parser.add_argument('--step_size',
-                        type=int,
-                        default=50,
-                        help='Step size to both display and save results every Xth scan')
-    parser.add_argument('--debug_mode', 
-                        action='store_true', 
-                        help='Displays results while processing')
-    parser.add_argument('--sim',
-                        action='store_true',
-                        help='Run in simulation mode')
-
+                        help='YAML file of MS Map arguments')
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     args = arg_parser()
-    ms_map = MS_Map(args)
+    
+    with open(args.msmap_yaml, 'r') as file:
+        msmap_args = yaml.safe_load(file)
+    
+    ms_map = MS_Map(msmap_args)
     ms_map.make_map()

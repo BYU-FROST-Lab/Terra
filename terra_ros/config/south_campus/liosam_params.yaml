@@ -43,7 +43,7 @@
 
     extrinsicTrans:  [ 0.0,  0.0,  0.0 ]
     extrinsicRot:    [-1.0,  0.0,  0.0,
-                       0.0,  1.0,  0.0,
+                       0.0,  -1.0,  0.0,
                        0.0,  0.0, 1.0 ]
 
     # LOAM feature threshold

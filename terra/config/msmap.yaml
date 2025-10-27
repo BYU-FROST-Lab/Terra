@@ -1,0 +1,19 @@
+## Processing parameters
+data_folder: /path/to/data/folder
+debug: false
+continue_processing: false
+save_step_size: 10
+yolo_model_path: /path/to/yolo/model
+unaligned_threshold: 0.2 # seconds
+
+## Camera intrinsics
+cam_K: [1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0]
+
+## MS Map parameters
+match_threshold: 0.9
+use_dbscan: true
+dbscan_eps: 2.0
+dbscan_min_samples: 5
+cam2point_dist_threshold: 20.0

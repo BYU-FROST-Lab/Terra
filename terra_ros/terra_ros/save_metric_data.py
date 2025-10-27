@@ -61,7 +61,7 @@ class SaveMetricData(Node):
         
         self.local_cam_img = None
         self.local_cam_msg = None
-        self.local_pc = None
+        self.lidar_pc = None
         self.global_pc = None
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -72,10 +72,10 @@ class SaveMetricData(Node):
             self.local_cam_img_callback,
             10,
         )
-        self.local_pc_sub = self.create_subscription(
+        self.lidar_pc_sub = self.create_subscription(
             PointCloud2,
             lidar_topic,
-            self.local_pc_callback,
+            self.lidar_pc_callback,
             10,
         )
         self.global_pc_sub = self.create_subscription(
@@ -93,11 +93,11 @@ class SaveMetricData(Node):
 
         self.base_dir = save_folder
         os.makedirs(self.base_dir, exist_ok=True)
-        self.local_pc_dir = os.path.join(self.base_dir, 'local_pc')
-        os.makedirs(self.local_pc_dir, exist_ok=True)
+        self.lidar_pc_dir = os.path.join(self.base_dir, 'lidar_pc')
+        os.makedirs(self.lidar_pc_dir, exist_ok=True)
         self.global_pc_dir = os.path.join(self.base_dir, 'global_pc')
         os.makedirs(self.global_pc_dir, exist_ok=True)
-        self.local_imgs_dir = os.path.join(self.base_dir, 'local_images')
+        self.local_imgs_dir = os.path.join(self.base_dir, 'camera_images')
         os.makedirs(self.local_imgs_dir, exist_ok=True)
         self.trans_l2g_pc_dir = os.path.join(self.base_dir, 'transformations_lidar2global')
         os.makedirs(self.trans_l2g_pc_dir, exist_ok=True)
@@ -112,21 +112,21 @@ class SaveMetricData(Node):
         cam_time = self.header_to_seconds(self.local_cam_msg.header)
         cv2.imwrite(os.path.join(self.local_imgs_dir, f'local_cam_img_{cam_time}.jpg'), self.local_cam_img)
     
-    def local_pc_callback(self, msg):
+    def lidar_pc_callback(self, msg):
         try:
-            self.local_pc = msg
-            pc_time = self.header_to_seconds(self.local_pc.header)
-            local_pc_list = list(read_points(self.local_pc, field_names=("x", "y", "z", "intensity"), skip_nans=True))
+            self.lidar_pc = msg
+            pc_time = self.header_to_seconds(self.lidar_pc.header)
+            lidar_pc_list = list(read_points(self.lidar_pc, field_names=("x", "y", "z", "intensity"), skip_nans=True))
             local_pts = []
-            for p_idx in range(len(local_pc_list)):
-                local_pts.append(list(local_pc_list[p_idx])[:4])
-            local_pc_arr = np.array(local_pts) # (num_pts, 4)
+            for p_idx in range(len(lidar_pc_list)):
+                local_pts.append(list(lidar_pc_list[p_idx])[:4])
+            lidar_pc_arr = np.array(local_pts) # (num_pts, 4)
             # transform_lidar2map = self.tf_buffer.lookup_transform('map', msg.header.frame_id, Time.from_msg(msg.header.stamp))
             transform_lidar2map = self.tf_buffer.lookup_transform('map', msg.header.frame_id, Time())
             tf_time = self.header_to_seconds(transform_lidar2map.header)
             
             # Save lidar scan
-            np.save(os.path.join(self.local_pc_dir, f'local_pc_{pc_time}.npy'), local_pc_arr)
+            np.save(os.path.join(self.lidar_pc_dir, f'lidar_pc_{pc_time}.npy'), lidar_pc_arr)
 
             # Save transformations
             np.save(os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{tf_time}.npy'), [

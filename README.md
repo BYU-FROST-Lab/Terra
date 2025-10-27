@@ -57,10 +57,10 @@ my_dataset
 ├── global_pc
 |   ├── global_pc_{timestamp}.npy
 |   ├── ...
-├── local_images
+├── camera_images
 |   ├── local_cam_img_{timestamp}.jpg
 |   ├── ...
-├── local_pc
+├── lidar_pc
 |   ├── local_pc_{timestamp}.npy
 |   ├── ...
 ├── transformations_lidar2cam
@@ -80,6 +80,7 @@ my_dataset
 - Download the dataset [here](https://gofile.me/7dj2d/y7R2ETLpK) (~116 GB)
 - Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
 - Copy the contents of the `config/sim/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
+- Update the `config/sim/params.yaml` to match the correct `rosbag_path` and `save_folder`.
 - Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
 ```bash
 ros2 launch terra_ros build_metric_map_sim.launch.py
@@ -94,6 +95,7 @@ ros2 launch terra_ros build_metric_map_sim.launch.py
 - Download the dataset [here](https://gofile.me/7dj2d/JvUpRm12E) (~263 GB)
 - Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
 - Copy the contents of the `config/south_campus/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
+- Update the `config/south_campus/params.yaml` to match the correct `rosbag_path` and `save_folder`.
 - Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
 ```bash
 ros2 launch terra_ros build_metric_map_south_campus.launch.py
@@ -121,6 +123,11 @@ ros2 launch terra_ros build_metric_map.launch.py
 <details open>
 
 <summary><b>Building Metric-Semantic Map (MS Map)</b></summary>
+
+Provided that you have all the data saved in the file structure shown above, you can build the metric-semantic map (ms map) as follows:
+- Update the `terra/config/msmap.yaml` arguments to match the saved data folder path and YOLO terrain model location.
+    - Different msmap yaml files just change the camera intrinsic matrix 
+- Run the MS Map code with the correct yaml filepath as an argument as follows: `python3 ms_map.py --msmap_yaml=/path/to/msmap.yaml`
 
 </details>
 
