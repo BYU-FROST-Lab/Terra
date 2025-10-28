@@ -11,7 +11,7 @@ This repository contains the code for *Terra: Hierarchical Terrain-Aware 3D Scen
 - [Setup](#setup)
     - [Requirements](#requirements)
     - [Using Docker Container](#using-docker-container)
-- [Datasets & Metric Mapping](#datasets-&-metric-mapping)
+- [Datasets and Metric Mapping](#datasets-and-metric-mapping)
 - [Building Terra](#building-terra)
 - [Task-Execution with Terra](#task-execution-with-terra)
 
@@ -46,7 +46,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
-# Datasets & Metric Mapping
+# Datasets and Metric Mapping
 
 <details open>
 
