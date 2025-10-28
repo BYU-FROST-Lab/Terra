@@ -6,6 +6,8 @@ import pickle as pkl
 
 import open3d as o3d
 
+from utils import numeric_key, random_color, find_latest_itr_file
+
 def map_clipid_to_globalpts(global_pc, pc_clip_dict):
     count_threshold = 2
     clipid_2_globalpts = {}
@@ -29,14 +31,6 @@ def map_clipid_to_globalpts(global_pc, pc_clip_dict):
                 clipid_2_globalpts[-1] = [global_idx]
     return clipid_2_globalpts
 
-def random_color():
-    return np.random.rand(3).tolist()  # Generates a random RGB color
-
-import re
-def numeric_key(path):
-    match = re.search(r"(\d+\.\d+)", path.stem)  # grabs the float in the name
-    return float(match.group()) if match else float('inf')
-
 def arg_parser():
     parser = ArgumentParser()
     parser.add_argument('--data_folder', 
@@ -55,7 +49,8 @@ if __name__ == "__main__":
     latest_global_pc_file = global_pc_files[-1] # global_map_idx 33 for sunny midday data
     global_pc = np.load(latest_global_pc_file) # (num_pts,4)
     
-    pc_clip_dict_path = os.path.join(data_folder, "ptxpt_pc_dict_itr2090.pkl")
+    latest_file, last_itr = find_latest_itr_file(data_folder)
+    pc_clip_dict_path = os.path.join(data_folder, latest_file)
     with open(pc_clip_dict_path, "rb") as f: pc_clip_dict = pkl.load(f)
     
     clipid_2_globalpts = map_clipid_to_globalpts(global_pc, pc_clip_dict)
@@ -72,4 +67,13 @@ if __name__ == "__main__":
             pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id], :3])
             pcd.paint_uniform_color(random_col)
         pcds.append(pcd)
-    o3d.visualization.draw_geometries(pcds)
+        
+    # o3d.visualization.draw_geometries(pcds)
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    for pcd in pcds:
+        vis.add_geometry(pcd)
+    render_opt = vis.get_render_option()
+    render_opt.point_size = 2.0  # smaller points
+    vis.run()
+    vis.destroy_window()
