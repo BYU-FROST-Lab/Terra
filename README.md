@@ -129,6 +129,10 @@ Provided that you have all the data saved in the file structure shown above, you
     - Different msmap yaml files just change the camera intrinsic matrix 
 - Run the MS Map code with the correct yaml filepath as an argument as follows: `python3 ms_map.py --msmap_yaml=/path/to/msmap.yaml`
 
+To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For the `south_campus` dataset an example is shown below:
+```bash
+python3 visualize_msmap.py --data_folder=/data/south_campus
+```
 </details>
 
 
