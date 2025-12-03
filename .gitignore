@@ -1,2 +1,5 @@
 # Ignore all files in the assets/south_campus directory
 assets/south_campus/*
+
+terra/mobileclip_blt.ts
+terra/yoloe-11s-seg.pt
