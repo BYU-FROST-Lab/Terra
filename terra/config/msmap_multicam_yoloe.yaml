@@ -5,12 +5,12 @@ terrain_prompts:
   - "asphalt or road"
   - "gravel"
   - "water"
-yoloe_conf_threshold: 0.01
+yoloe_conf_threshold: 0.1
 
 ## Processing parameters
 data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
 debug: true
-continue_processing: false
+continue_processing: true
 save_step_size: 250
 unaligned_threshold: 0.5 # seconds
 

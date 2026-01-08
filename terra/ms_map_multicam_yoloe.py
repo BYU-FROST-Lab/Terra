@@ -169,6 +169,9 @@ class MS_Map:
                     continue
                 transform_lidar_to_cam_files.append(os.path.join(folder, f"transform_cam_to_lidar_{closest_ts}.npy"))
             
+            if len(camera_image_files) == 0 or len(transform_lidar_to_cam_files) == 0:
+                continue
+            
             ## Load lidar Data ##
             self.load_lidar_data(lidar_pc_file, camera_image_files, transform_lidar_to_cam_files, transform_lidar2global_file)
             
@@ -347,7 +350,7 @@ class MS_Map:
                     save=False,
                 )
                 self.display_image("YOLO Segmentation", img_with_masks)
-
+                
             if self.yolo_results[cam_idx][0].masks is not None:
                 self.yolo_masks.append(self.get_yolo_class_masks(img, self.yolo_results[cam_idx]))
 
@@ -369,7 +372,9 @@ class MS_Map:
                                 self.pc_dict[g_idx][cls_id] = 1
                         else:
                             self.pc_dict[g_idx] = {cls_id: 1}
-
+            else:
+                self.yolo_masks.append([])
+                
     def fastsam_and_clip(self, scan_idx):
         """Main FastSAM + CLIP pipeline."""
         for cam_idx, img in enumerate(self.camera_images):

@@ -12,13 +12,18 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     metric_map_params_file = os.path.join(
         get_package_share_directory('terra_ros'),
-        'config', 'south_campus', 'params.yaml'
+        'config', 'multicam', 'params.yaml'
     )
     with open(metric_map_params_file, 'r') as f:
         raw_params = yaml.safe_load(f)
-    params = raw_params.get('save_metric_data', {}).get('ros__parameters', {})
+    params = raw_params.get('save_metric_data_multicam', {}).get('ros__parameters', {})
     publish_extrinsics = params['publish_extrinsics']
-    lidar_to_camera = params['lidar_to_camera']
+    num_cameras = int(params['num_cameras'])
+    lidar_to_cameras = []
+    for i in range(num_cameras):
+        lidar_to_cameras.append(
+            params['lidar_to_camera'+str(i+1)]
+        )
     rosbag_path = params['rosbag_path']
     
     liosam_launch_file = os.path.join(
@@ -38,7 +43,7 @@ def generate_launch_description():
         #     launch_arguments={'params_file': liosam_params_file}.items(),
         # ),
         TimerAction(
-            period=2.0,  # seconds
+            period=5.0,  # seconds
             actions=[
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(liosam_launch_file),
@@ -47,13 +52,13 @@ def generate_launch_description():
             ],
         ),
         ExecuteProcess(
-            cmd=['ros2', 'bag', 'play', rosbag_path],#, '-r 0.5'],
+            cmd=['ros2', 'bag', 'play', rosbag_path, '--clock', '-r 0.25'],
             output='screen'
         ),
         Node(
             package='terra_ros',
-            executable='save_metric_data.py',
-            name='save_metric_data',
+            executable='save_metric_data_multicam.py',
+            name='save_metric_data_multicam',
             parameters=[metric_map_params_file],
             output='screen',
         ),
@@ -61,21 +66,22 @@ def generate_launch_description():
     
     if publish_extrinsics:
         # Publish static extrinsic transformations
-        actions.append(Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments=[
-                '--x', str(lidar_to_camera['translation'][0]),
-                '--y', str(lidar_to_camera['translation'][1]),
-                '--z', str(lidar_to_camera['translation'][2]),
-                '--qx', str(lidar_to_camera['rotation_quaternion'][0]),
-                '--qy', str(lidar_to_camera['rotation_quaternion'][1]),
-                '--qz', str(lidar_to_camera['rotation_quaternion'][2]),
-                '--qw', str(lidar_to_camera['rotation_quaternion'][3]),
-                '--frame-id', lidar_to_camera['parent_frame'],
-                '--child-frame-id', lidar_to_camera['child_frame']
-            ],
-            output='screen',
-        ))
+        for i in range(num_cameras):
+            actions.append(Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                arguments=[
+                    '--x', str(lidar_to_cameras[i]['translation'][0]),
+                    '--y', str(lidar_to_cameras[i]['translation'][1]),
+                    '--z', str(lidar_to_cameras[i]['translation'][2]),
+                    '--qx', str(lidar_to_cameras[i]['rotation_quaternion'][0]),
+                    '--qy', str(lidar_to_cameras[i]['rotation_quaternion'][1]),
+                    '--qz', str(lidar_to_cameras[i]['rotation_quaternion'][2]),
+                    '--qw', str(lidar_to_cameras[i]['rotation_quaternion'][3]),
+                    '--frame-id', lidar_to_cameras[i]['parent_frame'],
+                    '--child-frame-id', lidar_to_cameras[i]['child_frame']
+                ],
+                output='screen',
+            ))
     
     return LaunchDescription(actions)

@@ -4,7 +4,7 @@ import yaml
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 
@@ -33,12 +33,21 @@ def generate_launch_description():
     )  
     
     actions = [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(liosam_launch_file),
-            launch_arguments={'params_file': liosam_params_file}.items(),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(liosam_launch_file),
+        #     launch_arguments={'params_file': liosam_params_file}.items(),
+        # ),
+        TimerAction(
+            period=2.0,  # seconds
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(liosam_launch_file),
+                    launch_arguments={'params_file': liosam_params_file}.items(),
+                ),
+            ],
         ),
         ExecuteProcess(
-            cmd=['ros2', 'bag', 'play', rosbag_path],#, '-r 0.5'],
+            cmd=['ros2', 'bag', 'play', rosbag_path, '--clock'],#, '-r 0.5'],
             output='screen'
         ),
         Node(
