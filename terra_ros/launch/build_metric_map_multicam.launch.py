@@ -38,22 +38,18 @@ def generate_launch_description():
     )  
     
     actions = [
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(liosam_launch_file),
-        #     launch_arguments={'params_file': liosam_params_file}.items(),
-        # ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(liosam_launch_file),
+            launch_arguments={'params_file': liosam_params_file}.items(),
+        ),
         TimerAction(
             period=5.0,  # seconds
             actions=[
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(liosam_launch_file),
-                    launch_arguments={'params_file': liosam_params_file}.items(),
+                ExecuteProcess(
+                    cmd=['ros2', 'bag', 'play', rosbag_path, '--clock', '-r 0.3'],
+                    output='screen'
                 ),
             ],
-        ),
-        ExecuteProcess(
-            cmd=['ros2', 'bag', 'play', rosbag_path, '--clock', '-r 0.25'],
-            output='screen'
         ),
         Node(
             package='terra_ros',

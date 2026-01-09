@@ -50,17 +50,17 @@ class SaveMetricDataMultiCam(Node):
         child_frames = []
         for nc in range(self.num_cameras):
             # Camera topic
-            self.declare_parameter(f'camera{nc+1}_topic', '', rclpy.Parameter.Type.STRING)
+            self.declare_parameter(f'camera{nc+1}_topic', '')
             camera_topics.append(
                 self.get_parameter(f'camera{nc+1}_topic').get_parameter_value().string_value
             )
             
             # Extrinsics (only if enabled)
             if self.publish_extrinsics:
-                self.declare_parameter(f'lidar_to_camera{nc+1}.translation', [], rclpy.Parameter.Type.DOUBLE_ARRAY)
-                self.declare_parameter(f'lidar_to_camera{nc+1}.rotation_quaternion', [], rclpy.Parameter.Type.DOUBLE_ARRAY)
-                self.declare_parameter(f'lidar_to_camera{nc+1}.parent_frame', '', rclpy.Parameter.Type.STRING)
-                self.declare_parameter(f'lidar_to_camera{nc+1}.child_frame', '', rclpy.Parameter.Type.STRING)
+                self.declare_parameter(f'lidar_to_camera{nc+1}.translation', [0.0, 0.0, 0.0])
+                self.declare_parameter(f'lidar_to_camera{nc+1}.rotation_quaternion', [0.0, 0.0, 0.0, 1.0])
+                self.declare_parameter(f'lidar_to_camera{nc+1}.parent_frame', '')
+                self.declare_parameter(f'lidar_to_camera{nc+1}.child_frame', '')
             
                 translations.append(
                     self.get_parameter(f'lidar_to_camera{nc+1}.translation').get_parameter_value().double_array_value
