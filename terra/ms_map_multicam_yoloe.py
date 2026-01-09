@@ -72,6 +72,7 @@ class MS_Map:
         self.global_pc = np.load(latest_global_pc_file)
         self.global_kdtree = KDTree(self.global_pc[:, :3])  # Dictionary to hold matching global points using the x, y, z columns
 
+        # Make these file names be 
         # Load time-synced sensor data and transformation files
         self.lidar_pc_folder = os.path.join(self.data_folder, "lidar_pc")
         self.camera_folders = [

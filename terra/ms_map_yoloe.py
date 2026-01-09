@@ -73,10 +73,10 @@ class MS_Map:
         self.global_kdtree = KDTree(self.global_pc[:, :3])  # Dictionary to hold matching global points using the x, y, z columns
 
         # Load time-synced sensor data and transformation files
-        self.lidar_pc_folder = os.path.join(self.data_folder, "local_pc")
-        self.camera_images_folder = os.path.join(self.data_folder, "local_images_forward")
-        self.transforms_lidar2cam_folder = os.path.join(self.data_folder, "transformations_camF2local_pc") 
-        self.transforms_lidar2global_folder = os.path.join(self.data_folder, "transformations_local2global_pc")
+        self.lidar_pc_folder = os.path.join(self.data_folder, "lidar_pc")
+        self.camera_images_folder = os.path.join(self.data_folder, "camera_images")
+        self.transforms_lidar2cam_folder = os.path.join(self.data_folder, "transformations_lidar2cam") 
+        self.transforms_lidar2global_folder = os.path.join(self.data_folder, "transformations_lidar2global")
 
         #Load timesteps
         self.camera_timestamps = []
@@ -140,7 +140,7 @@ class MS_Map:
             if abs(closest_lidar_pc_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("lidar scan unaligned")
                 continue
-            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'local_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
+            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
 
             closest_cam_timestamp = min(self.camera_timestamps, key=lambda x: abs(x - float(timestamp)))
             if abs(closest_cam_timestamp - float(timestamp)) > self.unaligned_threshold:
@@ -152,7 +152,7 @@ class MS_Map:
             if abs(closest_tf_l2c_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("TF lidar-to-camera unaligned")
                 continue
-            transform_lidar_to_cam_file = os.path.join(self.transforms_lidar2cam_folder, f'transform_cam_to_lidar_{closest_tf_l2c_timestamp}.npy')
+            transform_lidar_to_cam_file = os.path.join(self.transforms_lidar2cam_folder, f'transform_lidar_to_cam_{closest_tf_l2c_timestamp}.npy')
 
             ## Load lidar Data ##
             self.load_lidar_data(lidar_pc_file, camera_image_file, transform_lidar_to_cam_file, transform_lidar2global_file)
@@ -230,6 +230,7 @@ class MS_Map:
         self._pixel_to_global_idx = np.full((self.IMG_H, self.IMG_W), -1, dtype=np.int32)
         lidar_img = np.zeros((self.IMG_H,self.IMG_W))
         
+        # TODO: Make an argument to determine direction of camera
         # Filter: Keep only points in front of the camera/lidar
         mask = self.lidar_pc[:, 0] < 0
         points = self.lidar_pc[mask]
@@ -238,7 +239,7 @@ class MS_Map:
         points_xyz = points[:, :3]                # (N,3)
         intensity = points[:, 3]                  # (N,)
 
-        #Add homogeneous coordinate (N, 4)
+        # Add homogeneous coordinate (N, 4)
         points_h = np.hstack([points_xyz, np.ones((points_xyz.shape[0], 1))])
 
         # Transform LiDAR -> camera frame (N, 4)
