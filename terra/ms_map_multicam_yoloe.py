@@ -28,6 +28,7 @@ class MS_Map:
         if self.DEBUG_MODE:
             print("Running in DEBUG_MODE")
         self.unaligned_threshold = args['unaligned_threshold']
+        self.cam_axis = args['cam_axis'] # ['+x', '-x', '+y', '-y']
         
         #######################
         ## Define Parameters ##
@@ -258,15 +259,21 @@ class MS_Map:
             np.zeros((self.IMG_H,self.IMG_W))
         ]
         
-        # TODO: make this an argument in the yaml file
-        # Filter: Keep only points in front of the camera/lidar
-        maskF = self.lidar_pc[:, 0] < 0 # forward
-        maskL = self.lidar_pc[:, 1] < 0 # left
-        maskR = self.lidar_pc[:, 1] >= 0 # right
-        masks = [maskF, maskL, maskR]
         self.lidar_imgs_bool = []
         for cam_idx, img in enumerate(self.camera_images):
-            points = self.lidar_pc[masks[cam_idx]]
+            # Filter: Keep only points in front of the camera/lidar
+            if self.cam_axis[cam_idx] == '+x':
+                mask = self.lidar_pc[:, 0] >= 0
+            elif self.cam_axis[cam_idx] == '-x':
+                mask = self.lidar_pc[:, 0] < 0
+            elif self.cam_axis[cam_idx] == '+y':
+                mask = self.lidar_pc[:, 1] >= 0
+            elif self.cam_axis[cam_idx] == '-y':
+                mask = self.lidar_pc[:, 1] < 0
+            else:
+                print("Incorrect cam_axis argument. Must be either [+x, -x, +y, -y]")
+                exit()
+            points = self.lidar_pc[mask]
             
             # Split into geometry + intensity
             points_xyz = points[:, :3]                # (N,3)
@@ -290,7 +297,7 @@ class MS_Map:
             ys = np.round(proj_points[:, 1] / zs).astype(int)
 
             # Original indices (needed for map lookups)
-            pt_indices = np.nonzero(masks[cam_idx])[0]
+            pt_indices = np.nonzero(mask)[0]
 
             # Filter which points are in the image bounds
             in_bounds = (xs >= 0) & (xs < self.IMG_W) & (ys >= 0) & (ys < self.IMG_H)

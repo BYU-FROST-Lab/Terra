@@ -29,6 +29,7 @@ class MS_Map:
         if self.DEBUG_MODE:
             print("Running in DEBUG_MODE")
         self.unaligned_threshold = args['unaligned_threshold']
+        self.cam_axis = args['cam_axis'] # ['+x', '-x', '+y', '-y']
         
         #######################
         ## Define Parameters ##
@@ -228,7 +229,17 @@ class MS_Map:
         lidar_img = np.zeros((self.IMG_H,self.IMG_W))
         
         # Filter: Keep only points in front of the camera/lidar
-        mask = self.lidar_pc[:, 1] < 0
+        if self.cam_axis == '+x':
+            mask = self.lidar_pc[:, 0] >= 0
+        elif self.cam_axis == '-x':
+            mask = self.lidar_pc[:, 0] < 0
+        elif self.cam_axis == '+y':
+            mask = self.lidar_pc[:, 1] >= 0
+        elif self.cam_axis == '-y':
+            mask = self.lidar_pc[:, 1] < 0
+        else:
+            print("Incorrect cam_axis argument. Must be either [+x, -x, +y, -y]")
+            exit()
         points = self.lidar_pc[mask]
 
         # Split into geometry + intensity

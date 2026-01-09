@@ -17,3 +17,4 @@ use_dbscan: true
 dbscan_eps: 2.0
 dbscan_min_samples: 5
 cam2point_dist_threshold: 20.0 # [m]
+cam_axis: '-y'  # ['+x', '-x', '+y', '-y']

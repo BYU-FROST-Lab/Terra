@@ -33,25 +33,10 @@ class SaveMetricDataMultiCam(Node):
                 ('save_folder', rclpy.Parameter.Type.STRING),
                 ('lidar_topic', rclpy.Parameter.Type.STRING),
                 ('num_cameras', rclpy.Parameter.Type.INTEGER),
-                ('camera1_topic', rclpy.Parameter.Type.STRING),
-                ('camera2_topic', rclpy.Parameter.Type.STRING),
-                ('camera3_topic', rclpy.Parameter.Type.STRING),
                 ('publish_extrinsics', rclpy.Parameter.Type.BOOL),
-                ('lidar_to_camera1.translation', rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('lidar_to_camera1.rotation_quaternion', rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('lidar_to_camera1.parent_frame', rclpy.Parameter.Type.STRING),
-                ('lidar_to_camera1.child_frame', rclpy.Parameter.Type.STRING),
-                ('lidar_to_camera2.translation', rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('lidar_to_camera2.rotation_quaternion', rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('lidar_to_camera2.parent_frame', rclpy.Parameter.Type.STRING),
-                ('lidar_to_camera2.child_frame', rclpy.Parameter.Type.STRING),
-                ('lidar_to_camera3.translation', rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('lidar_to_camera3.rotation_quaternion', rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('lidar_to_camera3.parent_frame', rclpy.Parameter.Type.STRING),
-                ('lidar_to_camera3.child_frame', rclpy.Parameter.Type.STRING),
             ]
-        ) # TODO: Make this self.declare_parameters flexible to variable number of cameras
-        
+        )
+                
         # Get parameters
         save_folder = self.get_parameter('save_folder').get_parameter_value().string_value
         lidar_topic = self.get_parameter('lidar_topic').get_parameter_value().string_value
@@ -64,21 +49,31 @@ class SaveMetricDataMultiCam(Node):
         parent_frames = []
         child_frames = []
         for nc in range(self.num_cameras):
+            # Camera topic
+            self.declare_parameter(f'camera{nc+1}_topic', '', rclpy.Parameter.Type.STRING)
             camera_topics.append(
                 self.get_parameter(f'camera{nc+1}_topic').get_parameter_value().string_value
             )
-            translations.append(
-                self.get_parameter(f'lidar_to_camera{nc+1}.translation').get_parameter_value().double_array_value
-            )
-            rotations.append(
-                self.get_parameter(f'lidar_to_camera{nc+1}.rotation_quaternion').get_parameter_value().double_array_value
-            )
-            parent_frames.append(
-                self.get_parameter(f'lidar_to_camera{nc+1}.parent_frame').get_parameter_value().string_value
-            )
-            child_frames.append(
-                self.get_parameter(f'lidar_to_camera{nc+1}.child_frame').get_parameter_value().string_value
-            )
+            
+            # Extrinsics (only if enabled)
+            if self.publish_extrinsics:
+                self.declare_parameter(f'lidar_to_camera{nc+1}.translation', [], rclpy.Parameter.Type.DOUBLE_ARRAY)
+                self.declare_parameter(f'lidar_to_camera{nc+1}.rotation_quaternion', [], rclpy.Parameter.Type.DOUBLE_ARRAY)
+                self.declare_parameter(f'lidar_to_camera{nc+1}.parent_frame', '', rclpy.Parameter.Type.STRING)
+                self.declare_parameter(f'lidar_to_camera{nc+1}.child_frame', '', rclpy.Parameter.Type.STRING)
+            
+                translations.append(
+                    self.get_parameter(f'lidar_to_camera{nc+1}.translation').get_parameter_value().double_array_value
+                )
+                rotations.append(
+                    self.get_parameter(f'lidar_to_camera{nc+1}.rotation_quaternion').get_parameter_value().double_array_value
+                )
+                parent_frames.append(
+                    self.get_parameter(f'lidar_to_camera{nc+1}.parent_frame').get_parameter_value().string_value
+                )
+                child_frames.append(
+                    self.get_parameter(f'lidar_to_camera{nc+1}.child_frame').get_parameter_value().string_value
+                )
             
         # Log for debugging
         self.get_logger().info(f'save_folder: {save_folder}')
