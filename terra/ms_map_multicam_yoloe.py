@@ -73,19 +73,19 @@ class MS_Map:
         self.global_kdtree = KDTree(self.global_pc[:, :3])  # Dictionary to hold matching global points using the x, y, z columns
 
         # Load time-synced sensor data and transformation files
-        self.lidar_pc_folder = os.path.join(self.data_folder, "local_pc")
+        self.lidar_pc_folder = os.path.join(self.data_folder, "lidar_pc")
         self.camera_folders = [
-            os.path.join(self.data_folder, "local_images_forward"),
-            os.path.join(self.data_folder, "local_images_left"),
-            os.path.join(self.data_folder, "local_images_right")
+            os.path.join(self.data_folder, "camera1_images"),
+            os.path.join(self.data_folder, "camera2_images"),
+            os.path.join(self.data_folder, "camera3_images")
         ]
         self.num_cameras = len(self.camera_folders)
         self.transforms_lidar2cam_folders = [
-            os.path.join(self.data_folder, "transformations_camF2local_pc"),
-            os.path.join(self.data_folder, "transformations_camL2local_pc"),
-            os.path.join(self.data_folder, "transformations_camR2local_pc")
+            os.path.join(self.data_folder, "transformations_lidar2cam1"),
+            os.path.join(self.data_folder, "transformations_lidar2cam2"),
+            os.path.join(self.data_folder, "transformations_lidar2cam3")
         ] 
-        self.transforms_lidar2global_folder = os.path.join(self.data_folder, "transformations_local2global_pc")
+        self.transforms_lidar2global_folder = os.path.join(self.data_folder, "transformations_lidar2global")
 
         self.camera_timestamps_list = []
         for folder in self.camera_folders:
@@ -151,23 +151,23 @@ class MS_Map:
             if abs(closest_lidar_pc_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("lidar scan unaligned")
                 continue
-            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'local_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
+            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
 
             camera_image_files = []
-            for cam_timestamps, folder in zip(self.camera_timestamps_list, self.camera_folders):
+            for nc, (cam_timestamps, folder) in enumerate(zip(self.camera_timestamps_list, self.camera_folders)):
                 closest_ts = min(cam_timestamps, key=lambda x: abs(x - float(timestamp)))
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("Camera stream unaligned")
                     continue
-                camera_image_files.append(os.path.join(folder, f"local_cam_img_{closest_ts}.jpg"))
+                camera_image_files.append(os.path.join(folder, f"cam{nc+1}_img_{closest_ts}.jpg"))
                 
             transform_lidar_to_cam_files = []
-            for tf_timestamps, folder in zip(self.tf_l2c_timestamps_list, self.transforms_lidar2cam_folders):
+            for nc, (tf_timestamps, folder) in enumerate(zip(self.tf_l2c_timestamps_list, self.transforms_lidar2cam_folders)):
                 closest_ts = min(tf_timestamps, key=lambda x: abs(x - float(timestamp)))
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("TF lidar-to-camera unaligned")
                     continue
-                transform_lidar_to_cam_files.append(os.path.join(folder, f"transform_cam_to_lidar_{closest_ts}.npy"))
+                transform_lidar_to_cam_files.append(os.path.join(folder, f"transform_lidar_to_cam{nc+1}_{closest_ts}.npy"))
             
             if len(camera_image_files) == 0 or len(transform_lidar_to_cam_files) == 0:
                 continue
@@ -257,6 +257,7 @@ class MS_Map:
             np.zeros((self.IMG_H,self.IMG_W))
         ]
         
+        # TODO: make this an argument in the yaml file
         # Filter: Keep only points in front of the camera/lidar
         maskF = self.lidar_pc[:, 0] < 0 # forward
         maskL = self.lidar_pc[:, 1] < 0 # left

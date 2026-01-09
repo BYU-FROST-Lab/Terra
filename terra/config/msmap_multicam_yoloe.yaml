@@ -1,16 +1,14 @@
 ## YOLOE Terrain Prompts
 terrain_prompts:
-  - "sidewalk"
-  - "dirt or grass"
-  - "asphalt or road"
-  - "gravel"
+  - "sidewalk or asphalt or road"
+  - "dirt or grass or gravel"
   - "water"
-yoloe_conf_threshold: 0.1
+yoloe_conf_threshold: 0.05
 
 ## Processing parameters
-data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
+data_folder: /docker_ros2_ws/src/oasis2/data/provo_riv_test
 debug: true
-continue_processing: true
+continue_processing: false
 save_step_size: 250
 unaligned_threshold: 0.5 # seconds
 
