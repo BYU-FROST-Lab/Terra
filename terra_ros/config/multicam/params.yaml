@@ -1,8 +1,8 @@
 save_metric_data_multicam:
   ros__parameters:
-    rosbag_path: /ros2_bags/provo_river_v1_11_3_25
+    rosbag_path: /ros2_bags/nunns_park_p2_10_15_2025
     lidar_topic: /lio_sam/deskew/cloud_deskewed
-    save_folder: /docker_ros2_ws/src/oasis2/data/provo_riv_test
+    save_folder: /docker_ros2_ws/src/oasis2/data/nunns_park_p2_10_15_2025
     num_cameras: 3
     camera1_topic: /oak_d_lr_forward/rgb/image_raw
     camera2_topic: /oak_d_lr_left/rgb/image_raw

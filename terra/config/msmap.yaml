@@ -1,15 +1,16 @@
 ## Processing parameters
-data_folder: /path/to/data/folder
-debug: false
+data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
+debug: true
 continue_processing: false
-save_step_size: 10
-yolo_model_path: /path/to/yolo/model
-unaligned_threshold: 0.2 # seconds
+save_step_size: 50
+unaligned_threshold: 0.5 # seconds
+yolo_model_path: /yolo_goose_ground.pt
+yolo_conf_threshold: 0.1
 
 ## Camera intrinsics
-cam_K: [1.0, 0.0, 0.0,
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0]
+cam_K:  [457.978759765625, 0.0, 387.35205078125, 
+        0.0, 457.719482421875, 240.11021423339844, 
+        0.0, 0.0, 1.0] # 768 x 480
 
 ## MS Map parameters
 match_threshold: 0.9
@@ -17,4 +18,4 @@ use_dbscan: true
 dbscan_eps: 2.0
 dbscan_min_samples: 5
 cam2point_dist_threshold: 20.0
-cam_axis: '-y'  # ['+x', '-x', '+y', '-y']
+cam_axis: '-x'  # ['+x', '-x', '+y', '-y']
