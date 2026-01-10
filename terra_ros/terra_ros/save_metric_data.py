@@ -97,11 +97,11 @@ class SaveMetricData(Node):
         os.makedirs(self.lidar_pc_dir, exist_ok=True)
         self.global_pc_dir = os.path.join(self.base_dir, 'global_pc')
         os.makedirs(self.global_pc_dir, exist_ok=True)
-        self.local_imgs_dir = os.path.join(self.base_dir, 'camera_images')
+        self.local_imgs_dir = os.path.join(self.base_dir, 'camera1_images')
         os.makedirs(self.local_imgs_dir, exist_ok=True)
         self.trans_l2g_pc_dir = os.path.join(self.base_dir, 'transformations_lidar2global')
         os.makedirs(self.trans_l2g_pc_dir, exist_ok=True)
-        self.trans_l2c_pc_dir = os.path.join(self.base_dir, 'transformations_lidar2cam')
+        self.trans_l2c_pc_dir = os.path.join(self.base_dir, 'transformations_lidar2cam1')
         os.makedirs(self.trans_l2c_pc_dir, exist_ok=True)
 
     def local_cam_img_callback(self, msg):
@@ -110,7 +110,7 @@ class SaveMetricData(Node):
         self.local_cam_img = img
         self.local_cam_msg = msg
         cam_time = self.header_to_seconds(self.local_cam_msg.header)
-        cv2.imwrite(os.path.join(self.local_imgs_dir, f'local_cam_img_{cam_time}.jpg'), self.local_cam_img)
+        cv2.imwrite(os.path.join(self.local_imgs_dir, f'cam1_img_{cam_time}.jpg'), self.local_cam_img)
     
     def lidar_pc_callback(self, msg):
         try:
@@ -139,7 +139,7 @@ class SaveMetricData(Node):
                 transform_lidar2map.transform.rotation.w
             ])
             if self.publish_extrinsics:
-                np.save(os.path.join(self.trans_l2c_pc_dir, f'transform_lidar_to_cam_{pc_time}.npy'), [
+                np.save(os.path.join(self.trans_l2c_pc_dir, f'transform_lidar_to_cam1_{pc_time}.npy'), [
                     self.trans_l2c[0], # x 
                     self.trans_l2c[1], # y 
                     self.trans_l2c[2], # z

@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as R
 import pickle as pkl
 import torch
 import torch.nn.functional as F
-from ultralytics import YOLO, FastSAM
+from ultralytics import YOLOE, FastSAM
 import clip
 from utils import tensor_cosine_similarity, numeric_key
 
@@ -23,7 +23,6 @@ class MS_Map:
         ## Processing parameters
         self.data_folder = args['data_folder']
         self.scan_step_sz = args['save_step_size']
-        self.yolo_model_path = args['yolo_model_path']
         self.continue_processing = args['continue_processing']
         self.DEBUG_MODE = args['debug']
         if self.DEBUG_MODE:
@@ -61,8 +60,11 @@ class MS_Map:
         self.fastsam_model = FastSAM(model_path)
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/16", device=self.device)
         self.logit_scale = self.clip_model.logit_scale.exp()
-        self.yolo_model = YOLO(self.yolo_model_path) # orig_and_sunnyfeb_11nano_640sz/weights/best.pt
-        self.yolo_conf_thresh = args['yolo_conf_threshold']
+        
+        self.terrain_prompts = args['terrain_prompts']
+        self.yolo_model = YOLOE("yoloe-11s-seg.pt")
+        self.yolo_model.set_classes(self.terrain_prompts, self.yolo_model.get_text_pe(self.terrain_prompts))
+        self.yoloe_conf_thresh = args['yoloe_conf_threshold']
         
         # Load global point cloud
         global_pc_folder = os.path.join(self.data_folder, "global_pc")
@@ -73,8 +75,8 @@ class MS_Map:
 
         # Load time-synced sensor data and transformation files
         self.lidar_pc_folder = os.path.join(self.data_folder, "lidar_pc")
-        self.camera_images_folder = os.path.join(self.data_folder, "camera1_images")
-        self.transforms_lidar2cam_folder = os.path.join(self.data_folder, "transformations_lidar2cam1") 
+        self.camera_images_folder = os.path.join(self.data_folder, "camera_images")
+        self.transforms_lidar2cam_folder = os.path.join(self.data_folder, "transformations_lidar2cam") 
         self.transforms_lidar2global_folder = os.path.join(self.data_folder, "transformations_lidar2global")
 
         #Load timesteps
@@ -143,15 +145,15 @@ class MS_Map:
 
             closest_cam_timestamp = min(self.camera_timestamps, key=lambda x: abs(x - float(timestamp)))
             if abs(closest_cam_timestamp - float(timestamp)) > self.unaligned_threshold:
-                print("Camera unaligned")
+                print("Camera unaligned",abs(closest_cam_timestamp - float(timestamp)))
                 continue
-            camera_image_file = os.path.join(self.camera_images_folder, f'cam1_img_{closest_cam_timestamp}.jpg') #TODO Change this back to 4 decimal places
+            camera_image_file = os.path.join(self.camera_images_folder, f'local_cam_img_{closest_cam_timestamp}.jpg') #TODO Change this back to 4 decimal places
 
             closest_tf_l2c_timestamp = min(self.tf_l2c_timestamps, key=lambda x: abs(x - float(timestamp)))
             if abs(closest_tf_l2c_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("TF lidar-to-camera unaligned")
                 continue
-            transform_lidar_to_cam_file = os.path.join(self.transforms_lidar2cam_folder, f'transform_lidar_to_cam1_{closest_tf_l2c_timestamp}.npy')
+            transform_lidar_to_cam_file = os.path.join(self.transforms_lidar2cam_folder, f'transform_lidar_to_cam_{closest_tf_l2c_timestamp}.npy')
 
             ## Load lidar Data ##
             self.load_lidar_data(lidar_pc_file, camera_image_file, transform_lidar_to_cam_file, transform_lidar2global_file)
@@ -247,7 +249,7 @@ class MS_Map:
         points_xyz = points[:, :3]                # (N,3)
         intensity = points[:, 3]                  # (N,)
 
-        #Add homogeneous coordinate (N, 4)
+        # Add homogeneous coordinate (N, 4)
         points_h = np.hstack([points_xyz, np.ones((points_xyz.shape[0], 1))])
 
         # Transform LiDAR -> camera frame (N, 4)
@@ -312,7 +314,7 @@ class MS_Map:
             self.display_image("Lidar Image", lidar_img)
 
     def yolo_segmentation(self, scan_idx):
-        self.yolo_results = self.yolo_model(self.camera_image, conf=self.yolo_conf_thresh)
+        self.yolo_results = self.yolo_model(self.camera_image, conf=self.yoloe_conf_thresh)
         if self.DEBUG_MODE and (scan_idx % self.scan_step_sz == 0):
             img_with_masks = self.yolo_results[0].plot(
                 labels=True,
@@ -329,7 +331,7 @@ class MS_Map:
             self.yolo_masks = self.get_yolo_class_masks(self.camera_image, self.yolo_results)
 
             ## Associate Global Points to CLIP embs ##
-            class_name = self.yolo_model.names
+            class_name = self.yolo_model.names#["sidewalk","grass","asphalt"]
             for cls_id, mask in self.yolo_masks.items():
                 filtered_lidar_img = np.bitwise_and(self.lidar_img_bool, mask.astype(bool))
 
@@ -561,7 +563,8 @@ class MS_Map:
 
     def display_global_pcl(self):
         # Visualize the global point cloud colored by class
-        rgb_colors = [[1,0,0],[0,1,0],[0,0,1]]
+        distinct_colors = [[1,0,0],[0,1,0],[0,0,1],[1,0.5,0],[1,0,1], [0,1,1]]
+        chosen_colors = distinct_colors[:len(self.terrain_prompts)]
         count_threshold = 1
         global_pts = {}
 
@@ -587,21 +590,24 @@ class MS_Map:
 
         # Create point clouds for each class
         pcds = []
+        terrain_pcds = []
         for class_id in global_pts.keys():
             pcd = o3d.geometry.PointCloud()
             if class_id == -1:
                 pcd.points = o3d.utility.Vector3dVector(self.global_pc[global_pts[class_id],:3])
                 pcd.paint_uniform_color([0.5,0.5,0.5])
             else:
-                if class_id < len(rgb_colors):
+                if class_id < len(chosen_colors): # if terrain
                     pcd.points = o3d.utility.Vector3dVector(self.global_pc[global_pts[class_id], :3])
-                    pcd.paint_uniform_color(rgb_colors[class_id])
+                    pcd.paint_uniform_color(chosen_colors[class_id])
+                    terrain_pcds.append(pcd)
                 else:
                     # Otherwise, generate a random color
                     random_col = self.random_color()
                     pcd.points = o3d.utility.Vector3dVector(self.global_pc[global_pts[class_id], :3])
                     pcd.paint_uniform_color(random_col)
             pcds.append(pcd)
+        o3d.visualization.draw_geometries(terrain_pcds)
         o3d.visualization.draw_geometries(pcds)
 
     def load_last_saved_data(self):
@@ -678,6 +684,13 @@ class MS_Map:
             mask_np = (mask.cpu().numpy() * 255).astype(np.uint8)  # Convert mask to 0-255
             mask_resized = cv2.resize(mask_np, (IMG_W, IMG_H), interpolation=cv2.INTER_NEAREST)
 
+            # Optional: Don't include mask whose majority is in top-half of image
+            top_half_count = np.count_nonzero(mask_resized[:IMG_H//2,:])
+            total_mask_count = np.count_nonzero(mask_resized[:,:])
+            if float(top_half_count)/float(total_mask_count) > 0.5:
+                print("Skipping mask in top-half of image")
+                continue
+            
             # Create a binary mask for this specific class
             if class_id not in class_masks:
                 class_masks[class_id] = np.zeros((IMG_H, IMG_W), dtype=np.uint8)
