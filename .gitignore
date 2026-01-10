@@ -1,2 +1,6 @@
 # Ignore all files in the assets/south_campus directory
 assets/south_campus/*
+
+terra/*.ts
+terra/*.pt
+terra/config/*.yaml
