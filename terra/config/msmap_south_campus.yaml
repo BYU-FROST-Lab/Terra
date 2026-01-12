@@ -3,8 +3,9 @@ data_folder: /data/south_campus
 debug: false
 continue_processing: false
 save_step_size: 500
-yolo_model_path: /south_campus_3cls.pt
 unaligned_threshold: 0.2 # seconds
+yolo_model_path: /south_campus_3cls.pt
+yolo_conf_threshold: 0.1
 
 ## Camera intrinsics
 cam_K:  [457.978759765625, 0.0, 387.35205078125, 

@@ -3,4 +3,4 @@ assets/south_campus/*
 
 terra/*.ts
 terra/*.pt
-terra/config/*.yaml
+# terra/config/*.yaml
