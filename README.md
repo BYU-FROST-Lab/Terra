@@ -48,6 +48,8 @@ source install/setup.bash
 
 # Datasets and Metric Mapping
 
+The ros launch code uses LIO-SAM to build the metric map, extracts and saves relevant data in the dataset folder structure below.
+
 <details open>
 
 <summary><b>Dataset folder structure</b></summary>
