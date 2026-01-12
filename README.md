@@ -128,7 +128,7 @@ ros2 launch terra_ros build_metric_map.launch.py
 
 Provided that you have all the data saved in the file structure shown above, you can build the metric-semantic map (ms map) as follows:
 - Update the `terra/config/msmap.yaml` arguments to match the saved data folder path and YOLO terrain model location.
-    - Different msmap yaml files just change the camera intrinsic matrix 
+    - We provide different msmap yaml files showing capabilities of handling more than 1 camera image data as well as using YOLOE for datasets where you don't have a trained YOLO terrain model. 
 - Run the MS Map code with the correct yaml filepath as an argument as follows: `python3 ms_map.py --msmap_yaml=/path/to/msmap.yaml`
 
 To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For the `south_campus` dataset an example is shown below:

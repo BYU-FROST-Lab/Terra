@@ -37,6 +37,14 @@ def arg_parser():
                         type=str, 
                         default="/docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025", 
                         help='Directory to where folders of local and global scans were saved')
+    parser.add_argument('--num_terrain',
+                        type=int,
+                        default=3,
+                        help="Number of terrain classes used by YOLO model")
+    parser.add_argument('--pt_size',
+                        type=float,
+                        default=2.0,
+                        help="Size of points to display")
     args = parser.parse_args()
     return args
 
@@ -56,12 +64,17 @@ if __name__ == "__main__":
     clipid_2_globalpts = map_clipid_to_globalpts(global_pc, pc_clip_dict)
     
     # Display Global Point Cloud colored by CLIP IDs
+    distinct_colors = [[1,0,0],[0,1,0],[0,0,1],[1,0.5,0],[1,0,1], [0,1,1]]
+    chosen_colors = distinct_colors[:args.num_terrain]
     pcds = []
     for clip_id in clipid_2_globalpts.keys():
         pcd = o3d.geometry.PointCloud()
         if clip_id == -1:
             pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id],:3])
             pcd.paint_uniform_color([0.5,0.5,0.5])
+        if clip_id < args.num_terrain:
+            pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id], :3])
+            pcd.paint_uniform_color(chosen_colors[clip_id])
         else:
             random_col = random_color()
             pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id], :3])
@@ -74,6 +87,6 @@ if __name__ == "__main__":
     for pcd in pcds:
         vis.add_geometry(pcd)
     render_opt = vis.get_render_option()
-    render_opt.point_size = 2.0  # smaller points
+    render_opt.point_size = args.pt_size  # smaller points
     vis.run()
     vis.destroy_window()
