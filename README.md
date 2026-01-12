@@ -131,10 +131,11 @@ Provided that you have all the data saved in the file structure shown above, you
     - We provide different msmap yaml files showing capabilities of handling more than 1 camera image data as well as using YOLOE for datasets where you don't have a trained YOLO terrain model. 
 - Run the MS Map code with the correct yaml filepath as an argument as follows: `python3 ms_map.py --msmap_yaml=/path/to/msmap.yaml`
 
-To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For the `south_campus` dataset an example is shown below:
+To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For example:
 ```bash
-python3 visualize_msmap.py --data_folder=/data/south_campus
+python3 visualize_msmap.py --data_folder=/data/folder --num_terrain=3 --pt_size=2.0
 ```
+
 </details>
 
 
