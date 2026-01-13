@@ -36,7 +36,7 @@ class MS_Map:
         #######################
         ## Define Parameters ##
         #######################
-        self.K = np.array(args['cam_K']).reshape(3,3)
+        self.K = [np.array(args[f'cam{nc+1}_K']).reshape(3,3) for nc in range(self.num_cams)]
         self.theta_cos_sim = args['match_threshold'] # cos_sim threshold to determine a match
         self.use_dbscan = args['use_dbscan']
         self.dbscan_global = DBSCAN(eps=args['dbscan_eps'], min_samples=args['dbscan_min_samples']) # change depending on voxel sizes of global PC
@@ -157,22 +157,30 @@ class MS_Map:
                 print("lidar scan unaligned")
                 continue
             lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
-            
+                        
+            all_cameras_aligned = True
             camera_image_files = []
             for nc, (cam_timestamps, folder) in enumerate(zip(self.camera_timestamps_list, self.camera_folders)):
                 closest_ts = min(cam_timestamps, key=lambda x: abs(x - float(timestamp)))
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("Camera stream unaligned")
-                    continue
+                    all_cameras_aligned = False
                 camera_image_files.append(os.path.join(folder, f"cam{nc+1}_img_{closest_ts}.jpg"))
-                
+            if not all_cameras_aligned:
+                print("Skipping to next scan")
+                continue
+                            
+            all_lidar2cameras_aligned = True
             transform_lidar_to_cam_files = []
             for nc, (tf_timestamps, folder) in enumerate(zip(self.tf_l2c_timestamps_list, self.transforms_lidar2cam_folders)):
                 closest_ts = min(tf_timestamps, key=lambda x: abs(x - float(timestamp)))
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("TF lidar-to-camera unaligned")
-                    continue
+                    all_lidar2cameras_aligned = False
                 transform_lidar_to_cam_files.append(os.path.join(folder, f"transform_lidar_to_cam{nc+1}_{closest_ts}.npy"))
+            if not all_lidar2cameras_aligned:
+                print("Skipping to next scan")
+                continue
             
             if len(camera_image_files) == 0 or len(transform_lidar_to_cam_files) == 0:
                 continue
@@ -239,7 +247,6 @@ class MS_Map:
         self.transform_lidar_to_global = self.load_transformation(transform_lidar_to_global_file)
 
     def clip_base_image(self, camera_image_files):
-        self.img_clips = []
         for cam_idx, img in enumerate(self.camera_images):
             prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
             with torch.no_grad():
@@ -290,7 +297,7 @@ class MS_Map:
             cam_points = cam_points_h[:, :3]
 
             # Project onto image plane (N, 3)
-            proj_points = cam_points @ self.K.T # assumes same intrinsic matrix for all cams
+            proj_points = cam_points @ self.K[cam_idx].T # assumes same intrinsic matrix for all cams
 
             # Normalize by z (N,) and round to nearest pixel
             zs = proj_points[:, 2]
@@ -626,6 +633,7 @@ class MS_Map:
                     global_pts[-1] = [global_idx]
 
         # Create point clouds for each class
+        terrain_pcds = []
         pcds = []
         for class_id in global_pts.keys():
             pcd = o3d.geometry.PointCloud()
@@ -636,12 +644,14 @@ class MS_Map:
                 if class_id < len(chosen_colors):
                     pcd.points = o3d.utility.Vector3dVector(self.global_pc[global_pts[class_id], :3])
                     pcd.paint_uniform_color(chosen_colors[class_id])
+                    terrain_pcds.append(pcd)
                 else:
                     # Otherwise, generate a random color
                     random_col = self.random_color()
                     pcd.points = o3d.utility.Vector3dVector(self.global_pc[global_pts[class_id], :3])
                     pcd.paint_uniform_color(random_col)
             pcds.append(pcd)
+        o3d.visualization.draw_geometries(terrain_pcds)
         o3d.visualization.draw_geometries(pcds)
 
     def load_last_saved_data(self):
@@ -740,7 +750,7 @@ class MS_Map:
 
 def arg_parser():
     parser = ArgumentParser()
-    parser.add_argument('--msmap_yaml', 
+    parser.add_argument('--params', 
                         type=str, 
                         help='YAML file of MS Map arguments')
     args = parser.parse_args()
@@ -749,7 +759,7 @@ def arg_parser():
 if __name__ == "__main__":
     args = arg_parser()
     
-    with open(args.msmap_yaml, 'r') as file:
+    with open(args.params, 'r') as file:
         msmap_args = yaml.safe_load(file)
     
     ms_map = MS_Map(msmap_args)

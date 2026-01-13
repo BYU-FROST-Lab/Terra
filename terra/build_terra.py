@@ -24,8 +24,10 @@ class Terra_Builder:
     def __init__(self, args):
         ## Load arguments and parameters
         self.data_folder = args['data_folder']
+        self.output_folder = args['output_folder']
         self.save_average_embeddings = args['save_average_embeddings']
         self.DEBUG_MODE = args['debug']
+        self.cam2pt_dist_thresh = args['cam2point_dist_threshold']
         if self.DEBUG_MODE:
             print("Running in DEBUG_MODE")
         self.terrain_classes = args['terrain_classes']
@@ -56,16 +58,16 @@ class Terra_Builder:
         latest_global_pc_file = global_pc_files[-1] # global_map_idx 33 for sunny midday data
         self.global_pc = np.load(latest_global_pc_file) # (num_pts,4)
 
-        self.last_itr = find_latest_itr(self.data_folder)
-        self.clip_tensor = torch.load(self.data_folder+f"/ptxpt_clip_tensor_itr{self.last_itr}.pt") # (num_clip_ids,512)
-        with open(self.data_folder+f"/ptxpt_pc_dict_itr{self.last_itr}.pkl", "rb") as f:
+        self.last_itr = find_latest_itr(self.output_folder)
+        self.clip_tensor = torch.load(self.output_folder+f"/ptxpt_clip_tensor_itr{self.last_itr}.pt") # (num_clip_ids,512)
+        with open(self.output_folder+f"/ptxpt_pc_dict_itr{self.last_itr}.pkl", "rb") as f:
             self.pc_dict = pkl.load(f) # {global_pt_idx: {clip_id: count, ...}, ...}
-        self.img_clip_tensor = torch.load(self.data_folder+f"/img_clip_tensor_itr{self.last_itr}.pt") # (num_imgs,512)
-        with open(self.data_folder+f"/ptxpt_gidx2imgidx_20m_dist_dict_itr{self.last_itr}.pkl", "rb") as f:
+        self.img_clip_tensor = torch.load(self.output_folder+f"/img_clip_tensor_itr{self.last_itr}.pt") # (num_imgs,512)
+        with open(self.output_folder+f"/ptxpt_gidx2imgidx_{self.cam2pt_dist_thresh}m_dist_dict_itr{self.last_itr}.pkl", "rb") as f:
             self.map_globalidx2imgidx = pkl.load(f) # {global_pt_idx: set{img_idx0, ...}, ...}
-        with open(self.data_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{self.last_itr}.pkl", "rb") as f:
+        with open(self.output_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{self.last_itr}.pkl", "rb") as f:
             self.map_globalidx2imgidx_nodist = pkl.load(f) # {global_pt_idx: set{img_idx0, ...}, ...}
-        with open(self.data_folder+f"/saved_img_names_itr{self.last_itr}.pkl", "rb") as f:
+        with open(self.output_folder+f"/saved_img_names_itr{self.last_itr}.pkl", "rb") as f:
             self.img_names = pkl.load(f)
         print("Finished loading CLIP and semantics for point cloud")
 
@@ -159,11 +161,11 @@ class Terra_Builder:
 
     def load_or_save_avg_embeddings(self, save=False):
         # Get Paths to save data   
-        global_clip_path = os.path.join(self.data_folder, "global_clip_filt.pt")
-        semantic_gidxs_path = os.path.join(self.data_folder, "semantic_gidxs.pkl")
-        terrain_gidx_path = os.path.join(self.data_folder, "terrain_gidx.pkl")
-        terrain_ids_path = os.path.join(self.data_folder, "terrain_ids.pkl")
-        nonterrain_gidx_path = os.path.join(self.data_folder, "nonterrain_gidx.pkl")
+        global_clip_path = os.path.join(self.output_folder, "global_clip_filt.pt")
+        semantic_gidxs_path = os.path.join(self.output_folder, "semantic_gidxs.pkl")
+        terrain_gidx_path = os.path.join(self.output_folder, "terrain_gidx.pkl")
+        terrain_ids_path = os.path.join(self.output_folder, "terrain_ids.pkl")
+        nonterrain_gidx_path = os.path.join(self.output_folder, "nonterrain_gidx.pkl")
 
         if save:
             ## Save average embeddings and global to semantic index map and terrain points
@@ -725,9 +727,9 @@ class Terra_Builder:
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_3dsg(self):
-        with open(self.data_folder+f"/terra_3dsg_20mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/terra_3dsg_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
-        with open(self.data_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
         print("Finished! 3DSG Saved!")
 
@@ -775,7 +777,7 @@ class Terra_Builder:
 
 def arg_parser():
     parser = ArgumentParser()
-    parser.add_argument('--build_terra_yaml', 
+    parser.add_argument('--params', 
                         type=str,  
                         help='YAML file of Build Terra arguments')
     args = parser.parse_args()
@@ -784,7 +786,7 @@ def arg_parser():
 
 if __name__ == "__main__":
     args = arg_parser()
-    with open(args.build_terra_yaml, 'r') as file:
+    with open(args.params, 'r') as file:
         build_terra_args = yaml.safe_load(file)
     terra_builder = Terra_Builder(build_terra_args)
     terra_builder.build_3dsg()
