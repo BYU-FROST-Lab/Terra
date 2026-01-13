@@ -1,0 +1,27 @@
+data_folder: /data/terra
+save_average_embeddings: false
+debug: false
+
+## Terrain params
+terrain_classes: ["sidewalk", "grass", "asphalt"] # must match yolo class names & ordering
+terrain_threshold: 0.95
+
+## GVD params
+og_resolution: 1.0 # Grid cell size in meters (matches LIO-SAM discretization)
+max_iterations: 10 # max_itr for GVD floodfill technique
+max_deviation: 3.75 # 0.75 [m] / 0.2 [m/voxel] = [voxels]
+max_distance: 10.0 # 2.0 [m] / 0.2 [m/voxel] = [voxels]
+
+## 3DSG params
+z_offset_viz: 50.0 # [m]
+z_offset_lidar: -2.5 # [m] dist from LiDAR to ground (negative means below LiDAR)
+cossim_weight_ratio: 100.0
+# Region params
+region_method: "agglomerative" # options: ["agglomerative", "spectral"]
+
+# Agglomerative params
+agg_hierarchical_distances: [50, 100, 200, 400] # [m]
+
+# Hierarchical Spectral params
+spec_min_graph_area: 10000 # [m^2]
+spec_max_semantic_diff: 0.45 # cos_sim difference
