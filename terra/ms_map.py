@@ -22,6 +22,8 @@ class MS_Map:
     def __init__(self, args):
         ## Processing parameters
         self.data_folder = args['data_folder']
+        self.output_folder = args['output_folder']
+        os.makedirs(self.output_folder, exist_ok=True)
         self.num_cams = args['num_cams']
         self.scan_step_sz = args['save_step_size']
         self.continue_processing = args['continue_processing']
@@ -575,18 +577,18 @@ class MS_Map:
 
     def save_semantic_pcl(self, itr):
         ## Save Semantic Point Cloud
-        with open(self.data_folder+f"/ptxpt_pc_dict_itr{itr}.pkl", "wb") as f:
+        with open(self.output_folder+f"/ptxpt_pc_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.pc_dict, f)
-        torch.save(self.clip_tensor,self.data_folder+f"/ptxpt_clip_tensor_itr{itr}.pt")
-        with open(self.data_folder+f"/ptxpt_gidx2imgidx_{self.cam2point_dist_thresh}m_dist_dict_itr{itr}.pkl", "wb") as f:
+        torch.save(self.clip_tensor,self.output_folder+f"/ptxpt_clip_tensor_itr{itr}.pt")
+        with open(self.output_folder+f"/ptxpt_gidx2imgidx_{self.cam2point_dist_thresh}m_dist_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2imgidx, f)
-        with open(self.data_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{itr}.pkl", "wb") as f:
+        with open(self.output_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2imgidx_nodistthresh, f)
-        with open(self.data_folder+f"/ptxpt_gidx2dist_no_dist_dict_itr{itr}.pkl", "wb") as f:
+        with open(self.output_folder+f"/ptxpt_gidx2dist_no_dist_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2dist_nodistthresh, f)
         img_clip_tensor = torch.vstack(self.img_clips)
-        torch.save(img_clip_tensor,self.data_folder+f"/img_clip_tensor_itr{itr}.pt")
-        with open(self.data_folder+f"/saved_img_names_itr{itr}.pkl","wb") as f:
+        torch.save(img_clip_tensor,self.output_folder+f"/img_clip_tensor_itr{itr}.pt")
+        with open(self.output_folder+f"/saved_img_names_itr{itr}.pkl","wb") as f:
             pkl.dump(self.saved_img_names, f)
 
         print(f"\nSaved pc_dict and clip_tensor at iteration {itr}\n")
@@ -645,7 +647,7 @@ class MS_Map:
     def load_last_saved_data(self):
         # Find the index of the last saved data
         start_string = "ptxpt_pc_dict_itr"
-        matching_files = [f for f in os.listdir(self.data_folder) if f.startswith(start_string)]
+        matching_files = [f for f in os.listdir(self.output_folder) if f.startswith(start_string)]
         numbers = []
         for f in matching_files:
             match = re.search(rf"{re.escape(start_string)}(\d+)", f)
@@ -655,20 +657,20 @@ class MS_Map:
         print("Last scan:",self.last_scan_idx)
         
         ## Load saved data
-        with open(self.data_folder+f"/ptxpt_pc_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/ptxpt_pc_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.pc_dict = pkl.load(f)
-        self.clip_tensor = torch.load(self.data_folder+f"/ptxpt_clip_tensor_itr{self.last_scan_idx}.pt")
+        self.clip_tensor = torch.load(self.output_folder+f"/ptxpt_clip_tensor_itr{self.last_scan_idx}.pt")
         self.clip_tensor = self.clip_tensor.to(self.device)
-        with open(self.data_folder+f"/ptxpt_gidx2imgidx_{self.cam2point_dist_thresh}m_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/ptxpt_gidx2imgidx_{self.cam2point_dist_thresh}m_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.map_globalidx2imgidx = pkl.load(f)
-        with open(self.data_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.map_globalidx2imgidx_nodistthresh = pkl.load(f)
-        with open(self.data_folder+f"/ptxpt_gidx2dist_no_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/ptxpt_gidx2dist_no_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.map_globalidx2dist_nodistthresh = pkl.load(f)
-        self.img_clip_tensor = torch.load(self.data_folder+f"/img_clip_tensor_itr{self.last_scan_idx}.pt")
+        self.img_clip_tensor = torch.load(self.output_folder+f"/img_clip_tensor_itr{self.last_scan_idx}.pt")
         self.img_clip_tensor = self.img_clip_tensor.to(self.device)
         self.img_clips = list(self.img_clip_tensor.unbind(dim=0))
-        with open(self.data_folder+f"/saved_img_names_itr{self.last_scan_idx}.pkl","rb") as f:
+        with open(self.output_folder+f"/saved_img_names_itr{self.last_scan_idx}.pkl","rb") as f:
             self.saved_img_names = pkl.load(f)
         self.num_scans = self.last_scan_idx + 1
 

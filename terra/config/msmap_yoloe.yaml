@@ -1,5 +1,6 @@
 ## Processing parameters
 data_folder: /docker_ros2_ws/src/oasis2/data/hope_campground_11_3_2025 #utah_lake_park_p1_11_6_2025
+output_folder: /docker_ros2_ws/src/oasis2/data/hope_campground_11_3_2025/output
 num_cams: 1
 debug: false
 continue_processing: false

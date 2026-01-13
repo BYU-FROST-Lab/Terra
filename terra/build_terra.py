@@ -117,6 +117,7 @@ class Terra_Builder:
         self.nonterrain_gidx = []
         self.semantic_gidxs = []
         t0_clipavg = time.time()
+        max_prompt_scores = []
         for global_idx in tqdm(range(self.global_pc.shape[0]), desc="Processing points"):
             if global_idx in self.pc_dict.keys():
                 num_detections = 0
@@ -134,8 +135,9 @@ class Terra_Builder:
                                 clip_avg_emb, 
                                 self.input_terrain_clip_tensor) # (num_clusters, num_prompt_tasks)
                 max_prompt_score = scores.max().item()
+                max_prompt_scores.append(max_prompt_score)
                 max_prompt_score_idx = scores.argmax().item()
-                
+
                 if max_prompt_score > self.terrain_threshold:
                     self.terrain_gidx.append(global_idx)
                     if max_prompt_score_idx not in self.terrain_ids.keys():
@@ -151,6 +153,9 @@ class Terra_Builder:
 
         ## Save the Data ##
         self.load_or_save_avg_embeddings(save=True)
+        
+        if self.DEBUG_MODE:
+            self.plot_score_dist(max_prompt_scores)
 
     def load_or_save_avg_embeddings(self, save=False):
         # Get Paths to save data   
@@ -173,6 +178,24 @@ class Terra_Builder:
             self.global_clip_filt = torch.load(global_clip_path)
             with open(terrain_ids_path, "rb") as f: self.terrain_ids = pkl.load(f)   
 
+    def plot_score_dist(self, scores):
+        # Plot distribution of max prompt scores
+        plt.figure(figsize=(8, 5))
+        plt.hist(scores, bins=50)
+        plt.axvline(
+            self.terrain_threshold,
+            linestyle='--',
+            linewidth=2,
+            label=f"Terrain threshold = {self.terrain_threshold}"
+        )
+        plt.xlabel("Max CLIP cosine similarity to terrain prompts")
+        plt.ylabel("Number of global points")
+        plt.title("Distribution of Max Terrain Prompt Scores")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+    
     def build_terrain_gvds(self):
         print("\nGenerating Terrain GVDs")
 

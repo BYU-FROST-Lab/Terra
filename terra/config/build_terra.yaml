@@ -1,10 +1,10 @@
-data_folder: /data/terra
-save_average_embeddings: false
-debug: false
+data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
+save_average_embeddings: true
+debug: true
 
 ## Terrain params
-terrain_classes: ["sidewalk", "grass", "asphalt"] # must match yolo class names & ordering
-terrain_threshold: 0.95
+terrain_classes: ["sidewalk or asphalt or road", "dirt or grass or gravel", "water"] # must match yolo class names & ordering
+terrain_threshold: 0.70
 
 ## GVD params
 og_resolution: 1.0 # Grid cell size in meters (matches LIO-SAM discretization)
