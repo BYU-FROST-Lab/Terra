@@ -460,7 +460,6 @@ class Terra_Builder:
             print(f"Time for spectral clustering: {t1_cluster - t0_cluster} seconds")
         else:
             assert False, "Unidentified region method specified"
-        print("Finished")
         
     def build_agglomerative_regions(self):
         ac = AgglomerativeClustering(n_clusters=None, distance_threshold=50, metric='precomputed', linkage='average')
@@ -561,6 +560,43 @@ class Terra_Builder:
                                     stop = False
                             if stop:
                                 break
+        # Finally, add a global root node if multiple top-level regions exist
+        self.add_root_region_node(prev_id+1)
+    
+    def add_root_region_node(self, root_node_id):
+        root_node_level = len(self.hierarchical_distances) + 2
+
+        # Find top-level region nodes (no parents at same or higher level)
+        top_level_nodes = [n_id for n_id in list(self.terra_graph.nodes) \
+            if self.terra_graph.nodes[n_id]["level"] == root_node_level - 1
+        ]
+        
+        if len(top_level_nodes) <= 1:
+            print("Only one top-level region — no root needed.")
+            return
+
+        # Create root node
+        positions = np.array([self.terra_graph.nodes[n]["pos"] for n in top_level_nodes])
+        avg_pos = positions.mean(axis=0)
+
+        embs = torch.vstack([self.terra_graph.nodes[n]["embedding"] for n in top_level_nodes])
+        avg_emb = torch.mean(embs, dim=0).unsqueeze(0)
+
+        self.terra_graph.add_node(
+            root_node_id,
+            level=root_node_level,
+            pos=avg_pos,
+            embedding=avg_emb,
+            terrain_id=-1,
+        )
+
+        # Connect root to all top-level regions
+        for n in top_level_nodes:
+            w = self.edge_weight(self.terra_graph, root_node_id, n)
+            self.terra_graph.add_edge(root_node_id, n, weight=w)
+
+        print(f"Added global root node {root_node_id} connecting {len(top_level_nodes)} regions.")
+
     
     def build_spectral_regions(self):
         terra_graph_orig = self.terra_graph.copy()
