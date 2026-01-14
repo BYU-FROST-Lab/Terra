@@ -49,7 +49,7 @@ class Terra_Visualizer():
         for (u,v) in list(G.edges()):
             if u in node_idx_map and v in node_idx_map:
                 lines.append([node_idx_map[u], node_idx_map[v]])
-                colors.append([0.5,0.5,0.5])
+                colors.append([0.75,0.75,0.75])
         
         line_set = o3d.geometry.LineSet()
         line_set.points = o3d.utility.Vector3dVector(np.asarray(points))
@@ -68,7 +68,7 @@ class Terra_Visualizer():
         for geo in geometries:
             vis.add_geometry(geo)
         render_opt = vis.get_render_option()
-        render_opt.point_size = 3.0  # smaller points
+        render_opt.point_size = 2.0
         vis.run()
         vis.destroy_window()
         
@@ -90,10 +90,24 @@ if __name__ == '__main__':
     latest_global_pc_file = global_pc_files[-1] # global_map_idx 33 for sunny midday data
     global_pc = np.load(latest_global_pc_file) # (num_pts,4)
     
+    geometries = []
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(global_pc[:,:3])
+    pcd.paint_uniform_color([0.5,0.5,0.5])
+    geometries.extend([pcd])
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    for geo in geometries:
+        vis.add_geometry(geo)
+    render_opt = vis.get_render_option()
+    render_opt.point_size = 2.0
+    vis.run()
+    vis.destroy_window()
+    
     with open(args.terra_3dsg, "rb") as f:
         terra_3dsg = pkl.load(f)
     
-    tv = Terra_Visualizer(level_offset=25)
+    tv = Terra_Visualizer(level_offset=50)
     
     # Display Regions 
     region_subgraph = terra_3dsg.subgraph(

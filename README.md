@@ -31,7 +31,7 @@ Our repository is designed for ROS 2 Humble. To handle dependency issues, our re
 
 First pull our Terra docker container
 ```bash
-docker pull frostlab/ros2_terra:latest
+docker pull frostlab/ros2_terra:yoloe_fix
 xhost +local:docker
 ```
 
@@ -79,7 +79,7 @@ my_dataset
 
 <summary><b>Simulation: Business Campus Dataset</b></summary>
 
-- Download the dataset [here](https://gofile.me/7dj2d/y7R2ETLpK) (~116 GB)
+- Download the dataset (in progress)
 - Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
 - Copy the contents of the `config/sim/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
 - Update the `config/sim/params.yaml` to match the correct `rosbag_path` and `save_folder`.
@@ -94,7 +94,7 @@ ros2 launch terra_ros build_metric_map_sim.launch.py
 
 <summary><b>Real-World: South Campus Dataset</b></summary>
 
-- Download the dataset [here](https://gofile.me/7dj2d/JvUpRm12E) (~263 GB)
+- Download the dataset (in progress) 
 - Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
 - Copy the contents of the `config/south_campus/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
 - Update the `config/south_campus/params.yaml` to match the correct `rosbag_path` and `save_folder`.
@@ -129,7 +129,10 @@ ros2 launch terra_ros build_metric_map.launch.py
 Provided that you have all the data saved in the file structure shown above, you can build the metric-semantic map (ms map) as follows:
 - Update the `terra/config/msmap.yaml` arguments to match the saved data folder path and YOLO terrain model location.
     - We provide different msmap yaml files showing capabilities of handling more than 1 camera image data as well as using YOLOE for datasets where you don't have a trained YOLO terrain model. 
-- Run the MS Map code with the correct yaml filepath as an argument as follows: `python3 ms_map.py --msmap_yaml=/path/to/msmap.yaml`
+- Run the MS Map code with the correct yaml filepath as an argument as follows: 
+```bash
+python3 ms_map.py --params=/path/to/msmap.yaml
+```
 
 To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For example:
 ```bash
@@ -143,6 +146,17 @@ python3 visualize_msmap.py --data_folder=/data/folder --num_terrain=3 --pt_size=
 
 <summary><b>Building Region and Place Layers from MS Map</b></summary>
 
+With the results saved from MS Map, you can build the terrain-aware places and region layers of the 3DSG as follows:
+- Update the `terra/config/build_terra.yaml` arguments to match the saved MS Map files location and other relevant arguments.
+- Run Build Terra code with your updated yaml file as an argument as follows: 
+```bash
+python3 build_terra.py --params=/path/to/build_terra.yaml
+```
+
+To visualize the resulting 3D Scene Graph, run: 
+```
+python3 visualize_terra.py --terra_3dsg=/path/to/saved/terra_3dsg.pkl --global_pc=/folder/path/to/global_pc/
+```
 
 </details>
 
