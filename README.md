@@ -19,9 +19,7 @@ This repository contains the code for *Terra: Hierarchical Terrain-Aware 3D Scen
 
 **In Review**
 
-```
-C. R. Samuelson, A. Austin, S. Knoop, B. Romrell, G. R. Slade, T. W. McLain, and J. G. Mangelson, “Terra: Hierarchical Terrain-Aware 3D Scene Graph for Task-Agnostic Outdoor Mapping,” Sept 2025. [Online]. Available: https://arxiv.org/abs/2509.19579
-```
+> C. R. Samuelson, A. Austin, S. Knoop, B. Romrell, G. R. Slade, T. W. McLain, and J. G. Mangelson, “Terra: Hierarchical Terrain-Aware 3D Scene Graph for Task-Agnostic Outdoor Mapping,” Sept 2025. [Online]. Available: https://arxiv.org/abs/2509.19579
 
 
 # Setup
