@@ -79,7 +79,7 @@ my_dataset
 
 <summary><b>Simulation: Business Campus Dataset</b></summary>
 
-- Download the dataset (in progress)
+- Download the dataset (*in progress*)
 - Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
 - Copy the contents of the `config/sim/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
 - Update the `config/sim/params.yaml` to match the correct `rosbag_path` and `save_folder`.
@@ -94,7 +94,7 @@ ros2 launch terra_ros build_metric_map_sim.launch.py
 
 <summary><b>Real-World: South Campus Dataset</b></summary>
 
-- Download the dataset (in progress) 
+- Download the dataset (*in progress*) 
 - Put the rosbag in the volumed `ros2_bags_folder` so you can access it in the docker container 
 - Copy the contents of the `config/south_campus/liosam_params.yaml` file to replace the contents in the `params.yaml` file in the `LIO-SAM/config` folder
 - Update the `config/south_campus/params.yaml` to match the correct `rosbag_path` and `save_folder`.
