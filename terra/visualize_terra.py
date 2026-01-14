@@ -63,7 +63,16 @@ class Terra_Visualizer():
             pcd.paint_uniform_color([0.5,0.5,0.5])
             geometries.extend([pcd])
         
-        o3d.visualization.draw_geometries(geometries)
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+        for geo in geometries:
+            vis.add_geometry(geo)
+        render_opt = vis.get_render_option()
+        render_opt.point_size = 3.0  # smaller points
+        vis.run()
+        vis.destroy_window()
+        
+        # o3d.visualization.draw_geometries(geometries)
         # return geometries
 
 
