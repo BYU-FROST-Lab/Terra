@@ -59,14 +59,14 @@ my_dataset
 ├── global_pc
 |   ├── global_pc_{timestamp}.npy
 |   ├── ...
-├── camera_images
-|   ├── local_cam_img_{timestamp}.jpg
+├── camera1_images
+|   ├── cam1_img_{timestamp}.jpg
 |   ├── ...
 ├── lidar_pc
-|   ├── local_pc_{timestamp}.npy
+|   ├── lidar_pc_{timestamp}.npy
 |   ├── ...
-├── transformations_lidar2cam
-|   ├── transform_lidar_to_cam_{timestamp}.npy
+├── transformations_lidar2cam1
+|   ├── transform_lidar_to_cam1_{timestamp}.npy
 |   ├── ...
 ├── transformations_lidar2global
 |   ├── transform_lidar_to_map_{timestamp}.npy

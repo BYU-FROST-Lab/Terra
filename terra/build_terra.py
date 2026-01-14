@@ -740,7 +740,7 @@ class Terra_Builder:
                 avg_pos = np.mean(pos,axis=0)
                 
                 embs = torch.vstack([g.nodes[n]['embedding'] for n in g.nodes])
-                avg_emb = torch.mean(embs,dim=0)
+                avg_emb = torch.mean(embs,dim=0).unsqueeze(0) # [1,512]
                 
                 # Add region node
                 self.terra_graph.add_node(
