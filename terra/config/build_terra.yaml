@@ -1,5 +1,5 @@
 data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
-output_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output
+output_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground
 save_average_embeddings: true
 debug: true
 cam2point_dist_threshold: 20.0 # [m] same as msmap.yaml

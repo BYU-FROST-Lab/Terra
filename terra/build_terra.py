@@ -448,6 +448,7 @@ class Terra_Builder:
         self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components
 
     def build_hierarchical_regions(self):
+        print("Building hierarchical regions...")
         t0_cluster = time.time()
         if self.region_method == "agglomerative":
             self.build_agglomerative_regions()
@@ -459,6 +460,7 @@ class Terra_Builder:
             print(f"Time for spectral clustering: {t1_cluster - t0_cluster} seconds")
         else:
             assert False, "Unidentified region method specified"
+        print("Finished")
         
     def build_agglomerative_regions(self):
         ac = AgglomerativeClustering(n_clusters=None, distance_threshold=50, metric='precomputed', linkage='average')
