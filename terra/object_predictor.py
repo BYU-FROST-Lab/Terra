@@ -19,7 +19,7 @@ class ObjectPredictor:
         
         self.objects = []
     
-    def predict(self, tasks_tensor, task_names, method="ms_avg"):        
+    def predict(self, tasks_tensor, method="ms_avg"):        
         self.objects = []
         if method == "ms_avg":
             self._predict_ms(tasks_tensor, use_avg_clipids=True)

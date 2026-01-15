@@ -1,0 +1,4 @@
+---
+tasks:
+  - task: "get cars"
+#  - task: "get bike from the bicycle rack" # method=3dsg, alpha=0.25 # blue

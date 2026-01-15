@@ -6,7 +6,7 @@ cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 
 ## Terrain params
 terrain_classes: ["sidewalk", "grass", "asphalt"] # must match yolo class names & ordering
-terrain_threshold: 0.95
+terrain_threshold: 0.95 # terrain_threshold = 0.75 for predictions?
 
 ## GVD params
 og_resolution: 1.0 # Grid cell size in meters (matches LIO-SAM discretization)
@@ -18,7 +18,11 @@ max_distance: 10.0 # 2.0 [m] / 0.2 [m/voxel] = [voxels]
 z_offset_viz: 50.0 # [m]
 z_offset_lidar: -2.5 # [m] dist from LiDAR to ground (negative means below LiDAR)
 cossim_weight_ratio: 100.0
-
+dbscan_params:
+  eps: 1.0
+  min_samples: 4
+search_radius: 2.5
+alpha: 0.23
 # Region params
 region_method: "agglomerative" # options: ["agglomerative", "spectral"]
 # Agglomerative params

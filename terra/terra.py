@@ -71,7 +71,6 @@ class Terra():
         
         self.objects = self.object_predictor.predict(
             tasks_tensor,
-            task_names,
             method
         )
         self.add_objects_to_3dsg()
