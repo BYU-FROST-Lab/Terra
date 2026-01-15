@@ -33,7 +33,7 @@ class TerraVisualizer():
         )
         self.display_3dsg(regions_subgraph)
     
-    def display_3dsg(self, G, node_colors=None, pc=None, return_geo=False):
+    def display_3dsg(self, G, node_colors=None, pc=None, plot_objects_on_ground=False, return_geo=False):
         geometries = []
         nodes = []
         points = []
@@ -45,7 +45,10 @@ class TerraVisualizer():
             z = level_num * self.level_offset
             xy = G.nodes[n_id]["pos"]
             
-            sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],z])
+            if G.nodes[n_id]["level"] == 0 and plot_objects_on_ground:
+                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],-0.5])# TODO: Make z based on box z_init
+            else:
+                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],z])
             if node_colors is not None:
                 if n_id in node_colors:
                     sphere.paint_uniform_color(node_colors[n_id])
@@ -56,7 +59,10 @@ class TerraVisualizer():
             else:
                 sphere.paint_uniform_color([0,0,0])
             nodes.append(sphere)
-            points.append([xy[0], xy[1], z])
+            if G.nodes[n_id]["level"] == 0 and plot_objects_on_ground:
+                points.append([xy[0], xy[1], 0])
+            else:
+                points.append([xy[0], xy[1], z])
             
             node_idx_map[n_id] = i
         geometries.extend(nodes)
@@ -90,8 +96,8 @@ class TerraVisualizer():
             vis.run()
             vis.destroy_window()
 
-    def display_terra(self, terra, display_pc=False):
-        geo_3dsg = self.display_3dsg(terra.terra_3dsg, return_geo=True)
+    def display_terra(self, terra, display_pc=False, plot_objects_on_ground=False):
+        geo_3dsg = self.display_3dsg(terra.terra_3dsg, plot_objects_on_ground=plot_objects_on_ground, return_geo=True)
         
         # add in bounding boxes for nodes
         num_tasks = len(set(t.get_task_idx() for t in terra.objects))
@@ -103,8 +109,10 @@ class TerraVisualizer():
         for tobj in terra.objects:
             bbox = copy_obb(tobj.get_bbox())
             z_init = bbox.center[2]
-            bbox.translate([0, 0, self.level_offset-z_init], relative=True)
-            # bbox.translate([0, 0, -z_init], relative=True)
+            if plot_objects_on_ground:
+                bbox.translate([0, 0, 0], relative=True)
+            else:
+                bbox.translate([0, 0, self.level_offset-z_init], relative=True)
             task_idx = tobj.get_task_idx()
             color = task_colors[task_idx]
             bbox.color = (0,0,0)#color  # OrientedBoundingBox supports setting a uniform color

@@ -119,8 +119,8 @@ class Terra():
         else:
             self.visualizer.display_3dsg(self.terra_3dsg)
     
-    def display_terra(self, display_pc=False):
-        self.visualizer.display_terra(self, display_pc)
+    def display_terra(self, display_pc=False, plot_objects_on_ground=False):
+        self.visualizer.display_terra(self, display_pc, plot_objects_on_ground)
 
 
 if __name__ == '__main__':
