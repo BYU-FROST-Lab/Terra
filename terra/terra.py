@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from collections import defaultdict
 from scipy.spatial import KDTree
 from sklearn.cluster import DBSCAN
 import numpy as np
@@ -8,54 +9,11 @@ import networkx as nx
 import open3d as o3d
 
 from utils import tensor_cosine_similarity
-from visualize_terra import Terra_Visualizer
+from visualize_terra import TerraVisualizer
+from object_predictor import ObjectPredictor
+from region_predictor import RegionPredictor
 
-def save_terra(terra, dest):
-    if len(terra.objects) > 0:
-        # Convert OBB to dictionaries to make it pickleable
-        for tobj in terra.objects:
-            obb = tobj.get_bbox()
-            tobj.bbox = TerraOBB(np.asarray(obb.center),np.asarray(obb.R),np.asarray(obb.extent))
-    with open(dest, "wb") as f:
-        pkl.dump(terra, f)
-
-def load_terra(src):
-    with open(src, "rb") as f:
-        terra = pkl.load(f)
-    if len(terra.objects) > 0:
-        # Convert OBB to dictionaries to make it pickleable
-        for tobj in terra.objects:
-            tobb = tobj.get_bbox()
-            tobj.bbox = o3d.geometry.OrientedBoundingBox(tobb.center, tobb.R, tobb.extent)
-    return terra
-
-
-class TerraOBB():
-    def __init__(self, center, R, extent):
-        self.center = center
-        self.R = R
-        self.extent = extent
-
-
-class TerraObject():
-    def __init__(self, task_scores, obb, idx_offset=0):
-        self.task_idx = task_scores.argmax().item() + idx_offset
-        self.top_score = task_scores.max().item()
-        self.task_scores = task_scores
-        self.bbox = obb
-    
-    def get_task_idx(self):
-        return self.task_idx
-    
-    def get_top_score(self):
-        return self.top_score
-    
-    def get_task_scores(self):
-        return self.task_scores
-    
-    def get_bbox(self):
-        return self.bbox
-
+from terra_utils import TerraObject, TerraOBB, load_terra
 
 class Terra():
     def __init__(self,
@@ -86,15 +44,18 @@ class Terra():
         self.search_rad = search_rad
         self.terrain_thresh = terrain_thresh
         self.terrain_names = terrain_names
+        self.num_terrain = len(terrain_names)
         self.alpha = alpha
         
         self.kdt = KDTree(self.pc)       
         
         distinct_colors = [[1,0,0],[0,1,0],[0,0,1],[1,0.5,0],[1,0,1], [0,1,1]]
-        self.visualizer = Terra_Visualizer(
+        self.visualizer = TerraVisualizer(
             level_offset=50, 
             terrain_colors=distinct_colors[:len(self.terrain_names)]
         )
+        self.object_predictor = ObjectPredictor(self)
+        self.region_predictor = RegionPredictor(self)
         
         # Init object and task parameters
         self.max_nid = max(self.terra_3dsg.nodes) if len(self.terra_3dsg.nodes) > 0 else 0
@@ -104,6 +65,49 @@ class Terra():
         self.tasks = []
         self.prev_task_idx = 0
     
+    def predict_objects(self, tasks_tensor, task_names, method="ms_avg"):
+        self.tasks.extend(task_names)
+        self.prev_task_idx = len(self.tasks) - len(task_names)
+        
+        self.objects = self.object_predictor.predict(
+            tasks_tensor,
+            task_names,
+            method
+        )
+        self.add_objects_to_3dsg()
+    
+    def add_objects_to_3dsg(self):
+        place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
+        place_pos = np.array([self.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
+        kdt = KDTree(place_pos)
+        for i, tobj in enumerate(self.objects):
+            self.max_nid = self.max_nid + 1
+            obb_center = tobj.get_bbox().center[:2]
+            self.terra_3dsg.add_node(
+                self.max_nid,
+                level=0,
+                pos=obb_center,
+                terrain_id=-1,
+            )
+            self.objectidx_2_nodeid[i] = self.max_nid
+            # Add edge to nearest place node
+            dist, idx = kdt.query(obb_center)
+            closest_place_node = place_nodes[idx]
+            self.terra_3dsg.add_edge(self.max_nid, closest_place_node)
+        self.nodeid_2_objectidx = {nid: obj_idx for obj_idx, nid in self.objectidx_2_nodeid.items()}
+       
+    
+    def predict_regions(self, tasks_tensor, task_names, method="max", K=1):
+        print("Not implemented")
+        pass
+    
+    def nodes_above_level(self, min_level=1):
+        level_dict = defaultdict(list)
+        for n, d in self.terra_3dsg.nodes(data=True):
+            if d["level"] > min_level:
+                level_dict[d["level"]].append(n)
+        return dict(level_dict)
+        
     def display_places(self):
         self.visualizer.display_places(self.terra_3dsg)
     
@@ -115,7 +119,10 @@ class Terra():
             self.visualizer.display_3dsg(self.terra_3dsg, pc=self.pc)
         else:
             self.visualizer.display_3dsg(self.terra_3dsg)
-            
+    
+    def display_terra(self, display_pc=False):
+        self.visualizer.display_terra(self, display_pc)
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -132,6 +139,6 @@ if __name__ == '__main__':
     # Display Places
     terra.display_places()
     
-    # Display full 3DSG with point cloud
-    terra.display_3dsg()
-    terra.display_3dsg(display_pc=True)
+    # Display full Terra
+    terra.display_terra()
+    terra.display_terra(display_pc=True)

@@ -15,15 +15,14 @@ from scipy.ndimage import binary_dilation, binary_erosion
 import networkx as nx
 import clip
 import open3d as o3d
-from gvd import DistanceMap
-# from Terra import Terra
 from scipy.cluster.hierarchy import fcluster
 from utils import tensor_cosine_similarity, numeric_key, find_latest_itr
 
-from visualize_terra import Terra_Visualizer
-from terra import Terra, save_terra
+from gvd import DistanceMap
+from terra import Terra
+from terra_utils import save_terra
 
-class Terra_Builder:
+class TerraBuilder:
     def __init__(self, args):
         ## Load arguments and parameters
         self.data_folder = args['data_folder']
@@ -854,5 +853,5 @@ if __name__ == "__main__":
     args = arg_parser()
     with open(args.params, 'r') as file:
         build_terra_args = yaml.safe_load(file)
-    terra_builder = Terra_Builder(build_terra_args)
+    terra_builder = TerraBuilder(build_terra_args)
     terra_builder.build_3dsg()

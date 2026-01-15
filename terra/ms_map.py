@@ -18,7 +18,7 @@ from ultralytics import YOLO, YOLOE, FastSAM
 import clip
 from utils import tensor_cosine_similarity, numeric_key
 
-class MS_Map:
+class MSMap:
     def __init__(self, args):
         ## Processing parameters
         self.data_folder = args['data_folder']
@@ -764,5 +764,5 @@ if __name__ == "__main__":
     with open(args.params, 'r') as file:
         msmap_args = yaml.safe_load(file)
     
-    ms_map = MS_Map(msmap_args)
+    ms_map = MSMap(msmap_args)
     ms_map.make_map()
