@@ -598,7 +598,6 @@ class Terra_Builder:
             self.terra_graph.add_edge(root_node_id, n, weight=w)
 
         print(f"Added global root node {root_node_id} connecting {len(top_level_nodes)} regions.")
-
     
     def build_spectral_regions(self):
         terra_graph_orig = self.terra_graph.copy()
