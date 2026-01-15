@@ -21,6 +21,7 @@ from scipy.cluster.hierarchy import fcluster
 from utils import tensor_cosine_similarity, numeric_key, find_latest_itr
 
 from visualize_terra import Terra_Visualizer
+from terra import Terra, save_terra
 
 class Terra_Builder:
     def __init__(self, args):
@@ -41,6 +42,8 @@ class Terra_Builder:
             'max_dev': args['max_deviation'],
             'max_dist': args['max_distance']
         }
+        
+        ## Terra params
         self.z_offset_viz = args['z_offset_viz']
         self.z_offset_lidar = args['z_offset_lidar']
         self.region_method = args['region_method']
@@ -49,7 +52,13 @@ class Terra_Builder:
         elif self.region_method == "spectral":
             self.min_graph_area = args['spec_min_graph_area']
             self.max_sem_diff = args['spec_max_semantic_diff']            
-            
+        self.dbscan_params = {
+            'eps': args['dbscan_params']['eps'],
+            'min_samples': args['dbscan_params']['min_samples'], 
+        }
+        self.search_rad = args['search_radius']
+        self.alpha = args['alpha']
+        
         ## Initialize Clip Model ##
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.clip_model, clip_preprocess = clip.load("ViT-B/16", device=self.device)
@@ -99,11 +108,8 @@ class Terra_Builder:
         ## Build Hierarchical Regions
         self.build_hierarchical_regions()
 
-        ## Save 3DSG ##
-        self.save_3dsg()
-
-        # self.terra = Terra()
-        # self.terra.set_Terra_3DSG(self.TERRA_3DSG)
+        ## Save Terra ##
+        self.save_terra()
 
         print("Done building 3DSG!")
 
@@ -181,6 +187,7 @@ class Terra_Builder:
             print("Loading saved CLIP semantic results...")
             self.global_clip_filt = torch.load(global_clip_path)
             with open(terrain_ids_path, "rb") as f: self.terrain_ids = pkl.load(f)   
+            with open(semantic_gidxs_path, "rb") as f: self.semantic_gidxs = pkl.load(f)
 
     def plot_score_dist(self, scores):
         # Plot distribution of max prompt scores
@@ -765,12 +772,32 @@ class Terra_Builder:
                         wij = self.edge_weight(self.terra_graph, g_id, parent_id)
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
-    def save_3dsg(self):
+    def save_terra(self):
         with open(self.output_folder+f"/terra_3dsg_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
         with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
-        print("Finished! 3DSG Saved!")
+        
+        terra = Terra(
+            terra_3dsg = self.terra_graph,
+            pc = self.global_pc[:,:3],
+            nodeid_2_imgidx = self.map_nodeid2imgidx,
+            image_names = self.img_names,
+            pcidx_2_clipid = self.pc_dict,
+            clip_tensor = self.clip_tensor,
+            clip_tensor_semanticpc = self.global_clip_filt,
+            semantic_pc_idxs = self.semantic_gidxs,
+            dbscan_params = self.dbscan_params,
+            search_rad = self.search_rad,
+            terrain_thresh = self.terrain_threshold,
+            terrain_names = self.terrain_classes,
+            alpha = self.alpha,            
+        )
+        save_terra(
+            terra, 
+            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl"
+        )
+        print("Finished! Terra Saved!")
 
     def edge_weight(self, G, n1_id, n2_id):  
         cos_sim_places = tensor_cosine_similarity(G.nodes[n1_id]["embedding"], G.nodes[n2_id]["embedding"]).item()

@@ -1,6 +1,7 @@
 # Ignore all files in the assets/south_campus directory
 assets/south_campus/*
 data/
+terra/runs/
 
 terra/*.ts
 terra/*.pt

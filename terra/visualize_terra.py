@@ -17,6 +17,18 @@ class Terra_Visualizer():
         else:
             self.num_terrains = 3
             self.terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]
+            
+    def display_places(self, G):
+        places_subgraph = G.subgraph(
+            [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] == 1]
+        )
+        self.display_3dsg(places_subgraph)
+    
+    def display_regions(self, G):
+        regions_subgraph = G.subgraph(
+            [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] > 1]
+        )
+        self.display_3dsg(regions_subgraph)
     
     def display_3dsg(self, G, node_colors=None, pc=None):
         geometries = []
@@ -110,16 +122,10 @@ if __name__ == '__main__':
     tv = Terra_Visualizer(level_offset=50)
     
     # Display Regions 
-    region_subgraph = terra_3dsg.subgraph(
-        [n_id for n_id in list(terra_3dsg.nodes) if terra_3dsg.nodes[n_id]["level"] > 1]
-    )
-    tv.display_3dsg(region_subgraph)
+    tv.display_regions(terra_3dsg)
     
     # Display Places
-    places_subgraph = terra_3dsg.subgraph(
-        [n_id for n_id in list(terra_3dsg.nodes) if terra_3dsg.nodes[n_id]["level"] == 1]
-    )
-    tv.display_3dsg(places_subgraph)
+    tv.display_places(terra_3dsg)
     
     # Display full 3DSG with point cloud
     tv.display_3dsg(terra_3dsg)
