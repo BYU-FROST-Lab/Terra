@@ -104,6 +104,7 @@ class TerraVisualizer():
             bbox = copy_obb(tobj.get_bbox())
             z_init = bbox.center[2]
             bbox.translate([0, 0, self.level_offset-z_init], relative=True)
+            # bbox.translate([0, 0, -z_init], relative=True)
             task_idx = tobj.get_task_idx()
             color = task_colors[task_idx]
             bbox.color = (0,0,0)#color  # OrientedBoundingBox supports setting a uniform color

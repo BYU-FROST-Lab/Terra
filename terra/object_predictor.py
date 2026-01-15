@@ -4,7 +4,7 @@ from sklearn.cluster import DBSCAN
 import numpy as np
 import open3d as o3d
 
-from utils import tensor_cosine_similarity
+from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
 from terra_utils import TerraObject
 
 class ObjectPredictor:
@@ -35,58 +35,76 @@ class ObjectPredictor:
         else:
             print("---------MAX CLIP PREDICTIONS----------")
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
-            scores = tensor_cosine_similarity(
-                self.terra.clip_tensor_semanticpc, 
-                tasks_tensor) # (num_pts, num_tasks)
-            gidx_scores = {}
-            matched_gidxs = []
-            for gidx_filt in range(scores.shape[0]):
-                max_score = scores[gidx_filt,:].max().item()
-                max_task_idx = scores[gidx_filt,:].argmax().item()
-                if max_task_idx > 2 and max_score > self.terra.alpha:
-                    gidx_scores[self.terra.semantic_pc_idxs[gidx_filt]] = scores[gidx_filt,self.terra.num_terrain:]
-                    matched_gidxs.append(self.terra.semantic_pc_idxs[gidx_filt])
+            idx_scores = {}
+            matched_idxs = []
+            for start, scores in chunked_tensor_cosine_similarity(
+                self.terra.clip_tensor_semanticpc,
+                tasks_tensor,
+                chunk_size=8192
+            ):
+                max_scores, max_tasks = scores.max(dim=1)
+                mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+                valid_idxs = mask.nonzero(as_tuple=True)[0]
+                for local_idx in valid_idxs:
+                    idx_filt = start + local_idx.item()
+                    idx = self.terra.semantic_pc_idxs[idx_filt]
+                    # Move small data to CPU immediately
+                    idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+                    matched_idxs.append(idx)
+                # free GPU memory
+                del scores
+            
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
-            scores = tensor_cosine_similarity(
-                self.terra.clip_tensor, 
-                tasks_tensor) # (num_clip_ids, num_tasks)
-            gidx_scores = {}
-            matched_gidxs = []
-            for gidx in range(self.terra.clip_tensor_semanticpc.shape[0]):
-                if gidx not in self.terra.pcidx_2_clipid.keys():
-                    continue
-                curr_clipid, curr_count = max(self.terra.pcidx_2_clipid[gidx].items(), key=lambda x: x[1])
-                max_score = scores[curr_clipid,:].max().item()
-                max_task_idx = scores[curr_clipid,:].argmax().item()
-                if max_task_idx > 2 and max_score > self.terra.alpha:
-                    gidx_scores[gidx] = scores[curr_clipid,self.terra.num_terrain:]
-                    matched_gidxs.append(gidx)
+            idx_scores = {}
+            matched_idxs = []
+            for start, scores in chunked_tensor_cosine_similarity(
+                self.terra.clip_tensor,
+                tasks_tensor,
+                chunk_size=8192
+            ):
+                max_scores, max_tasks = scores.max(dim=1)
+                for local_idx in range(scores.shape[0]):
+                    clip_id = start + local_idx
+                    if clip_id not in self.terra.pcidx_2_clipid:
+                        continue
+                    if max_tasks[local_idx] >= self.terra.num_terrain and max_scores[local_idx] > self.terra.alpha:
+                        idx_scores[clip_id] = scores[local_idx, self.terra.num_terrain:].cpu()
+                        matched_idxs.append(clip_id)
+                del scores
         else:
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
                 place_pos = np.stack([self.terra.nodes[n]["pos"] for n in place_nodes])
-                g_idxs_list = self.kdt_2d.query_ball_point(place_pos, r=10)      # list of arrays
-                task_pts[task_idx] = set(np.concatenate(g_idxs_list))       # flatten to set
-            scores = tensor_cosine_similarity(
-                self.terra.clip_tensor_semanticpc, 
-                tasks_tensor) # (num_pts, num_tasks)
-            gidx_scores = {}
-            matched_gidxs = set()
-            for task_idx in range(self.terra.num_terrain, scores.shape[1]): # skip terrain
-                gfilt_indices = (scores[:, task_idx] > self.terra.alpha).nonzero(as_tuple=True)[0]
-                for gidx_filt in gfilt_indices:
-                    gidx = self.terra.clip_tensor_semanticpc[gidx_filt.item()]
-                    max_score = scores[gidx_filt.item(),:].max().item()
-                    max_task_idx = scores[gidx_filt.item(),:].argmax().item()
-                    if max_task_idx > 2 and max_score > self.terra.alpha and (gidx in list(task_pts[task_idx-self.terra.num_terrain])):
-                        gidx_scores[gidx] = scores[gidx_filt.item(),self.terra.num_terrain:]
-                        matched_gidxs.add(gidx)
-            
+                idxs_list = self.kdt_2d.query_ball_point(place_pos, r=10)
+                task_pts[task_idx] = set(np.concatenate(idxs_list))
+            idx_scores = {}
+            matched_idxs = set()
+            for start, scores in chunked_tensor_cosine_similarity(
+                self.terra.clip_tensor_semanticpc,
+                tasks_tensor,
+                chunk_size=8192
+            ):
+                for task_idx in range(self.terra.num_terrain, scores.shape[1]):
+                    local_idxs = (scores[:, task_idx] > self.terra.alpha).nonzero(as_tuple=True)[0]
+                    for local_idx in local_idxs:
+                        idx_filt = start + local_idx.item()
+                        idx = self.terra.semantic_pc_idxs[idx_filt]
+                        max_score = scores[local_idx].max().item()
+                        max_task = scores[local_idx].argmax().item()
+                        if (
+                            max_task >= self.terra.num_terrain
+                            and max_score > self.terra.alpha
+                            and idx in task_pts[task_idx - self.terra.num_terrain]
+                        ):
+                            idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+                            matched_idxs.add(idx)
+                del scores
+        
         # Cluster object points & extract bounding boxes from clusters
-        if len(matched_gidxs) == 0:
+        if len(matched_idxs) == 0:
             print("No similar MS-Map indices detected")
             exit()
-        self._cluster_into_bboxes(list(matched_gidxs), gidx_scores)
+        self._cluster_into_bboxes(list(matched_idxs), idx_scores)
         
     def _cluster_into_bboxes(self, matched_idxs, idx_scores):
         surrounding_point_indices = self.terra.kdt.query_ball_point(
