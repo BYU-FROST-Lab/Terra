@@ -20,6 +20,8 @@ from gvd import DistanceMap
 from scipy.cluster.hierarchy import fcluster
 from utils import tensor_cosine_similarity, numeric_key, find_latest_itr
 
+from visualize_terra import Terra_Visualizer
+
 class Terra_Builder:
     def __init__(self, args):
         ## Load arguments and parameters
@@ -445,8 +447,8 @@ class Terra_Builder:
         t1_placesgraph = time.time()
         print("Runtime to build nx.Graph from GVDs",t1_placesgraph - t0_placesgraph,"seconds")
         
-        self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components
-
+        self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
+        
     def build_hierarchical_regions(self):
         print("Building hierarchical regions...")
         t0_cluster = time.time()

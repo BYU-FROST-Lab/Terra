@@ -552,7 +552,8 @@ class DistanceMap:
             for x in range(self.gvd_ids.shape[1]):
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
+                        # if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
+                        if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
                             connected_node_ids.add(tuple((self.gvd_ids[y, x], self.gvd_ids[ny, nx])))
         return connected_node_ids
     
@@ -621,14 +622,29 @@ if __name__ == '__main__':
     # grid[70:75,40:42] = 1  # Obstacles
     dm = DistanceMap(grid)
     dm.compute_static()
+    dm.prune_4connected()
+    dm.floodfill_split_technique(10,3,3)
     dm.display()
     dm.display(plot_gvd=True)
-
+    dm.display(plot_flood_fill=True)
+    dm.display(plot_node_edges=True)
+    plt.show()
+    
     # Simulating an update # state = 1 means add obstacle, and 0 means remove obstacle
     dm.update([(10, 10, 1), (5,15,1)])
+    # dm.prune_4connected()
+    # dm.floodfill_split_technique(10,3,3)
     dm.display()
     dm.display(plot_gvd=True)
+    # dm.display(plot_flood_fill=True)
+    # dm.display(plot_node_edges=True)
+    plt.show()
     
     dm.update([(10,10,0)])
+    # dm.prune_4connected()
+    # dm.floodfill_split_technique(10,3,3)
     dm.display()
     dm.display(plot_gvd=True)
+    # dm.display(plot_flood_fill=True)
+    # dm.display(plot_node_edges=True)
+    plt.show()

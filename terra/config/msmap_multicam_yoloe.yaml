@@ -1,8 +1,8 @@
 ## Processing parameters
-data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
-output_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yoloe
+data_folder: /docker_ros2_ws/src/oasis2/data/hope_campground_11_3_2025
+output_folder: /docker_ros2_ws/src/oasis2/data/hope_campground_11_3_2025/output/yoloe
 num_cams: 3
-debug: true
+debug: false
 continue_processing: false
 save_step_size: 500
 unaligned_threshold: 0.5 # seconds
