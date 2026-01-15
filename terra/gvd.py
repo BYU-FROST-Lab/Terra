@@ -425,8 +425,31 @@ class DistanceMap:
 
         return tuple(edge_path[min_idx]), line_length
     
-    def floodfill_split_technique(self,max_iterations,max_dev_voxels,max_dist_voxels):
+    def floodfill_split_technique(self, max_iterations, max_dev_voxels, max_dist_voxels):
         # Initialize Nodes at Junctions + Corners, Edges = all else
+        self.init_nodes_edges()
+        
+        ## Iterate between 1) flood-fill and 2) split
+        for iteration in range(max_iterations):
+            ## 1) Flood-fill
+            prev_nodes = self.floodfill()
+            
+            ## 2) Split: Identify connected nodes, split based on deviation or distance
+            new_nodes = self.split(prev_nodes, max_dev_voxels, max_dist_voxels)
+            
+            if not new_nodes:
+                break  # No more splits needed, exit early
+            for node in new_nodes:
+                self.gvd_nodes[node] = True
+                self.gvd_edges[node] = False
+        
+        ## Final Flood-Fill to update gvd_ids
+        self.floodfill(last_floodfill=True)
+        return
+    
+    def init_nodes_edges(self):
+        self.gvd_nodes = np.zeros_like(self.grid,dtype=bool)
+        self.gvd_edges = np.zeros_like(self.grid,dtype=bool)
         for y in range(self.voro_map.shape[0]):
             for x in range(self.voro_map.shape[1]):
                 if not self.voro_map[y,x]:
@@ -448,86 +471,12 @@ class DistanceMap:
                     self.gvd_nodes[y,x] = True
                 else:
                     self.gvd_edges[y,x] = True
-        
-        ## Iterate between 1) flood-fill and 2) split
-        for iteration in range(max_iterations):
-            ## 1) Flood-fill
+    
+    def floodfill(self, last_floodfill=False):
+        if last_floodfill:
+            self.gvd_node_ids2coords = dict()
+        else:
             prev_nodes = {}
-            self.gvd_ids = np.full_like(self.voro_map,-1,dtype=int)  # -1 means unlabeled
-            node_id_cntr = 1
-            dq = deque()
-            for y in range(self.gvd_nodes.shape[0]):
-                for x in range(self.gvd_nodes.shape[1]):
-                    if self.gvd_nodes[y, x]:
-                        self.gvd_ids[y, x] = node_id_cntr
-                        prev_nodes[node_id_cntr] = (y,x)
-                        dq.append((y, x, node_id_cntr))
-                        node_id_cntr += 1
-            while dq:
-                y,x,node_id = dq.popleft()
-                for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                    if self.gvd_edges[ny,nx] and self.gvd_ids[ny,nx] == -1:
-                        self.gvd_ids[ny,nx] = node_id
-                        dq.append((ny,nx,node_id))
-            
-            ## 2) Split: Identify connected nodes, split based on deviation or distance
-            new_nodes = []
-            connected_nodes = set()
-            for y in range(self.gvd_ids.shape[0]):
-                for x in range(self.gvd_ids.shape[1]):
-                    if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
-                        for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                            if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
-                                connected_nodes.add(tuple(sorted([(y, x), (ny, nx)])))
-            for (n1, n2) in connected_nodes:
-                nID1 = self.gvd_ids[n1[0],n1[1]]
-                nID2 = self.gvd_ids[n2[0],n2[1]]
-                edge_path = []
-                queue = deque([n1])
-                visited = set()
-                num_end_nodes_found = 0
-                while queue:
-                    pt = queue.popleft()
-                    if pt in visited:
-                        continue
-                    visited.add(pt)
-                    edge_path.append(pt)
-                    # Check if neighbor is a node, if so continue
-                    neighbor_is_node = False
-                    for (ny,nx) in self.get_4_manhattan_neighbors(pt[0],pt[1]):
-                        if self.gvd_nodes[ny,nx]:
-                            neighbor_is_node = True
-                            num_end_nodes_found += 1
-                            break
-                    if num_end_nodes_found == 2:
-                        break
-                    elif neighbor_is_node:
-                        continue
-                    
-                    for (ny,nx) in self.get_4_manhattan_neighbors(pt[0],pt[1]):
-                        if (ny, nx) not in visited and self.gvd_edges[ny,nx]:
-                            queue.append((ny, nx))
-                
-                # Add nodes to edge_path
-                edge_path.insert(0,prev_nodes[nID1])
-                edge_path.append(prev_nodes[nID2])
-                
-                if len(edge_path) > 4:
-                    dev_split_point, deviation = self.max_deviation_point(edge_path)
-                    dist_split_point, distance = self.mid_distance_point(edge_path)
-                    if deviation > max_dev_voxels:
-                        # print(f"Adding new node between {nID1} and {nID2} b/c of deviation: {deviation*0.2} [m]")
-                        new_nodes.append(dev_split_point)
-                    elif distance > max_dist_voxels: # If nodes are far enough apart, split halfway
-                        # print(f"Adding new node between {nID1} and {nID2} b/c of distance: {distance*0.2} [m]")
-                        new_nodes.append(dist_split_point)
-            if not new_nodes:
-                break  # No more splits needed, exit early
-            for node in new_nodes:
-                self.gvd_nodes[node] = True
-                self.gvd_edges[node] = False
-        
-        ## Final Flood-Fill to update gvd_ids:
         self.gvd_ids = np.full_like(self.voro_map,-1,dtype=int)  # -1 means unlabeled
         node_id_cntr = 1
         dq = deque()
@@ -535,7 +484,10 @@ class DistanceMap:
             for x in range(self.gvd_nodes.shape[1]):
                 if self.gvd_nodes[y, x]:
                     self.gvd_ids[y, x] = node_id_cntr
-                    self.gvd_node_ids2coords[node_id_cntr] = tuple((y,x))
+                    if last_floodfill:
+                        self.gvd_node_ids2coords[node_id_cntr] = tuple((y,x))
+                    else:
+                        prev_nodes[node_id_cntr] = (y,x)
                     dq.append((y, x, node_id_cntr))
                     node_id_cntr += 1
         while dq:
@@ -544,7 +496,63 @@ class DistanceMap:
                 if self.gvd_edges[ny,nx] and self.gvd_ids[ny,nx] == -1:
                     self.gvd_ids[ny,nx] = node_id
                     dq.append((ny,nx,node_id))
-        return
+        if last_floodfill:
+            return
+        else:
+            return prev_nodes
+        
+    def split(self, prev_nodes, max_dev_voxels, max_dist_voxels):
+        new_nodes = []
+        connected_nodes = set()
+        for y in range(self.gvd_ids.shape[0]):
+            for x in range(self.gvd_ids.shape[1]):
+                if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
+                    for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
+                        if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
+                            connected_nodes.add(tuple(sorted([(y, x), (ny, nx)])))
+        for (n1, n2) in connected_nodes:
+            nID1 = self.gvd_ids[n1[0],n1[1]]
+            nID2 = self.gvd_ids[n2[0],n2[1]]
+            edge_path = []
+            queue = deque([n1])
+            visited = set()
+            num_end_nodes_found = 0
+            while queue:
+                pt = queue.popleft()
+                if pt in visited:
+                    continue
+                visited.add(pt)
+                edge_path.append(pt)
+                # Check if neighbor is a node, if so continue
+                neighbor_is_node = False
+                for (ny,nx) in self.get_4_manhattan_neighbors(pt[0],pt[1]):
+                    if self.gvd_nodes[ny,nx]:
+                        neighbor_is_node = True
+                        num_end_nodes_found += 1
+                        break
+                if num_end_nodes_found == 2:
+                    break
+                elif neighbor_is_node:
+                    continue
+                
+                for (ny,nx) in self.get_4_manhattan_neighbors(pt[0],pt[1]):
+                    if (ny, nx) not in visited and self.gvd_edges[ny,nx]:
+                        queue.append((ny, nx))
+            
+            # Add nodes to edge_path
+            edge_path.insert(0,prev_nodes[nID1])
+            edge_path.append(prev_nodes[nID2])
+            
+            if len(edge_path) > 4:
+                dev_split_point, deviation = self.max_deviation_point(edge_path)
+                dist_split_point, distance = self.mid_distance_point(edge_path)
+                if deviation > max_dev_voxels:
+                    # print(f"Adding new node between {nID1} and {nID2} b/c of deviation: {deviation*0.2} [m]")
+                    new_nodes.append(dev_split_point)
+                elif distance > max_dist_voxels: # If nodes are far enough apart, split halfway
+                    # print(f"Adding new node between {nID1} and {nID2} b/c of distance: {distance*0.2} [m]")
+                    new_nodes.append(dist_split_point)
+        return new_nodes
 
     def get_connected_node_ids(self):
         connected_node_ids = set()
@@ -552,7 +560,6 @@ class DistanceMap:
             for x in range(self.gvd_ids.shape[1]):
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                        # if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
                         if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
                             connected_node_ids.add(tuple((self.gvd_ids[y, x], self.gvd_ids[ny, nx])))
         return connected_node_ids
@@ -563,7 +570,7 @@ class DistanceMap:
             for x in range(self.gvd_ids.shape[1]):
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
+                        if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
                             if self.gvd_ids[y, x] not in connected_node_id_counts:
                                 connected_node_id_counts[self.gvd_ids[y, x]] = 1
                             else:
@@ -596,8 +603,6 @@ class DistanceMap:
             voro_overlay = np.zeros((*self.grid.shape, 4))
             voro_overlay[self.gvd_edges,:3] = [0,1,0]  # Green GVD Edges
             voro_overlay[self.gvd_edges, 3] = 0.5
-            # voro_overlay[self.gvd_nodes,:3] = [1,0,0]  # Red GVD Nodes
-            # voro_overlay[self.gvd_nodes, 3] = 0.5
             ax.imshow(voro_overlay, origin='upper')
             for y, x in zip(*np.where(self.gvd_nodes)):  # Extract coordinates where GVD is True
                 circle = plt.Circle((x, y), 1, color=[1,0,0], alpha=1.0)
@@ -617,9 +622,8 @@ class DistanceMap:
 
 if __name__ == '__main__':
     # Example usage
-    grid = np.zeros((20, 20), dtype=int)
+    grid = np.zeros((20, 20), dtype=int) # Init free space
     grid[5, 5] = grid[15, 15] = 1 # Obstacles
-    # grid[70:75,40:42] = 1  # Obstacles
     dm = DistanceMap(grid)
     dm.compute_static()
     dm.prune_4connected()
@@ -632,19 +636,19 @@ if __name__ == '__main__':
     
     # Simulating an update # state = 1 means add obstacle, and 0 means remove obstacle
     dm.update([(10, 10, 1), (5,15,1)])
-    # dm.prune_4connected()
-    # dm.floodfill_split_technique(10,3,3)
+    dm.prune_4connected()
+    dm.floodfill_split_technique(10,3,3)
     dm.display()
     dm.display(plot_gvd=True)
-    # dm.display(plot_flood_fill=True)
-    # dm.display(plot_node_edges=True)
+    dm.display(plot_flood_fill=True)
+    dm.display(plot_node_edges=True)
     plt.show()
     
     dm.update([(10,10,0)])
-    # dm.prune_4connected()
-    # dm.floodfill_split_technique(10,3,3)
+    dm.prune_4connected()
+    dm.floodfill_split_technique(10,3,3)
     dm.display()
     dm.display(plot_gvd=True)
-    # dm.display(plot_flood_fill=True)
-    # dm.display(plot_node_edges=True)
+    dm.display(plot_flood_fill=True)
+    dm.display(plot_node_edges=True)
     plt.show()

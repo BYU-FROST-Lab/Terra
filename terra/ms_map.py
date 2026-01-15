@@ -143,6 +143,7 @@ class MS_Map:
 
 
         #Iterate through each scan
+        last_saved_idx = 0
         for scan_idx, transform_lidar2global_file in enumerate(sorted(Path(self.transforms_lidar2global_folder).glob("*.npy"), key=numeric_key)):
             if self.continue_processing and scan_idx <= self.last_scan_idx:
                 continue # Skip over already processed scans
@@ -207,9 +208,10 @@ class MS_Map:
             self.fastsam_and_clip(scan_idx)
 
             ## Save intermediate results every scan_step_sz ##
-            if (scan_idx % self.scan_step_sz == 0):
+            if (scan_idx % self.scan_step_sz == 0) or (last_saved_idx + self.scan_step_sz) < scan_idx:
                 self.save_semantic_pcl(scan_idx)
-
+                last_saved_idx = scan_idx
+                
                 # Show intermediate results if in debug mode
                 if (self.DEBUG_MODE):
                     self.display_global_pcl()
