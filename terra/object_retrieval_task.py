@@ -47,5 +47,5 @@ if __name__ == '__main__':
     
     # Display Results
     terra.display_terra()
-    terra.display_terra(display_pc=True)
-    terra.display_terra(display_pc=True, plot_objects_on_ground=True)
+    terra.display_terra(display_pc=True, color_pc_clip=False, color_terrain=False)
+    terra.display_terra(display_pc=True, plot_objects_on_ground=True, color_pc_clip=False, color_terrain=False)

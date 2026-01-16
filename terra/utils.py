@@ -4,6 +4,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+# LEVEL = {
+#     "OBJECT": 0,
+#     "PLACE": 1,
+#     "REGION": 2 # regions = 2+
+# }
+
 def tensor_cosine_similarity(emb1, emb2):
     unscaled_logit_cos_sim = F.cosine_similarity(emb1.unsqueeze(1), emb2.unsqueeze(0), dim=2)
     return unscaled_logit_cos_sim  

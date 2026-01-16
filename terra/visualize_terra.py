@@ -19,7 +19,7 @@ class TerraVisualizer():
         else:
             self.num_terrains = 3
             self.terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]
-        self.grays = [[0.3,0.3,0.3],[0.5,0.5,0.5],[0.75,0.75,0.75],[0.1,0.1,0.1]]
+        self.grays = [[0.3,0.3,0.3],[0.7,0.7,0.7],[0.1,0.1,0.1],[0.9,0.9,0.9]]
            
     def display_places(self, G):
         places_subgraph = G.subgraph(
@@ -46,7 +46,7 @@ class TerraVisualizer():
             xy = G.nodes[n_id]["pos"]
             
             if G.nodes[n_id]["level"] == 0 and plot_objects_on_ground:
-                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],-0.5])# TODO: Make z based on box z_init
+                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],xy[2]])
             else:
                 sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],z])
             if node_colors is not None:
@@ -96,7 +96,12 @@ class TerraVisualizer():
             vis.run()
             vis.destroy_window()
 
-    def display_terra(self, terra, display_pc=False, plot_objects_on_ground=False):
+    def display_terra(self, 
+                      terra, 
+                      display_pc=False, 
+                      plot_objects_on_ground=False, 
+                      color_pc_clip=True, 
+                      color_terrain=False):
         geo_3dsg = self.display_3dsg(terra.terra_3dsg, plot_objects_on_ground=plot_objects_on_ground, return_geo=True)
         
         # add in bounding boxes for nodes
@@ -121,7 +126,7 @@ class TerraVisualizer():
             geo_3dsg.append(bbox)
         
         if display_pc:
-            colored_pcds = self._get_colored_pcd(terra)
+            colored_pcds = self._get_colored_pcd(terra, color_pc_clip, color_terrain)
             all_geoms = geo_3dsg + colored_pcds
             vis = o3d.visualization.Visualizer()
             vis.create_window()
@@ -153,7 +158,7 @@ class TerraVisualizer():
         box_mesh.translate(obb.center)
         return box_mesh
 
-    def _get_colored_pcd(self, terra):
+    def _get_colored_pcd(self, terra, color_clip=True, color_terrain=False):
         count_threshold = 1
         global_pts = {}    
         for idx in range(terra.pc.shape[0]):
@@ -180,15 +185,28 @@ class TerraVisualizer():
             if class_id != -1:
                 if class_id < self.num_terrains:
                     pcd.points = o3d.utility.Vector3dVector(
-                        terra.pc[global_pts[class_id], :3])# - np.array([0,0,125]))
-                    # pcd.paint_uniform_color(self.terrain_colors[class_id])
-                    pcd.paint_uniform_color(self.grays[class_id])
-                else:
+                        terra.pc[global_pts[class_id], :])# - np.array([0,0,125]))
+                    if color_terrain:
+                        pcd.paint_uniform_color(self.terrain_colors[class_id])
+                    else:
+                        pcd.paint_uniform_color(self.grays[class_id])
+                elif color_clip:
                     # Otherwise, generate a random color
-                    random_col = np.random.rand(3).tolist()
+                    color = np.random.rand(3).tolist()
                     pcd.points = o3d.utility.Vector3dVector(
-                        terra.pc[global_pts[class_id], :3])# - np.array([0,0,125]))
-                    pcd.paint_uniform_color(random_col)
+                        terra.pc[global_pts[class_id], :])# - np.array([0,0,125]))
+                    pcd.paint_uniform_color(color)
+                else:
+                    continue
+                pcds.append(pcd)
+        if not color_clip:
+            color = [0.5,0.5,0.5]
+            points = np.concatenate(
+                [terra.pc[v,:] for k, v in global_pts.items() if k >= self.num_terrains],
+                axis=0
+            )
+            pcd.points = o3d.utility.Vector3dVector(points)# - np.array([0,0,125]))
+            pcd.paint_uniform_color(color)
             pcds.append(pcd)
         return pcds
 

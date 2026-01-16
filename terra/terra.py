@@ -85,7 +85,7 @@ class Terra():
             self.terra_3dsg.add_node(
                 self.max_nid,
                 level=0,
-                pos=obb_center,
+                pos=tobj.get_bbox().center[:], # objects position = xyz
                 terrain_id=-1,
             )
             self.objectidx_2_nodeid[i] = self.max_nid
@@ -119,8 +119,12 @@ class Terra():
         else:
             self.visualizer.display_3dsg(self.terra_3dsg)
     
-    def display_terra(self, display_pc=False, plot_objects_on_ground=False):
-        self.visualizer.display_terra(self, display_pc, plot_objects_on_ground)
+    def display_terra(self, 
+                      display_pc=False, 
+                      plot_objects_on_ground=False,
+                      color_pc_clip=True, 
+                      color_terrain=False):
+        self.visualizer.display_terra(self, display_pc, plot_objects_on_ground, color_pc_clip, color_terrain)
 
 
 if __name__ == '__main__':
@@ -140,4 +144,4 @@ if __name__ == '__main__':
     
     # Display full Terra
     terra.display_terra()
-    terra.display_terra(display_pc=True)
+    terra.display_terra(display_pc=True, color_pc_clip=True, color_terrain=False)

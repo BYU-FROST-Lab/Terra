@@ -27,6 +27,10 @@ class ObjectPredictor:
             self._predict_ms(tasks_tensor, use_avg_clipids=False)
         elif method == "3dsg":
             self._predict_3dsg(tasks_tensor)
+        elif method == "aib":
+            print("Implement?")
+        else:
+            print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg, aib]")
         return self.objects
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
