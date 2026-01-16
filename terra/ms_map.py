@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from ultralytics import YOLO, YOLOE, FastSAM
 import clip
-from utils import tensor_cosine_similarity, numeric_key
+from utils import tensor_cosine_similarity, numeric_key, chunked_tensor_cosine_similarity
 
 class MSMap:
     def __init__(self, args):
@@ -571,11 +571,31 @@ class MSMap:
             - CLIP embeddings
             - Point cloud dictionary (pc_dict)
         """
-        scores = tensor_cosine_similarity(clip_embs_tensor, self.clip_tensor)
+        device = clip_embs_tensor.device
+        num_masks = clip_embs_tensor.shape[0]
+        
+        # Track best match per mask
+        best_scores = torch.full((num_masks,), -1.0, device=device)
+        best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
+        
+        for start, scores in chunked_tensor_cosine_similarity(
+            clip_embs_tensor,          # (num_masks, D)
+            self.clip_tensor,          # (num_existing, D)
+            chunk_size=8192
+        ): # scores: (num_masks, chunk)
 
-        for mask_idx in range(scores.shape[0]):
-            if scores[mask_idx, :].max().item() > self.theta_cos_sim:
-                max_clip_id = scores[mask_idx, :].argmax().item()
+            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
+            chunk_max_ids += start  # convert local → global clip id
+
+            better = chunk_max_scores > best_scores
+            best_scores[better] = chunk_max_scores[better]
+            best_clip_ids[better] = chunk_max_ids[better]
+
+            del scores  # free GPU memory
+        
+        for mask_idx in range(num_masks):
+            if best_scores[mask_idx] > self.theta_cos_sim:
+                max_clip_id = best_clip_ids[mask_idx].item()
             else:
                 self.clip_tensor = torch.cat([self.clip_tensor, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
                 max_clip_id = self.clip_tensor.shape[0] - 1
