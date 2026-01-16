@@ -1,4 +1,6 @@
 ---
 tasks:
-  - task: "get cars"
+  - task: "find a car"
+  # - task: "find a boat"
+  # - task: "find a dumpster"
 #  - task: "get bike from the bicycle rack" # method=3dsg, alpha=0.25 # blue

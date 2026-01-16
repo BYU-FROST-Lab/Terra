@@ -15,6 +15,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--prediction_method',
+        type=str,
         default="ms_avg",
         help="Object retrieval method: [ms_avg, ms_max, 3dsg]"
     )
@@ -22,6 +23,12 @@ if __name__ == '__main__':
         '--object_tasks',
         type=str,
         help="/path/to/object_retrieval_tasks.yaml file of object relevant tasks"
+    )
+    parser.add_argument(
+        '--alpha',
+        type=float,
+        default=0.23,
+        help="Threshold for task relevance"
     )
     args = parser.parse_args()
     
@@ -31,6 +38,7 @@ if __name__ == '__main__':
     logit_scale = clip_model.logit_scale.exp()
     
     terra = load_terra(args.terra)
+    terra.alpha = args.alpha
     
     with open(args.object_tasks, 'rb') as f:
         obj_tasks = yaml.safe_load(f)["tasks"]

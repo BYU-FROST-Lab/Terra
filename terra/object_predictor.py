@@ -21,9 +21,10 @@ class ObjectPredictor:
     
     def predict(self, tasks_tensor, method="ms_avg"):        
         self.objects = []
+        print("Method:",method)
         if method == "ms_avg":
             self._predict_ms(tasks_tensor, use_avg_clipids=True)
-        if method == "ms_max":
+        elif method == "ms_max":
             self._predict_ms(tasks_tensor, use_avg_clipids=False)
         elif method == "3dsg":
             self._predict_3dsg(tasks_tensor)
