@@ -14,15 +14,15 @@ if __name__ == '__main__':
         help="/path/to/Terra.pkl object"
     )
     parser.add_argument(
+        '--object_tasks',
+        type=str,
+        help="/path/to/object_retrieval_tasks.yaml file of object relevant tasks"
+    )
+    parser.add_argument(
         '--prediction_method',
         type=str,
         default="ms_avg",
         help="Object retrieval method: [ms_avg, ms_max, 3dsg]"
-    )
-    parser.add_argument(
-        '--object_tasks',
-        type=str,
-        help="/path/to/object_retrieval_tasks.yaml file of object relevant tasks"
     )
     parser.add_argument(
         '--alpha',

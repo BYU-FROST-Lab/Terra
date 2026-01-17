@@ -1,19 +1,16 @@
 from argparse import ArgumentParser
 from collections import defaultdict
+import numpy as np
+import torch
 from scipy.spatial import KDTree
 from sklearn.cluster import DBSCAN
-import numpy as np
-import pickle as pkl
-import torch
 import networkx as nx
-import open3d as o3d
 
-from utils import tensor_cosine_similarity
 from visualize_terra import TerraVisualizer
 from object_predictor import ObjectPredictor
 from region_predictor import RegionPredictor
-
 from terra_utils import TerraObject, TerraOBB, load_terra
+
 
 class Terra():
     def __init__(self,

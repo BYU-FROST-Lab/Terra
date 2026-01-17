@@ -1,0 +1,26 @@
+## Processing parameters
+data_folder: /data/
+output_folder: /data/output
+num_cams: 1
+debug: false
+continue_processing: false
+save_step_size: 50
+unaligned_threshold: 0.5 # seconds
+
+## Camera intrinsics
+cam1_K:  [fx,   0.0,    cx, 
+        0.0,    fy,     cy, 
+        0.0,    0.0,    1.0]
+
+## YOLO Model
+use_yoloe: false
+yolo_model_path: /yolo_model.pt
+yolo_conf_threshold: 0.1
+
+## MS Map parameters
+match_threshold: 0.9
+use_dbscan: true
+dbscan_eps: 2.0
+dbscan_min_samples: 5
+cam2point_dist_threshold: 20.0 # [m]
+cam_axis: ['-x']  # ['+x', '-x', '+y', '-y'] # lidar axis direction relative to camera

@@ -1,6 +1,6 @@
 import torch
 from scipy.spatial import KDTree
-from sklearn.cluster import DBSCAN
+# from sklearn.cluster import DBSCAN
 import numpy as np
 import open3d as o3d
 
@@ -29,7 +29,7 @@ class ObjectPredictor:
         elif method == "3dsg":
             self._predict_3dsg(tasks_tensor)
         elif method == "aib":
-            print("Implement?")
+            print("Not implemented. Should I?")
         else:
             print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg, aib]")
         return self.objects
@@ -79,7 +79,7 @@ class ObjectPredictor:
         else:
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
-                place_pos = np.stack([self.terra.nodes[n]["pos"] for n in place_nodes])
+                place_pos = np.stack([self.terra.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
                 idxs_list = self.kdt_2d.query_ball_point(place_pos, r=10)
                 task_pts[task_idx] = set(np.concatenate(idxs_list))
             idx_scores = {}
@@ -180,9 +180,9 @@ class ObjectPredictor:
         self._predict_ms(tasks_tensor, use_avg_clipids=True, place_nodes_dict=chosen_place_nodes)
     
     def _predict_object_regions(self, tasks_tensor):
-        region_nodes = [n for n, d in self.terra.nodes(data=True) if d["level"] > 1]
+        region_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] > 1]
         nodeid_to_idx = {n: i for i, n in enumerate(region_nodes)}
-        region_embeddings = torch.vstack([self.terra.nodes[n]["embedding"] for n in region_nodes])
+        region_embeddings = torch.vstack([self.terra.terra_3dsg.nodes[n]["embedding"] for n in region_nodes])
         scores = tensor_cosine_similarity(
             region_embeddings, 
             tasks_tensor[self.terra.num_terrain:,:]) # (num_region_nodes, num_tasks)
@@ -191,7 +191,7 @@ class ObjectPredictor:
         for task_idx in range(scores.shape[1]):
             max_score = scores[:, task_idx].max().item()
             n_idx = scores[:, task_idx].argmax().item()
-            best_layer = self.terra.nodes[region_nodes[n_idx]]["level"]
+            best_layer = self.terra.terra_3dsg.nodes[region_nodes[n_idx]]["level"]
             
             nodes_in_layer = region_node_dict[best_layer]
             
@@ -210,12 +210,12 @@ class ObjectPredictor:
                 queue = list(starting_nodes)
                 while queue:
                     node = queue.pop()
-                    node_level = self.terra.nodes[node]["level"]
+                    node_level = self.terra.terra_3dsg.nodes[node]["level"]
                     if node_level == 2:
                         selected.add(node)
                     # Explore children until reaching level 2
-                    for nbr in self.terra.neighbors(node):
-                        nbr_level = self.terra.nodes[nbr]["level"]
+                    for nbr in self.terra.terra_3dsg.neighbors(node):
+                        nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]
                         if 2 <= nbr_level < node_level:
                             queue.append(nbr)
                 selected_regions[task_idx] = selected    
@@ -228,14 +228,14 @@ class ObjectPredictor:
             for task_idx, region_nodes in region_nodes_dict.items():
                 start_places[task_idx] = set()
                 for rn in region_nodes:
-                    for nbr in self.terra.neighbors(rn):
-                        nbr_level = self.terra.nodes[nbr]["level"]
+                    for nbr in self.terra.terra_3dsg.neighbors(rn):
+                        nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]
                         if nbr_level == 1: # places layer
                             start_places[task_idx].add(nbr)
             
-        place_nodes = [n for n, d in self.terra.nodes(data=True) if d["level"] == 1]
+        place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
         nodeid_to_idx = {n: i for i, n in enumerate(place_nodes)}
-        place_embeddings = torch.vstack([self.terra.nodes[n]["embedding"] for n in place_nodes])
+        place_embeddings = torch.vstack([self.terra.terra_3dsg.nodes[n]["embedding"] for n in place_nodes])
         scores = tensor_cosine_similarity(
             place_embeddings, 
             tasks_tensor[self.terra.num_terrain:,:]) # (num_region_nodes, num_tasks)

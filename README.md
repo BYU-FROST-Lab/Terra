@@ -160,6 +160,10 @@ To visualize the resulting 3D Scene Graph, run:
 ```
 python3 visualize_terra.py --terra_3dsg=/path/to/saved/terra_3dsg.pkl --global_pc=/folder/path/to/global_pc/
 ```
+- The arguments are defined as:
+    - `terra_3dsg`: Path to the saved 3DSG. 
+        - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the first one.* 
+    - `global_pc`: Path to the folder that contains all of the global point clouds saved from the metric mapping step.
 
 </details>
 
@@ -170,6 +174,18 @@ python3 visualize_terra.py --terra_3dsg=/path/to/saved/terra_3dsg.pkl --global_p
 
 <summary><b>Object Retrieval Tasks</b></summary>
 
+To perform object retrieval tasks with the Terra 3DSG saved from [Building Terra](#building-terra), is done as follows:
+- Modify the `object_retrieval_tasks.yaml` file for as many object retrieval tasks of interest
+- Run the object retrieval task as follows:
+```bash
+python3 object_retrieval_task.py --terra=/path/to/saved/Terra.pkl --object_tasks=object_retrieval_tasks.yaml --prediction_method=ms_avg --alpha=0.23
+```
+- The arguments are defined as:
+    - `terra`: Path to the saved Terra 3DSG. 
+        - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the latter.*
+    - `object_tasks`: Path to the edited `object_retrieval_tasks.yaml` file
+    - `prediction_method`: Pass a string of the method to use from the following [ms_avg, ms_max, 3dsg]. These methods are explained in detail in the paper. (Default: `ms_avg`)
+    - `alpha`: Threshold to determine whether an object is task relevant (i.e. if its cosine-similarity score is above `alpha` then it is task-relevant). (Default: `0.23`) 
 
 </details>
 

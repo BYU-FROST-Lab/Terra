@@ -575,7 +575,7 @@ class MSMap:
         num_masks = clip_embs_tensor.shape[0]
         
         # Track best match per mask
-        best_scores = torch.full((num_masks,), -1.0, device=device)
+        best_scores = torch.full((num_masks,), 0.0, device=device)
         best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
         for start, scores in chunked_tensor_cosine_similarity(
