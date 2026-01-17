@@ -9,26 +9,9 @@ from terra_utils import load_terra
 if __name__ == '__main__':
     parser = ArgumentParser(description="Object Retrieval Test")
     parser.add_argument(
-        '--terra',
+        '--params',
         type=str,
-        help="/path/to/Terra.pkl object"
-    )
-    parser.add_argument(
-        '--object_tasks',
-        type=str,
-        help="/path/to/object_retrieval_tasks.yaml file of object relevant tasks"
-    )
-    parser.add_argument(
-        '--prediction_method',
-        type=str,
-        default="ms_avg",
-        help="Object retrieval method: [ms_avg, ms_max, 3dsg]"
-    )
-    parser.add_argument(
-        '--alpha',
-        type=float,
-        default=0.23,
-        help="Threshold for task relevance"
+        help="/path/to/region_monitoring.yaml file of region monitoring tasks"
     )
     args = parser.parse_args()
     
@@ -36,22 +19,27 @@ if __name__ == '__main__':
     device = "cuda" if torch.cuda.is_available() else "cpu"
     clip_model, clip_preprocess = clip.load("ViT-B/16", device=device)
     logit_scale = clip_model.logit_scale.exp()
+
+    with open(args.params, 'rb') as f:
+        object_task_params = yaml.safe_load(f)
     
-    terra = load_terra(args.terra)
-    terra.alpha = args.alpha
-    
-    with open(args.object_tasks, 'rb') as f:
-        obj_tasks = yaml.safe_load(f)["tasks"]
+    terra = load_terra(object_task_params["terra"])
+    terra.alpha = object_task_params["alpha"]
+    object_tasks = object_task_params["object_tasks"]
         
     # Encode prompts with CLIP
-    tasks = [task["task"] for task in obj_tasks]
+    tasks = [task["task"] for task in object_tasks]
     tasks[:0] = terra.terrain_names # Add terrain to front of tasks
     input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in tasks]
     input_task_clip_tensor = torch.vstack(input_task_clip_embs) # (num_input_classes, 512)
     print("\nCollected object tasks:", tasks)
     
     # Prediction objects given prompts
-    terra.predict_objects(input_task_clip_tensor, tasks[terra.num_terrain:], args.prediction_method)
+    terra.predict_objects(
+        input_task_clip_tensor, 
+        tasks[terra.num_terrain:], 
+        object_task_params["prediction_method"]
+    )
     
     # Display Results
     terra.display_terra()
