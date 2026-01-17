@@ -21,17 +21,17 @@ class TerraVisualizer():
             self.terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]
         self.grays = [[0.3,0.3,0.3],[0.7,0.7,0.7],[0.1,0.1,0.1],[0.9,0.9,0.9]]
            
-    def display_places(self, G):
+    def display_places(self, G, pc=None):
         places_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] == 1]
         )
-        self.display_3dsg(places_subgraph)
+        self.display_3dsg(places_subgraph, pc=pc)
     
-    def display_regions(self, G):
+    def display_regions(self, G, pc=None):
         regions_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] > 1]
         )
-        self.display_3dsg(regions_subgraph)
+        self.display_3dsg(regions_subgraph, pc=pc)
     
     def display_3dsg(self, G, node_colors=None, pc=None, plot_objects_on_ground=False, return_geo=False):
         geometries = []

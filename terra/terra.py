@@ -56,11 +56,16 @@ class Terra():
         
         # Init object and task parameters
         self.max_nid = max(self.terra_3dsg.nodes) if len(self.terra_3dsg.nodes) > 0 else 0
+        ## For object retrieval
         self.objects = []
         self.objectidx_2_nodeid = {}
         self.nodeid_2_objectidx = {}
-        self.tasks = []
+        self.tasks = []        
         self.prev_task_idx = 0
+        ## For region monitoring
+        self.region_tasks = []
+        self.prev_region_task_idx = 0
+        self.task_relevant_place_nodes = {}
     
     def predict_objects(self, tasks_tensor, task_names, method="ms_avg"):
         self.tasks.extend(task_names)
@@ -91,11 +96,22 @@ class Terra():
             closest_place_node = place_nodes[idx]
             self.terra_3dsg.add_edge(self.max_nid, closest_place_node)
         self.nodeid_2_objectidx = {nid: obj_idx for obj_idx, nid in self.objectidx_2_nodeid.items()}
-       
-    
+        
     def predict_regions(self, tasks_tensor, task_names, method="max", K=1):
-        print("Not implemented")
-        pass
+        self.region_tasks.extend(task_names)
+        self.prev_region_task_idx = len(self.region_tasks) - len(task_names)
+        
+        pred_place_nodes = self.region_predictor.predict(
+            tasks_tensor,
+            method,
+            K
+        )
+        self.update_task_relevant_place_nodes(pred_place_nodes)
+    
+    def update_task_relevant_place_nodes(self, pred_place_nodes):
+        for curr_task_idx, place_nodes in pred_place_nodes.items():
+            task_idx = self.prev_region_task_idx + curr_task_idx
+            self.task_relevant_place_nodes[task_idx] = place_nodes
     
     def nodes_above_level(self, min_level=1):
         level_dict = defaultdict(list)
@@ -103,6 +119,7 @@ class Terra():
             if d["level"] > min_level:
                 level_dict[d["level"]].append(n)
         return dict(level_dict)
+    
         
     def display_places(self):
         self.visualizer.display_places(self.terra_3dsg)
@@ -110,6 +127,24 @@ class Terra():
     def display_regions(self):
         self.visualizer.display_regions(self.terra_3dsg)
     
+    def display_task_relevant_places(self, task_idx=-1):
+        prev_offset = self.visualizer.level_offset 
+        self.visualizer.level_offset = 1
+        if task_idx == -1:
+            print("Displaying relevant places for all region monitoring tasks.")
+            print("Tasks:", self.region_tasks)
+            all_relevant_places = []
+            for t_idx, place_nodes in self.task_relevant_place_nodes.items():
+                all_relevant_places.extend(list(place_nodes))
+            relevant_places_subgraph = self.terra_3dsg.subgraph(all_relevant_places)
+            self.visualizer.display_3dsg(relevant_places_subgraph, pc=self.pc)
+        else:
+            print(f"Displaying relevant places for task: {self.region_tasks[task_idx]}")
+            place_nodes = self.task_relevant_place_nodes[task_idx]
+            relevant_places_subgraph = self.terra_3dsg.subgraph(place_nodes)
+            self.visualizer.display_3dsg(relevant_places_subgraph, pc=self.pc)
+        self.visualizer.level_offset = prev_offset
+        
     def display_3dsg(self, display_pc=False):
         if display_pc:
             self.visualizer.display_3dsg(self.terra_3dsg, pc=self.pc)

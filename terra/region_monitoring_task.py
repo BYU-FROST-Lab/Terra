@@ -14,15 +14,21 @@ if __name__ == '__main__':
         help="/path/to/Terra.pkl object"
     )
     parser.add_argument(
-        '--object_tasks',
+        '--region_monitoring_tasks',
         type=str,
-        help="/path/to/object_retrieval_tasks.yaml file of object relevant tasks"
+        help="/path/to/region_monitoring_tasks.yaml file of region monitoring tasks"
     )
     parser.add_argument(
         '--prediction_method',
         type=str,
-        default="ms_avg",
-        help="Object retrieval method: [ms_avg, ms_max, 3dsg]"
+        default="max",
+        help="Region monitoring method: [max, thresh, mix, aib]"
+    )
+    parser.add_argument(
+        '--k',
+        type=int,
+        default=1,
+        help="K for running top-k with `max` method"
     )
     parser.add_argument(
         '--alpha',
@@ -40,20 +46,20 @@ if __name__ == '__main__':
     terra = load_terra(args.terra)
     terra.alpha = args.alpha
     
-    with open(args.object_tasks, 'rb') as f:
-        obj_tasks = yaml.safe_load(f)["tasks"]
+    with open(args.region_monitoring_tasks, 'rb') as f:
+        region_tasks = yaml.safe_load(f)["tasks"]
         
     # Encode prompts with CLIP
-    tasks = [task["task"] for task in obj_tasks]
-    tasks[:0] = terra.terrain_names # Add terrain to front of tasks
+    tasks = [task["task"] for task in region_tasks]
     input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in tasks]
     input_task_clip_tensor = torch.vstack(input_task_clip_embs) # (num_input_classes, 512)
-    print("\nCollected object tasks:", tasks)
-    
-    # Prediction objects given prompts
-    terra.predict_objects(input_task_clip_tensor, tasks[terra.num_terrain:], args.prediction_method)
+    print("\nCollected region tasks:", tasks)
+
+    # Prediction regions given prompts
+    terra.predict_regions(input_task_clip_tensor, tasks, args.prediction_method, K=args.k)
     
     # Display Results
     terra.display_terra()
-    terra.display_terra(display_pc=True, color_pc_clip=False, color_terrain=False)
-    terra.display_terra(display_pc=True, plot_objects_on_ground=True, color_pc_clip=False, color_terrain=False)
+    for task_idx in range(len(region_tasks)):
+        terra.display_task_relevant_places(task_idx)
+    terra.display_task_relevant_places()

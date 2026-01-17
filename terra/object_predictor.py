@@ -21,7 +21,7 @@ class ObjectPredictor:
     
     def predict(self, tasks_tensor, method="ms_avg"):        
         self.objects = []
-        print("Method:",method)
+        print("Method for object retrieval:",method)
         if method == "ms_avg":
             self._predict_ms(tasks_tensor, use_avg_clipids=True)
         elif method == "ms_max":
@@ -32,6 +32,7 @@ class ObjectPredictor:
             print("Not implemented. Should I?")
         else:
             print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg, aib]")
+            exit()
         return self.objects
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):

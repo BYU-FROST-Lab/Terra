@@ -178,7 +178,7 @@ To perform object retrieval tasks with the Terra 3DSG saved from [Building Terra
 - Modify the `object_retrieval_tasks.yaml` file for as many object retrieval tasks of interest
 - Run the object retrieval task as follows:
 ```bash
-python3 object_retrieval_task.py --terra=/path/to/saved/Terra.pkl --object_tasks=object_retrieval_tasks.yaml --prediction_method=ms_avg --alpha=0.23
+python3 object_retrieval_task.py --terra=/path/to/saved/Terra.pkl --object_tasks=/path/to/object_retrieval_tasks.yaml --prediction_method=ms_avg --alpha=0.23
 ```
 - The arguments are defined as:
     - `terra`: Path to the saved Terra 3DSG. 
@@ -194,7 +194,20 @@ python3 object_retrieval_task.py --terra=/path/to/saved/Terra.pkl --object_tasks
 
 <summary><b>Region Monitoring Tasks</b></summary>
 
-
+To perform region monitoring tasks with the Terra 3DSG saved from [Building Terra](#building-terra), is done as follows:
+- Modify the `region_monitoring_tasks.yaml` file for as many region monitoring tasks of interest
+- Run the region monitoring task as follows:
+```bash
+python3 region_monitoring_task.py --terra=/path/to/saved/Terra.pkl --region_monitoring_tasks=path/to/region_monitoring_tasks.yaml --prediction_method=max --k=1 --alpha=0.23
+```
+- The arguments are defined as:
+    - `terra`: Path to the saved Terra 3DSG. 
+        - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the latter.*
+    - `region_monitoring_tasks`: Path to the edited `region_monitoring_tasks.yaml` file
+    - `prediction_method`: Pass a string of the method to use from the following [max, thresh, mix, aib]. These methods are explained in detail in the paper. (Default: `max`)
+    - `alpha`: Threshold to determine whether a region is task relevant (i.e. if its cosine-similarity score is above `alpha` then it is task-relevant). Only used for methods [thresh, mix, aib]. (Default: `0.23`) 
+    - `k`: Parameter for selecting the top-K task relevant regions. Only used for methods [max, mix]. (Default: `1`)
+     
 </details>
 
 
