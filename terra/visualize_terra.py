@@ -138,6 +138,43 @@ class TerraVisualizer():
             vis.destroy_window()
         else:
             o3d.visualization.draw_geometries(geo_3dsg)
+ 
+    def display_task_relevant_places(self, terra_3dsg, region_tasks, task_relevant_place_nodes, pc, task_idx=-1):
+        prev_offset = self.level_offset 
+        self.level_offset = 1
+        if task_idx == -1:
+            print("Displaying relevant places for all region monitoring tasks.")
+            print("Tasks:", region_tasks)
+            all_relevant_places = []
+            for t_idx, place_nodes in task_relevant_place_nodes.items():
+                all_relevant_places.extend(list(place_nodes))
+            relevant_places_subgraph = terra_3dsg.subgraph(all_relevant_places)
+            self.display_3dsg(relevant_places_subgraph, pc=pc)
+        else:
+            print(f"Displaying relevant places for task: {region_tasks[task_idx]}")
+            place_nodes = task_relevant_place_nodes[task_idx]
+            relevant_places_subgraph = terra_3dsg.subgraph(place_nodes)
+            self.display_3dsg(relevant_places_subgraph, pc=pc)
+        self.level_offset = prev_offset
+ 
+    def display_path(self, terra_3dsg, path_node_list, pc):
+        prev_offset = self.level_offset 
+        self.level_offset = 1
+        
+        place_nodes = [n for n, d in terra_3dsg.nodes(data=True) if d["level"] == 1]
+        place_subgraph = terra_3dsg.subgraph(place_nodes)
+        colors = {}
+        for n in place_nodes:
+            if n == path_node_list[0]:
+                colors[n] = (0,0,0)
+            elif n == path_node_list[-1]:
+                colors[n] = (1,0,0)
+            elif n in path_node_list[1:-1]:
+                colors[n]= (0,1,1)
+            else:
+                colors[n] = (0.75,0.75,0.75)    
+        self.display_3dsg(place_subgraph, node_colors=colors, pc=pc)#, node_rad=3)
+        self.level_offset = prev_offset
     
     def _create_color_oriented_bbox(self, obb, color=(1, 0, 0)):
         """
@@ -209,6 +246,7 @@ class TerraVisualizer():
             pcd.paint_uniform_color(color)
             pcds.append(pcd)
         return pcds
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()

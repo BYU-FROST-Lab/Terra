@@ -1,0 +1,19 @@
+---
+terra: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.23
+prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg]
+
+#        preferred : set of terrain_ids that should have no penalty (default: None)
+#        forbidden : set of terrain_ids that should not be used (default: None)
+#        penalties : dict mapping terrain_id -> penalty cost (default: None)'
+terrain_preferences:
+  preferred:
+    - 0
+  forbidden:
+    - 2
+  penalties:
+    0: 1.0
+    1: 5.0
+
+destination_task:
+  - task: "go to my car"

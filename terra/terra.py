@@ -66,6 +66,10 @@ class Terra():
         self.region_tasks = []
         self.prev_region_task_idx = 0
         self.task_relevant_place_nodes = {}
+        ## For path planning
+        self.path_node_list = []
+        self.start_node = 0
+        self.dest_node = -1
     
     def predict_objects(self, tasks_tensor, task_names, method="ms_avg"):
         self.tasks.extend(task_names)
@@ -112,6 +116,89 @@ class Terra():
         for curr_task_idx, place_nodes in pred_place_nodes.items():
             task_idx = self.prev_region_task_idx + curr_task_idx
             self.task_relevant_place_nodes[task_idx] = place_nodes
+
+    def plan_path_to_destination(self, 
+                            task_tensor, 
+                            terrain_preferences, 
+                            method="ms_avg"):
+        self.path_node_list = []
+        
+        place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
+        place_subgraph = self.terra_3dsg.subgraph(place_nodes)
+        
+        self.dest_node = self._select_dest_place_node(
+            task_tensor,
+            method
+        )
+        # TODO: Make this be an input
+        self.start_node = place_nodes[0] # For now, just start at first place node
+        
+        terrain_weight = self._make_terrain_weight(
+            preferred=terrain_preferences.get("preferred", None),
+            forbidden=terrain_preferences.get("forbidden", None),
+            penalties=terrain_preferences.get("penalties", None)
+        )
+        self.path_node_list = nx.astar_path(
+            place_subgraph, 
+            source=self.start_node, 
+            target=self.dest_node, 
+            weight=terrain_weight
+        )
+    
+    def _select_dest_place_node(self, task_tensor, method="ms_avg"):
+        pos_destination_objects = self.object_predictor.predict(
+            task_tensor,
+            method
+        )
+        max_dest_score = 0.0
+        max_dest_obj_idx = -1
+        for i, tobj in enumerate(pos_destination_objects):
+            if tobj.get_top_score() > max_dest_score:
+                max_dest_score = tobj.get_top_score()
+                max_dest_obj_idx = i
+        chosen_obb = pos_destination_objects[max_dest_obj_idx].get_bbox()
+        obb_center = chosen_obb.center[:2]
+        place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
+        place_pos = np.array([self.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
+        kdt = KDTree(place_pos)
+        dist, idx = kdt.query(obb_center)
+        
+        dest_place_node = place_nodes[idx]
+        return dest_place_node
+        
+    def _make_terrain_weight(self, preferred=None, forbidden=None, penalties=None):
+        """
+        Returns a weight function for A* that accounts for terrain types.
+        
+        Args:
+            G : networkx.Graph
+            preferred : set of terrain_ids that should have no penalty (default: None)
+            forbidden : set of terrain_ids that should not be used (default: None)
+            penalties : dict mapping terrain_id -> penalty cost (default: None)
+        """
+        preferred = preferred or set()
+        forbidden = forbidden or set()
+        penalties = penalties or {}
+
+        def terrain_weight(u, v, d):
+            base = d.get("weight", 1.0)
+            t_u = self.terra_3dsg.nodes[u].get("terrain_id")
+            t_v = self.terra_3dsg.nodes[v].get("terrain_id")
+
+            # Block forbidden terrains entirely
+            if t_u in forbidden or t_v in forbidden:
+                return float("inf")  # edge not traversable
+
+            # Apply penalties if terrain has one
+            penalty = penalties.get(t_u, 0) + penalties.get(t_v, 0)
+
+            # Neutral if in preferred set (penalty 0)
+            if t_u in preferred and t_v in preferred:
+                penalty = 0
+
+            return base + penalty
+
+        return terrain_weight
     
     def nodes_above_level(self, min_level=1):
         level_dict = defaultdict(list)
@@ -126,25 +213,7 @@ class Terra():
     
     def display_regions(self):
         self.visualizer.display_regions(self.terra_3dsg)
-    
-    def display_task_relevant_places(self, task_idx=-1):
-        prev_offset = self.visualizer.level_offset 
-        self.visualizer.level_offset = 1
-        if task_idx == -1:
-            print("Displaying relevant places for all region monitoring tasks.")
-            print("Tasks:", self.region_tasks)
-            all_relevant_places = []
-            for t_idx, place_nodes in self.task_relevant_place_nodes.items():
-                all_relevant_places.extend(list(place_nodes))
-            relevant_places_subgraph = self.terra_3dsg.subgraph(all_relevant_places)
-            self.visualizer.display_3dsg(relevant_places_subgraph, pc=self.pc)
-        else:
-            print(f"Displaying relevant places for task: {self.region_tasks[task_idx]}")
-            place_nodes = self.task_relevant_place_nodes[task_idx]
-            relevant_places_subgraph = self.terra_3dsg.subgraph(place_nodes)
-            self.visualizer.display_3dsg(relevant_places_subgraph, pc=self.pc)
-        self.visualizer.level_offset = prev_offset
-        
+            
     def display_3dsg(self, display_pc=False):
         if display_pc:
             self.visualizer.display_3dsg(self.terra_3dsg, pc=self.pc)
@@ -157,6 +226,22 @@ class Terra():
                       color_pc_clip=True, 
                       color_terrain=False):
         self.visualizer.display_terra(self, display_pc, plot_objects_on_ground, color_pc_clip, color_terrain)
+
+    def display_task_relevant_places(self, task_idx=-1):
+        self.visualizer.display_task_relevant_places(
+            self.terra_3dsg,
+            self.region_tasks,
+            self.task_relevant_place_nodes,
+            self.pc,
+            task_idx
+        )
+        
+    def display_path(self):
+        self.visualizer.display_path(
+            self.terra_3dsg,
+            self.path_node_list, 
+            self.pc
+        )
 
 
 if __name__ == '__main__':

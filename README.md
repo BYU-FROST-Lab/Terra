@@ -213,7 +213,20 @@ python3 region_monitoring_task.py --params=/path/to/region_monitoring.yaml
 
 <details open>
 
-<summary><b>Terrain-Aware Path Planning for Object Retrieval</b></summary>
+<summary><b>Terrain-Aware Path Planning to Destination Query</b></summary>
 
+To perform path planning to a destination query, do the following:
+- Modify the `path_panning.yaml` file based on your destination query and the terrain preferences
+- Run the path planning task as follows:
+```bash
+python3 path_planning_task.py --params=/path/to/path_planning.yaml
+```
+- YAML parameters are defined as;
+    - `terra`: Path to the saved Terra 3DSG. 
+        - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the latter.*
+    - `terrain_preferences`: List the terrain indices that are `preferred` and `forbidden` based on the terrain input and ordering used in `build_terra.yaml`. The `penalties` are defined by each terrain index and an associated weight. 
+    - `destination_task`: String explaining the destination query
+    - `prediction_method`: Pass a string of the method to use from the following [ms_avg, ms_max, 3dsg]. These methods are explained in detail in the paper. (Default: `ms_avg`)
+    - `alpha`: Threshold to determine whether an object is task relevant (i.e. if its cosine-similarity score is above `alpha` then it is task-relevant). (Default: `0.23`) 
 
 </details>
