@@ -34,7 +34,7 @@ Our repository is designed for ROS 2 Humble. To handle dependency issues, our re
 
 First pull our Terra docker container
 ```bash
-docker pull frostlab/ros2_terra:yoloe_fix
+docker pull frostlab/ros2_terra:latest
 xhost +local:docker
 ```
 
