@@ -1,0 +1,10 @@
+---
+terra: /path/to/Terra.pkl
+alpha: 0.23
+prediction_method: "max" # [max, thresh, mix, aib]
+k: 1
+region_tasks:
+  - task: "task_1"
+  - task: "task_2"
+  - task: "task_3"
+  - task: "task_4"

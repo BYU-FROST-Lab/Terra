@@ -1,0 +1,9 @@
+---
+terra: /path/to/Terra.pkl
+alpha: 0.23
+prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg]
+tasks:
+  - task: "task_1"
+  - task: "task_2"
+  - task: "task_3"
+  - task: "task_4"

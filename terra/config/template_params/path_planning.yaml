@@ -1,5 +1,5 @@
 ---
-terra: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+terra: /path/to/Terra.pkl
 alpha: 0.23
 prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg]
 
@@ -16,5 +16,5 @@ terrain_preferences:
     1: 5.0
 
 queries:
-  start: "I am by the boats"
-  destination: "go to my truck in the parking lot"
+  start: "description of start location" # OR leave blank/null to not use start query
+  destination: "description of destination location"

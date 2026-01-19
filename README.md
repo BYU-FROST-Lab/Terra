@@ -225,7 +225,9 @@ python3 path_planning_task.py --params=/path/to/path_planning.yaml
     - `terra`: Path to the saved Terra 3DSG. 
         - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the latter.*
     - `terrain_preferences`: List the terrain indices that are `preferred` and `forbidden` based on the terrain input and ordering used in `build_terra.yaml`. The `penalties` are defined by each terrain index and an associated weight. 
-    - `destination_task`: String explaining the destination query
+    - `queries`: 
+        - `destination`: String explaining the destination query
+        - `start`: (Optional) string explaining start location. If not used, default's to start being the first place node in the graph
     - `prediction_method`: Pass a string of the method to use from the following [ms_avg, ms_max, 3dsg]. These methods are explained in detail in the paper. (Default: `ms_avg`)
     - `alpha`: Threshold to determine whether an object is task relevant (i.e. if its cosine-similarity score is above `alpha` then it is task-relevant). (Default: `0.23`) 
 

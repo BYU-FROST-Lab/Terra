@@ -25,10 +25,16 @@ if __name__ == '__main__':
     
     terra = load_terra(path_planning_params["terra"])
     terra.alpha = path_planning_params["alpha"]
-    destination_task = path_planning_params["destination_task"]
-        
+    
+    queries = path_planning_params.get("queries", {})
+    start_query = queries.get("start")  # None if not provided
+    destination_query = queries["destination"]
+    
     # Encode prompts with CLIP
-    tasks = [task["task"] for task in destination_task]
+    if start_query is not None:
+        tasks = [start_query, destination_query]
+    else:
+        tasks = [destination_query]
     tasks[:0] = terra.terrain_names # Add terrain to front of tasks
     input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in tasks]
     input_task_clip_tensor = torch.vstack(input_task_clip_embs) # (num_input_classes, 512)
@@ -42,5 +48,5 @@ if __name__ == '__main__':
     )
     
     # Display Results
-    terra.display_terra()
-    terra.display_path()
+    # terra.display_terra()
+    terra.display_path() # black = start, red = destination

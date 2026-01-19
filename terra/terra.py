@@ -126,12 +126,24 @@ class Terra():
         place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
         place_subgraph = self.terra_3dsg.subgraph(place_nodes)
         
-        self.dest_node = self._select_dest_place_node(
-            task_tensor,
-            method
-        )
-        # TODO: Make this be an input
-        self.start_node = place_nodes[0] # For now, just start at first place node
+        if task_tensor.shape[0] == self.num_terrain + 2:
+            self.start_node = self._select_best_place_node(
+                task_tensor[:-1,:], # skip destination query embedding
+                method
+            )
+            mask = torch.ones(task_tensor.size(0), dtype=torch.bool, device=task_tensor.device)
+            mask[-2] = False # remove source query embedding
+            task_tensor_excluded = task_tensor[mask]   # shape: (N-1, 512)
+            self.dest_node = self._select_best_place_node(
+                task_tensor_excluded,
+                method
+            )
+        else:
+            self.start_node = place_nodes[0]
+            self.dest_node = self._select_best_place_node(
+                task_tensor,
+                method
+            )
         
         terrain_weight = self._make_terrain_weight(
             preferred=terrain_preferences.get("preferred", None),
@@ -145,7 +157,7 @@ class Terra():
             weight=terrain_weight
         )
     
-    def _select_dest_place_node(self, task_tensor, method="ms_avg"):
+    def _select_best_place_node(self, task_tensor, method="ms_avg"):
         pos_destination_objects = self.object_predictor.predict(
             task_tensor,
             method
@@ -163,8 +175,8 @@ class Terra():
         kdt = KDTree(place_pos)
         dist, idx = kdt.query(obb_center)
         
-        dest_place_node = place_nodes[idx]
-        return dest_place_node
+        best_place_node = place_nodes[idx]
+        return best_place_node
         
     def _make_terrain_weight(self, preferred=None, forbidden=None, penalties=None):
         """
