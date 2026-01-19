@@ -4,7 +4,6 @@ import pickle as pkl
 import numpy as np
 import matplotlib.pyplot as plt
 
-import networkx as nx
 import open3d as o3d
 
 from utils import numeric_key
@@ -33,7 +32,12 @@ class TerraVisualizer():
         )
         self.display_3dsg(regions_subgraph, pc=pc)
     
-    def display_3dsg(self, G, node_colors=None, pc=None, plot_objects_on_ground=False, return_geo=False):
+    def display_3dsg(self, 
+                     G, 
+                     node_colors=None, 
+                     pc=None, 
+                     plot_objects_on_ground=False, 
+                     return_geo=False):
         geometries = []
         nodes = []
         points = []
@@ -138,8 +142,31 @@ class TerraVisualizer():
             vis.destroy_window()
         else:
             o3d.visualization.draw_geometries(geo_3dsg)
- 
-    def display_task_relevant_places(self, terra_3dsg, region_tasks, task_relevant_place_nodes, pc, task_idx=-1):
+
+    def display_task_relevant_places(self, 
+                                     terra_3dsg, 
+                                     region_tasks, 
+                                     task_relevant_place_nodes, 
+                                     pc, 
+                                     task_idx=-1, 
+                                     region_scores=None):
+        
+        # If region_scores is provided, display heatmap mode
+        if region_scores is not None:
+            region_nodes = [n for n, d in terra_3dsg.nodes(data=True) if d["level"] > 1]
+            region_subgraph = terra_3dsg.subgraph(region_nodes)
+            for t_idx, place_nodes in task_relevant_place_nodes.items():
+                if task_idx != -1 and t_idx != task_idx:
+                    continue
+                max_score = region_scores[:, t_idx].max().item()
+                min_score = region_scores[:, t_idx].min().item()
+                region_colors = {}
+                for region_idx in range(region_scores.shape[0]):
+                    normalized_score = ((region_scores[region_idx,t_idx] - min_score) / (max_score - min_score)).item()
+                    region_colors[region_nodes[region_idx]] = plt.cm.jet(normalized_score)[:3]
+                print(f"Displaying heatmap of region nodes for task: {region_tasks[t_idx]}")
+                self.display_3dsg(region_subgraph, node_colors=region_colors, pc=pc)      
+        
         prev_offset = self.level_offset 
         self.level_offset = 1
         if task_idx == -1:

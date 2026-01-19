@@ -21,6 +21,7 @@ class RegionPredictor:
         self.region_nodeid_to_idx = {n: i for i, n in enumerate(self.region_nodes)}
         self.region_embeddings = torch.vstack([self.terra.terra_3dsg.nodes[n]["embedding"] for n in self.region_nodes])
         
+        self.region_scores = None
         self.selected_placenodes = {}
         
     def predict(self, tasks_tensor, method="max", K=1):
@@ -42,13 +43,13 @@ class RegionPredictor:
         return self.selected_placenodes # {task_idx: set(place_node_ids), ...}
     
     def _predict_max(self, tasks_tensor, K):
-        region_scores = tensor_cosine_similarity(
+        self.region_scores = tensor_cosine_similarity(
             self.region_embeddings, 
             tasks_tensor) # (num_region_nodes, num_tasks)
 
-        for task_idx in range(region_scores.shape[1]):
+        for task_idx in range(self.region_scores.shape[1]):
             chosen_region_nodes = []
-            topk_scores, topk_idxs = torch.topk(region_scores[:,task_idx], K)
+            topk_scores, topk_idxs = torch.topk(self.region_scores[:,task_idx], K)
             max_score = topk_scores.max().item()
             topk_nodes = [self.region_nodes[i] for i in topk_idxs.tolist()]
             chosen_region_nodes = topk_nodes
@@ -73,13 +74,13 @@ class RegionPredictor:
             self.place_embeddings, 
             tasks_tensor) # (num_place_nodes, num_tasks)
         
-        region_scores = tensor_cosine_similarity(
+        self.region_scores = tensor_cosine_similarity(
             self.region_embeddings, 
             tasks_tensor) # (num_region_nodes, num_tasks)
         
-        for task_idx in range(region_scores.shape[1]):
-            max_score = region_scores[:, task_idx].max().item()
-            mask = region_scores[:, task_idx] > self.terra.alpha
+        for task_idx in range(self.region_scores.shape[1]):
+            max_score = self.region_scores[:, task_idx].max().item()
+            mask = self.region_scores[:, task_idx] > self.terra.alpha
             above_threshold_idxs = torch.nonzero(mask, as_tuple=True)[0]
             chosen_region_nodes = [self.region_nodes[i] for i in above_threshold_idxs.tolist()]
             
@@ -106,12 +107,12 @@ class RegionPredictor:
             self.place_embeddings, 
             tasks_tensor) # (num_place_nodes, num_tasks)
         
-        region_scores = tensor_cosine_similarity(
+        self.region_scores = tensor_cosine_similarity(
             self.region_embeddings, 
             tasks_tensor) # (num_region_nodes, num_tasks)
-        
-        for task_idx in range(region_scores.shape[1]):
-            topk_scores, topk_idxs = torch.topk(region_scores[:,task_idx], K)
+
+        for task_idx in range(self.region_scores.shape[1]):
+            topk_scores, topk_idxs = torch.topk(self.region_scores[:,task_idx], K)
             max_score = topk_scores.max().item()
             topk_nodes = [self.region_nodes[i] for i in topk_idxs.tolist()]
             chosen_region_nodes = topk_nodes

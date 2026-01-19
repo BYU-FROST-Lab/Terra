@@ -239,13 +239,14 @@ class Terra():
                       color_terrain=False):
         self.visualizer.display_terra(self, display_pc, plot_objects_on_ground, color_pc_clip, color_terrain)
 
-    def display_task_relevant_places(self, task_idx=-1):
+    def display_task_relevant_places(self, task_idx=-1, heatmap_mode=False):
         self.visualizer.display_task_relevant_places(
             self.terra_3dsg,
             self.region_tasks,
             self.task_relevant_place_nodes,
             self.pc,
-            task_idx
+            task_idx,
+            self.region_predictor.region_scores if heatmap_mode else None
         )
         
     def display_path(self):

@@ -44,5 +44,5 @@ if __name__ == '__main__':
     # Display Results
     terra.display_terra()
     for task_idx in range(len(region_tasks)):
-        terra.display_task_relevant_places(task_idx)
+        terra.display_task_relevant_places(task_idx, heatmap_mode=True)
     terra.display_task_relevant_places()
