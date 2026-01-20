@@ -31,7 +31,7 @@ if __name__ == '__main__':
     destination_query = queries["destination"]
     
     # Encode prompts with CLIP
-    if start_query is not None:
+    if start_query is not None and type(start_query) != int:
         tasks = [start_query, destination_query]
     else:
         tasks = [destination_query]
@@ -41,11 +41,19 @@ if __name__ == '__main__':
     print("\nCollected destination task", tasks)
     
     # Prediction objects given prompts
-    terra.plan_path_to_destination(
-        input_task_clip_tensor,
-        terrain_preferences=path_planning_params["terrain_preferences"],
-        method=path_planning_params["prediction_method"]
-    )
+    if type(start_query) == int:
+        terra.plan_path_to_destination(
+            input_task_clip_tensor,
+            terrain_preferences=path_planning_params["terrain_preferences"],
+            method=path_planning_params["prediction_method"],
+            start_node=start_query
+        )
+    else:
+        terra.plan_path_to_destination(
+            input_task_clip_tensor,
+            terrain_preferences=path_planning_params["terrain_preferences"],
+            method=path_planning_params["prediction_method"]
+        )
     
     # Display Results
     # terra.display_terra()

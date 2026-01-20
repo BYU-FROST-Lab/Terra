@@ -120,7 +120,8 @@ class Terra():
     def plan_path_to_destination(self, 
                             task_tensor, 
                             terrain_preferences, 
-                            method="ms_avg"):
+                            method="ms_avg",
+                            start_node=None):
         self.path_node_list = []
         
         place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
@@ -139,7 +140,7 @@ class Terra():
                 method
             )
         else:
-            self.start_node = place_nodes[0]
+            self.start_node = place_nodes[0] if start_node is None else start_node
             self.dest_node = self._select_best_place_node(
                 task_tensor,
                 method

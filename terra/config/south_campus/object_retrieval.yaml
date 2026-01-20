@@ -1,0 +1,12 @@
+---
+terra: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25/output/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.25
+prediction_method: "3dsg" # [ms_avg, ms_max, 3dsg]
+object_tasks:
+  - task: "get bike from the bicycle rack" # method=3dsg, alpha=0.25 # blue
+  - task: "find my white car by the smoke stacks" # method=3dsg, alpha=0.25 # orange
+  - task: "empty trash in dumpster" # method=3dsg, alpha=0.25 # purple
+  - task: "throw away garbage in garbage can" # method=3dsg, alpha=0.25 # green
+  - task: "avoid the stairs" # method 3dsg, alpha=0.25 # brown
+  - task: "find the grey sculpture" #  method=3dsg, alpha=0.25 # pink
+  - task: "cross the crosswalk by the stoplight" # method=3dsg, alpha=0.25 # red

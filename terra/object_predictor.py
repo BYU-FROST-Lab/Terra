@@ -36,10 +36,6 @@ class ObjectPredictor:
         return self.objects
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
-        if use_avg_clipids:
-            print("---------AVERAGE CLIP PREDICTIONS----------")
-        else:
-            print("---------MAX CLIP PREDICTIONS----------")
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
             idx_scores = {}
             matched_idxs = []
@@ -77,6 +73,7 @@ class ObjectPredictor:
                         idx_scores[clip_id] = scores[local_idx, self.terra.num_terrain:].cpu()
                         matched_idxs.append(clip_id)
                 del scores
+                
         else:
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
@@ -166,7 +163,7 @@ class ObjectPredictor:
     
     def _is_obb_in_bounds(self, obb):
         cx,cy,cz = obb.center # LIOSAM frame (note: bounds in WORLD frame)
-        T = np.eye(4) #get_liosam2orig_transformation(self.experiment_type) # transformation from LIOSAM to WORLD
+        T = np.eye(4) # TODO: Make this an argument? get_liosam2orig_transformation(self.experiment_type) # transformation from LIOSAM to WORLD
         P_L = np.array([[cx,cy,cz,1.0]]).T # homogeneous coords
         P_W = T @ P_L
         cx_w, cy_w, cz_w = P_W[0], P_W[1], P_W[2]

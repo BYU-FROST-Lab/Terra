@@ -1,9 +1,9 @@
 ## Processing parameters
-data_folder: /data/south_campus
-output_folder: /data/south_campus/output
+data_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25
+output_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25/output
 num_cams: 1
 debug: false
-continue_processing: false
+continue_processing: true
 save_step_size: 500
 unaligned_threshold: 0.2 # seconds
 
@@ -23,4 +23,4 @@ use_dbscan: true
 dbscan_eps: 2.0
 dbscan_min_samples: 5
 cam2point_dist_threshold: 20.0 # [m]
-cam_axis: '-y'  # ['+x', '-x', '+y', '-y']
+cam_axis: ['-y']  # ['+x', '-x', '+y', '-y']

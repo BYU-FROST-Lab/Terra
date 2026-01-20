@@ -3,7 +3,7 @@ save_metric_data:
     rosbag_path: /ros2_bags/south_campus
     lidar_topic: /lio_sam/deskew/cloud_deskewed
     camera_topic: /oak/rgb/image_raw
-    save_folder: /data/south_campus
+    save_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25
 
     # extrinsic_transforms
     publish_extrinsics: true

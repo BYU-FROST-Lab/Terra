@@ -35,13 +35,16 @@ def generate_launch_description():
     actions = [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(liosam_launch_file),
-            launch_arguments={'params_file': liosam_params_file}.items(),
+            launch_arguments={
+                'params_file': liosam_params_file,
+                'use_sim_time': 'true',
+            }.items(),
         ),
         TimerAction(
             period=5.0,  # seconds
             actions=[
                 ExecuteProcess(
-                    cmd=['ros2', 'bag', 'play', rosbag_path, '--clock'],
+                    cmd=['ros2', 'bag', 'play', rosbag_path, '--clock'],# '-r 1.0'],
                     output='screen'
                 ),
             ],
@@ -50,7 +53,10 @@ def generate_launch_description():
             package='terra_ros',
             executable='save_metric_data.py',
             name='save_metric_data',
-            parameters=[metric_map_params_file],
+            parameters=[
+                metric_map_params_file,
+                {'use_sim_time': True}
+            ],
             output='screen',
         ),
     ]
@@ -71,6 +77,7 @@ def generate_launch_description():
                 '--frame-id', lidar_to_camera['parent_frame'],
                 '--child-frame-id', lidar_to_camera['child_frame']
             ],
+            parameters=[{'use_sim_time': True}],
             output='screen',
         ))
     
