@@ -10,11 +10,15 @@ from utils import numeric_key
 from terra_utils import copy_obb
 
 class TerraVisualizer():
-    def __init__(self, level_offset, terrain_colors=None):
+    def __init__(self, level_offset, terrain_colors=None, num_terrains=None):
         self.level_offset = level_offset
         if terrain_colors:
             self.num_terrains = len(terrain_colors)
             self.terrain_colors = terrain_colors
+        elif num_terrains:
+            terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]
+            self.num_terrains = num_terrains
+            self.terrain_colors = terrain_colors[:self.num_terrains]
         else:
             self.num_terrains = 3
             self.terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]

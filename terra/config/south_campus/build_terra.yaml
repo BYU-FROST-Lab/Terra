@@ -1,7 +1,7 @@
 data_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25
 output_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25/output
-save_average_embeddings: true
-debug: false
+save_average_embeddings: false
+debug: true
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 
 ## Terrain params
@@ -12,7 +12,7 @@ terrain_threshold: 0.95 # terrain_threshold = 0.75 for predictions?
 og_resolution: 1.0 # Grid cell size in meters (matches LIO-SAM discretization)
 max_iterations: 10 # max_itr for GVD floodfill technique
 max_deviation: 3.75 # 0.75 [m] / 0.2 [m/voxel] = [voxels]
-max_distance: 10.0 # 2.0 [m] / 0.2 [m/voxel] = [voxels]
+max_distance: 10.0 #10.0 # 2.0 [m] / 0.2 [m/voxel] = [voxels]
 
 ## 3DSG params
 z_offset_viz: 50.0 # [m]

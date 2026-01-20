@@ -6,7 +6,7 @@ import pickle as pkl
 
 import open3d as o3d
 
-from utils import numeric_key, random_color, find_latest_itr_file
+from utils import numeric_key, random_color, find_latest_itr, find_latest_file
 
 def map_clipid_to_globalpts(global_pc, pc_clip_dict):
     count_threshold = 2
@@ -57,7 +57,8 @@ if __name__ == "__main__":
     latest_global_pc_file = global_pc_files[-1] # global_map_idx 33 for sunny midday data
     global_pc = np.load(latest_global_pc_file) # (num_pts,4)
     
-    latest_file, last_itr = find_latest_itr_file(data_folder)
+    latest_file = find_latest_file(data_folder)
+    last_itr = find_latest_itr(data_folder)
     pc_clip_dict_path = os.path.join(data_folder, latest_file)
     with open(pc_clip_dict_path, "rb") as f: pc_clip_dict = pkl.load(f)
     

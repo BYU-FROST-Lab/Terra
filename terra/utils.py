@@ -1,5 +1,6 @@
 import os
 import re
+from collections import defaultdict
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -43,6 +44,9 @@ def chunked_tensor_cosine_similarity(
 def numeric_key(path):
         match = re.search(r"(\d+\.\d+)", path.stem)  # grabs the float in the name
         return float(match.group()) if match else float('inf')
+
+def int_defaultdict():
+    return defaultdict(int)
 
 def find_latest_itr(folder: str):
     """Finds the largest iteration number."""

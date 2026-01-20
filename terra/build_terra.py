@@ -4,6 +4,7 @@ import yaml
 from tqdm import tqdm
 import time
 from pathlib import Path
+import itertools
 from collections import defaultdict
 import numpy as np
 import pickle as pkl
@@ -16,11 +17,12 @@ import networkx as nx
 import clip
 import open3d as o3d
 from scipy.cluster.hierarchy import fcluster
-from utils import tensor_cosine_similarity, numeric_key, find_latest_itr
 
+from utils import tensor_cosine_similarity, numeric_key, find_latest_itr, int_defaultdict
 from gvd import DistanceMap
 from terra import Terra
 from terra_utils import save_terra
+from visualize_terra import TerraVisualizer
 
 class TerraBuilder:
     def __init__(self, args):
@@ -33,6 +35,7 @@ class TerraBuilder:
         if self.DEBUG_MODE:
             print("Running in DEBUG_MODE")
         self.terrain_classes = args['terrain_classes']
+        self.visualizer = TerraVisualizer(20, num_terrains=len(self.terrain_classes))
         self.terrain_threshold = args['terrain_threshold']
         self.cossim_weight_ratio = args['cossim_weight_ratio']
         self.gvd_params = {
@@ -453,7 +456,16 @@ class TerraBuilder:
         t1_placesgraph = time.time()
         print("Runtime to build nx.Graph from GVDs",t1_placesgraph - t0_placesgraph,"seconds")
         
-        self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
+        if self.DEBUG_MODE:
+            print("Before keeping only largest component")
+            self.visualizer.display_3dsg(terra_graph, pc=self.global_pc[:,:3])
+        
+        self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
+        # self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
+        
+        if self.DEBUG_MODE:
+            print("After keeping only largest component")
+            self.visualizer.display_3dsg(self.terra_graph, pc=self.global_pc[:,:3])
         
     def build_hierarchical_regions(self):
         print("Building hierarchical regions...")
@@ -811,7 +823,41 @@ class TerraBuilder:
         return paper_weight
 
     @staticmethod
+    def get_largest_merged_component(G: nx.Graph):
+        G = G.copy()
+        total_nodes = G.number_of_nodes()
+
+        while True:
+            components = sorted(nx.connected_components(G), key=len, reverse=True)
+
+            # Identify large components
+            large_components = [
+                comp for comp in components
+                if len(comp) >= 0.25 * total_nodes
+            ]
+
+            # Stop if zero or one large component
+            if len(large_components) <= 1:
+                break
+
+            # Merge the two largest large components
+            comp_a, comp_b = large_components[:2]
+
+            (u, v), dist = TerraBuilder.closest_nodes_between_components(
+                G, comp_a, comp_b, "pos"
+            )
+
+            # Add edge to connect them
+            G.add_edge(u, v)
+
+        # Return the (new) largest component
+        largest_comp = max(nx.connected_components(G), key=len)
+        return G.subgraph(largest_comp).copy()
+    
+    @staticmethod
     def get_largest_components(G: nx.Graph, n=1):
+        G = G.copy()
+        
         # Get all connected components sorted by size
         components = sorted(nx.connected_components(G), key=len, reverse=True)
         
@@ -820,6 +866,22 @@ class TerraBuilder:
         
         # Create subgraphs (use copy() to avoid view limitations)
         return [G.subgraph(comp).copy() for comp in largest_components]
+    
+    @staticmethod
+    def closest_nodes_between_components(G, comp_a, comp_b, pos_key="pos"):
+        min_dist = float("inf")
+        best_pair = None
+
+        for u, v in itertools.product(comp_a, comp_b):
+            p_u = np.asarray(G.nodes[u][pos_key])
+            p_v = np.asarray(G.nodes[v][pos_key])
+            d = np.linalg.norm(p_u - p_v)
+
+            if d < min_dist:
+                min_dist = d
+                best_pair = (u, v)
+
+        return best_pair, min_dist
     
     @staticmethod    
     def get_graph_area(G: nx.Graph):

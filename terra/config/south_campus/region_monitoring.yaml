@@ -1,13 +1,13 @@
 ---
-terra: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25/output/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
-alpha: 0.25
-prediction_method: "mix" # [max, thresh, mix, aib]
-k: 4
-
-# terra: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25/output/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025_prev/output/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 # alpha: 0.25
 # prediction_method: "mix" # [max, thresh, mix, aib]
-# k: 1
+# k: 4
+
+terra: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025_prev/output/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+alpha: 0.25
+prediction_method: "mix" # [max, thresh, mix, aib]
+k: 1
 
 region_tasks:
   - task: "large parking lot surrounded by buildings"
