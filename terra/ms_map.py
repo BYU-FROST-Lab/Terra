@@ -1,6 +1,7 @@
 import os
 import re
 import yaml
+from collections import defaultdict
 from argparse import ArgumentParser
 import numpy as np
 import open3d as o3d
@@ -17,6 +18,9 @@ import torch.nn.functional as F
 from ultralytics import YOLO, YOLOE, FastSAM
 import clip
 from utils import tensor_cosine_similarity, numeric_key, chunked_tensor_cosine_similarity
+
+def int_defaultdict():
+    return defaultdict(int)
 
 class MSMap:
     def __init__(self, args):
@@ -133,7 +137,7 @@ class MSMap:
 
             #Initialize data structures
             self.clip_tensor = torch.vstack(yolo_clip_embs) # (num_classes, 512)
-            self.pc_dict = {} #defaultdict(lambda: defaultdict(int))  # {point_index: {clip_id: count}}
+            self.pc_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
             self.num_scans = 0
             self.img_clips = []
             self.saved_img_names = []
@@ -333,19 +337,20 @@ class MSMap:
                 # --- Within distance threshold ---
                 if p_L_dist < self.cam2point_dist_thresh:
                     if g_idx in self.map_globalidx2imgidx:
-                        self.map_globalidx2imgidx[g_idx].add(len(self.saved_img_names) - 1 - (2 - cam_idx))
+                        self.map_globalidx2imgidx[g_idx].add(len(self.saved_img_names) - self.num_cams + cam_idx)
                     else:
-                        self.map_globalidx2imgidx[g_idx] = {len(self.saved_img_names) - 1 - (2 - cam_idx)}
+                        self.map_globalidx2imgidx[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
 
                 # --- No distance threshold ---
                 if g_idx not in self.map_globalidx2imgidx:
                     if g_idx in self.map_globalidx2dist_nodistthresh:
                         if p_L_dist < self.map_globalidx2dist_nodistthresh[g_idx]:
+                            # If there is a closer image, replace previous distance and image with closer image and its distance
                             self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
-                            self.map_globalidx2imgidx_nodistthresh[g_idx].add(len(self.saved_img_names) - 1 - (2 - cam_idx))
+                            self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
                     else:
                         self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
-                        self.map_globalidx2imgidx_nodistthresh[g_idx] = {len(self.saved_img_names) - 1 - (2 - cam_idx)}
+                        self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
 
             lidar_imgs[cam_idx] = lidar_imgs[cam_idx] / np.max(lidar_imgs[cam_idx])
             self.lidar_imgs_bool.append(lidar_imgs[cam_idx].astype(bool)) # True for non-zero intensities
@@ -384,13 +389,7 @@ class MSMap:
                     y_indices, x_indices = np.where(filtered_lidar_img > 0)
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
-                        if g_idx in self.pc_dict:
-                            if cls_id in self.pc_dict[g_idx]:
-                                self.pc_dict[g_idx][cls_id] += 1
-                            else:
-                                self.pc_dict[g_idx][cls_id] = 1
-                        else:
-                            self.pc_dict[g_idx] = {cls_id: 1}
+                        self.pc_dict[g_idx][cls_id] += 1
             else:
                 self.yolo_masks.append([])
 
@@ -601,7 +600,6 @@ class MSMap:
                 max_clip_id = self.clip_tensor.shape[0] - 1
 
             for g_idx in global_idxs[mask_idx]:
-                self.pc_dict.setdefault(g_idx, {}).setdefault(max_clip_id, 0)
                 self.pc_dict[g_idx][max_clip_id] += 1
 
     def save_semantic_pcl(self, itr):
