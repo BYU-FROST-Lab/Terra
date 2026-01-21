@@ -243,8 +243,8 @@ class TerraBuilder:
             ## Run brushfire algorithm ##
             #############################
             structure = np.ones((3,3), dtype=bool)
-            eroded_arr = binary_erosion(grid[::-1,:].astype(bool), structure=structure)
-            final_arr = binary_dilation(eroded_arr, structure=structure)
+            eroded_arr = binary_erosion(grid[::-1,:].astype(bool), structure=structure, iterations=1)
+            final_arr = binary_dilation(eroded_arr, structure=structure, iterations=1)
             
             #Build distance map and GVD
             dm = DistanceMap(final_arr.astype(int))
@@ -809,6 +809,8 @@ class TerraBuilder:
             self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl"
         )
         print("Finished! Terra Saved!")
+        if self.DEBUG_MODE:
+            terra.display_3dsg()
 
     def edge_weight(self, G, n1_id, n2_id):  
         cos_sim_places = tensor_cosine_similarity(G.nodes[n1_id]["embedding"], G.nodes[n2_id]["embedding"]).item()
@@ -823,6 +825,47 @@ class TerraBuilder:
         return paper_weight
 
     @staticmethod
+    def connect_all_components(G: nx.Graph):
+        G = G.copy()
+        components = list(nx.connected_components(G))
+
+        # Nothing to do if already connected
+        if len(components) <= 1:
+            return G
+        
+        # For fast lookup
+        components = [set(c) for c in components]
+
+        added_edges = set()
+
+        for i, comp_a in enumerate(components):
+            best_pair = None
+            best_dist = float("inf")
+
+            for j, comp_b in enumerate(components):
+                if i == j:
+                    continue
+
+                (u, v), dist = TerraBuilder.closest_nodes_between_components(
+                    G, comp_a, comp_b, "pos"
+                )
+
+                if dist < best_dist:
+                    best_dist = dist
+                    best_pair = (u, v)
+
+            if best_pair is not None:
+                u, v = best_pair
+
+                # Avoid duplicating edges if two components pick each other
+                edge_key = tuple(sorted((u, v)))
+                if edge_key not in added_edges and not G.has_edge(u, v):
+                    G.add_edge(u, v)
+                    added_edges.add(edge_key)
+
+        return G
+
+    @staticmethod
     def get_largest_merged_component(G: nx.Graph):
         G = G.copy()
         total_nodes = G.number_of_nodes()
@@ -833,7 +876,7 @@ class TerraBuilder:
             # Identify large components
             large_components = [
                 comp for comp in components
-                if len(comp) >= 0.25 * total_nodes
+                if len(comp) >= (0.25 * total_nodes)
             ]
 
             # Stop if zero or one large component

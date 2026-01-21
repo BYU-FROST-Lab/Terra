@@ -5,5 +5,6 @@ terra/runs/
 
 terra/*.ts
 terra/*.pt
-terra/config/field_tests/*.yaml
+terra/config/field_tests/
+terra/__pycache__/
 .vscode/
