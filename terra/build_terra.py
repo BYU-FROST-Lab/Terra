@@ -460,9 +460,10 @@ class TerraBuilder:
             print("Before keeping only largest component")
             self.visualizer.display_3dsg(terra_graph, pc=self.global_pc[:,:3])
         
-        self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
+        # self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
         # self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
-        
+        self.terra_graph = self.connect_all_components(terra_graph) # ensures fully connected graph
+
         if self.DEBUG_MODE:
             print("After keeping only largest component")
             self.visualizer.display_3dsg(self.terra_graph, pc=self.global_pc[:,:3])
@@ -830,40 +831,44 @@ class TerraBuilder:
         components = list(nx.connected_components(G))
 
         # Nothing to do if already connected
-        if len(components) <= 1:
-            return G
+        while len(components) > 1:
+            print(f"Graph has {len(components)} disconnected components, connecting...")
         
-        # For fast lookup
-        components = [set(c) for c in components]
+            # For fast lookup
+            components = [set(c) for c in components]
 
-        added_edges = set()
+            added_edges = set()
 
-        for i, comp_a in enumerate(components):
-            best_pair = None
-            best_dist = float("inf")
+            for i, comp_a in enumerate(components):
+                best_pair = None
+                best_dist = float("inf")
 
-            for j, comp_b in enumerate(components):
-                if i == j:
-                    continue
+                for j, comp_b in enumerate(components):
+                    if i == j:
+                        continue
 
-                (u, v), dist = TerraBuilder.closest_nodes_between_components(
-                    G, comp_a, comp_b, "pos"
-                )
+                    (u, v), dist = TerraBuilder.closest_nodes_between_components(
+                        G, comp_a, comp_b, "pos"
+                    )
 
-                if dist < best_dist:
-                    best_dist = dist
-                    best_pair = (u, v)
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_pair = (u, v)
 
-            if best_pair is not None:
-                u, v = best_pair
+                if best_pair is not None:
+                    u, v = best_pair
 
-                # Avoid duplicating edges if two components pick each other
-                edge_key = tuple(sorted((u, v)))
-                if edge_key not in added_edges and not G.has_edge(u, v):
-                    G.add_edge(u, v)
-                    added_edges.add(edge_key)
+                    # Avoid duplicating edges if two components pick each other
+                    edge_key = tuple(sorted((u, v)))
+                    if edge_key not in added_edges and not G.has_edge(u, v):
+                        print("Adding edge to connect components:", u, v)
+                        G.add_edge(u, v)
+                        added_edges.add(edge_key)
+
+            components = list(nx.connected_components(G))
 
         return G
+
 
     @staticmethod
     def get_largest_merged_component(G: nx.Graph):
