@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from scipy.spatial.transform import Rotation as R
 import pickle as pkl
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from ultralytics import YOLO, YOLOE, FastSAM
@@ -625,8 +626,8 @@ class MSMap:
 
     def display_global_pcl(self):
         # Visualize the global point cloud colored by class
-        distinct_colors = [[1,0,0],[0,1,0],[0,0,1],[1,0.5,0],[1,0,1], [0,1,1]]
-        chosen_colors = distinct_colors[:len(self.yolo_model.names)]
+        cmap = plt.get_cmap('tab10')
+        chosen_colors = [cmap(i % 10)[:3] for i in range(len(self.yolo_model.names))]
         count_threshold = 1
         global_pts = {}
 

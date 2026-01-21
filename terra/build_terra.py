@@ -333,7 +333,7 @@ class TerraBuilder:
                     self.new_terrain_connections.append([(dy,dx), min_coord])
 
         # Convert GVD Nodes to real-world coordinates
-        distinct_colors = [[216/255,27/255,96/255],[0,1,0],[0,0,1],[0.5,0.5,0.5],[1,164/255,0],[0,1,1],[255./255.,51./255.,255./255.]]
+        cmap = plt.get_cmap("tab10")  # 10 distinct colors
         self.terrain_nodes = []
         self.terrain_ids_for_nodes = []
         self.terrain_coord_to_idx = {}
@@ -347,7 +347,7 @@ class TerraBuilder:
                         x_real = x * self.gvd_params['og_res'] + self.x_min
 
                         sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.0).translate([x_real,y_real,self.z_offset_viz])
-                        sphere.paint_uniform_color(distinct_colors[terrain_idx])
+                        sphere.paint_uniform_color(cmap(terrain_idx % 10)[:3])
                         self.terrain_nodes.append(sphere)
                         self.terrain_ids_for_nodes.append(terrain_idx)
                         

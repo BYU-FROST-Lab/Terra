@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 import os
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 import pickle as pkl
 
 import open3d as o3d
@@ -37,6 +38,10 @@ def arg_parser():
                         type=str, 
                         default="/docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025", 
                         help='Directory to where folders of local and global scans were saved')
+    parser.add_argument('--output_folder', 
+                        type=str, 
+                        default="/docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025/output", 
+                        help='Directory to where MSMap data was saved')
     parser.add_argument('--num_terrain',
                         type=int,
                         default=3,
@@ -50,32 +55,33 @@ def arg_parser():
 
 if __name__ == "__main__":
     args = arg_parser()
-    data_folder = args.data_folder
     
-    global_pc_folder = os.path.join(data_folder, "global_pc")
+    global_pc_folder = os.path.join(args.data_folder, "global_pc")
     global_pc_files = sorted(Path(global_pc_folder).glob("*.npy"),key=numeric_key)        
     latest_global_pc_file = global_pc_files[-1] # global_map_idx 33 for sunny midday data
     global_pc = np.load(latest_global_pc_file) # (num_pts,4)
     
-    latest_file = find_latest_file(data_folder)
-    last_itr = find_latest_itr(data_folder)
-    pc_clip_dict_path = os.path.join(data_folder, latest_file)
+    latest_file = find_latest_file(args.output_folder)
+    last_itr = find_latest_itr(args.output_folder)
+    pc_clip_dict_path = os.path.join(args.output_folder, latest_file)
     with open(pc_clip_dict_path, "rb") as f: pc_clip_dict = pkl.load(f)
     
     clipid_2_globalpts = map_clipid_to_globalpts(global_pc, pc_clip_dict)
     
     # Display Global Point Cloud colored by CLIP IDs
-    distinct_colors = [[1,0,0],[0,1,0],[0,0,1],[1,0.5,0],[1,0,1], [0,1,1]]
-    chosen_colors = distinct_colors[:args.num_terrain]
+    cmap = plt.get_cmap("tab10")  # 10 distinct colors
+    chosen_colors = [cmap(i % 10)[:3] for i in range(args.num_terrain)]
     pcds = []
+    terrain_pcds = []
     for clip_id in clipid_2_globalpts.keys():
         pcd = o3d.geometry.PointCloud()
         if clip_id == -1:
             pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id],:3])
             pcd.paint_uniform_color([0.5,0.5,0.5])
-        if clip_id < args.num_terrain:
+        elif clip_id < args.num_terrain:
             pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id], :3])
             pcd.paint_uniform_color(chosen_colors[clip_id])
+            terrain_pcds.append(pcd)
         else:
             random_col = random_color()
             pcd.points = o3d.utility.Vector3dVector(global_pc[clipid_2_globalpts[clip_id], :3])
@@ -83,6 +89,15 @@ if __name__ == "__main__":
         pcds.append(pcd)
         
     # o3d.visualization.draw_geometries(pcds)
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    for pcd in terrain_pcds:
+        vis.add_geometry(pcd)
+    render_opt = vis.get_render_option()
+    render_opt.point_size = args.pt_size  # smaller points
+    vis.run()
+    vis.destroy_window()
+    
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     for pcd in pcds:

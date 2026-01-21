@@ -1,13 +1,11 @@
-data_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025
-output_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground
-# output_folder: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yoloe
+data_folder: /docker_ros2_ws/src/oasis2/data/provo_river_p1_11_3_2025
+output_folder: /docker_ros2_ws/src/oasis2/data/provo_river_p1_11_3_2025/output/goose_ground_8cls/3_cam
 save_average_embeddings: false
-debug: false
+debug: true
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 
 ## Terrain params
-terrain_classes: ["artificial_ground", "natural_ground"] # must match yolo class names & ordering
-# terrain_classes: ["sidewalk or asphalt or road", "dirt or grass or gravel or water"] # must match yolo class names & ordering
+terrain_classes: ["snow", "leaves", "road", "sidewalk", "gravel", "dirt", "grass", "water"] # must match yolo class names & ordering
 terrain_threshold: 0.95
 
 ## GVD params

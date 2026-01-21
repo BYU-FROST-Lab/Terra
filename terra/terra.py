@@ -46,10 +46,9 @@ class Terra():
         
         self.kdt = KDTree(self.pc)       
         
-        distinct_colors = [[1,0,0],[0,1,0],[0,0,1],[1,0.5,0],[1,0,1], [0,1,1]]
         self.visualizer = TerraVisualizer(
             level_offset=50, 
-            terrain_colors=distinct_colors[:len(self.terrain_names)]
+            num_terrains=len(self.terrain_names)
         )
         self.object_predictor = ObjectPredictor(self)
         self.region_predictor = RegionPredictor(self)

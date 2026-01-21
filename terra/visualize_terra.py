@@ -16,12 +16,11 @@ class TerraVisualizer():
             self.num_terrains = len(terrain_colors)
             self.terrain_colors = terrain_colors
         elif num_terrains:
-            terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]
-            self.num_terrains = num_terrains
-            self.terrain_colors = terrain_colors[:self.num_terrains]
+            cmap = plt.get_cmap("tab10")  # 10 distinct colors
+            self.terrain_colors = [cmap(i % 10)[:3] for i in range(num_terrains)]
         else:
             self.num_terrains = 3
-            self.terrain_colors = [[1,0,0],[0,1,0],[0,0,1]]
+            self.terrain_colors = [cmap(i % 10)[:3] for i in range(self.num_terrains)]
         self.grays = [[0.3,0.3,0.3],[0.7,0.7,0.7],[0.1,0.1,0.1],[0.9,0.9,0.9]]
            
     def display_places(self, G, pc=None):
