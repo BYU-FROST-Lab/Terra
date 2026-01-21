@@ -1,9 +1,0 @@
----
-terra: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
-alpha: 0.23
-prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg]
-object_tasks:
-  - task: "find a car"
-  # - task: "find a boat"
-  # - task: "find a dumpster"
-#  - task: "get bike from the bicycle rack" # method=3dsg, alpha=0.25 # blue
