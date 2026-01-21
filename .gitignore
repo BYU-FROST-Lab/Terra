@@ -5,4 +5,4 @@ terra/runs/
 
 terra/*.ts
 terra/*.pt
-# terra/config/*.yaml
+terra/config/field_tests/*.yaml

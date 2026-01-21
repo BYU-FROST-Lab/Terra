@@ -2,8 +2,8 @@
 data_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25
 output_folder: /docker_ros2_ws/src/oasis2/data/south_campus_4_21_25/output
 num_cams: 1
-debug: true
-continue_processing: false
+debug: false
+continue_processing: true
 save_step_size: 1000
 unaligned_threshold: 0.2 # seconds
 
