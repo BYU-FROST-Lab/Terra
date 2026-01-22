@@ -442,7 +442,7 @@ class TerraBuilder:
                 n2_id = self.terrain_coord_to_idx[n2_coord]
                 
                 # Add in edge weights
-                wij = self.edge_weight(terra_graph, n1_id, n2_id)
+                wij = self.edge_weight(terra_graph, n1_id, n2_id, self.cossim_weight_ratio)
                 terra_graph.add_edge(n1_id, n2_id, weight=wij)
         
         # Add in dead-end node edges between terrain types
@@ -451,21 +451,21 @@ class TerraBuilder:
             n2_id = self.terrain_coord_to_idx[n2_coord]
 
             # Add in edge weights
-            wij = self.edge_weight(terra_graph, n1_id, n2_id)
+            wij = self.edge_weight(terra_graph, n1_id, n2_id, self.cossim_weight_ratio)
             terra_graph.add_edge(n1_id, n2_id, weight=wij)
         t1_placesgraph = time.time()
         print("Runtime to build nx.Graph from GVDs",t1_placesgraph - t0_placesgraph,"seconds")
         
         if self.DEBUG_MODE:
-            print("Before keeping only largest component")
+            print("Before connecting all components")
             self.visualizer.display_3dsg(terra_graph, pc=self.global_pc[:,:3])
         
         # self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
         # self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
-        self.terra_graph = self.connect_all_components(terra_graph) # ensures fully connected graph
+        self.terra_graph = self.connect_all_components(terra_graph, self.cossim_weight_ratio) # ensures fully connected graph
 
         if self.DEBUG_MODE:
-            print("After keeping only largest component")
+            print("After connecting all components")
             self.visualizer.display_3dsg(self.terra_graph, pc=self.global_pc[:,:3])
         
     def build_hierarchical_regions(self):
@@ -492,7 +492,7 @@ class TerraBuilder:
                 if n1_id == n2_id:
                     continue
                 if not terra_graph_dense.has_edge(n1_id, n2_id):
-                    wij = self.edge_weight(terra_graph_dense, n1_id, n2_id)
+                    wij = self.edge_weight(terra_graph_dense, n1_id, n2_id, self.cossim_weight_ratio)
                     terra_graph_dense.add_edge(n1_id, n2_id, weight=wij)
         print(f"Time to make fully connected graph: {time.time() - t0_fc} seconds")
         
@@ -554,7 +554,7 @@ class TerraBuilder:
                 if layer_idx == 0:
                     for idx in curr_label_indices:
                         child_id = map_idx2nodeidx[idx]
-                        wij = self.edge_weight(self.terra_graph, prev_id, child_id)
+                        wij = self.edge_weight(self.terra_graph, prev_id, child_id, self.cossim_weight_ratio)
                         self.terra_graph.add_edge(prev_id, child_id, weight=wij)
                 else:
                     added_edge_nodes = []
@@ -570,7 +570,7 @@ class TerraBuilder:
                                     cn_id not in added_edge_nodes:
                                     
                                     a_child_node = cn_id
-                                    wij = self.edge_weight(self.terra_graph, prev_id, a_child_node)
+                                    wij = self.edge_weight(self.terra_graph, prev_id, a_child_node, self.cossim_weight_ratio)
                                     self.terra_graph.add_edge(prev_id, a_child_node, weight=wij)
                                     added_edge_nodes.append(cn_id)
                                     stop = True
@@ -613,7 +613,7 @@ class TerraBuilder:
 
         # Connect root to all top-level regions
         for n in top_level_nodes:
-            w = self.edge_weight(self.terra_graph, root_node_id, n)
+            w = self.edge_weight(self.terra_graph, root_node_id, n, self.cossim_weight_ratio)
             self.terra_graph.add_edge(root_node_id, n, weight=w)
 
         print(f"Added global root node {root_node_id} connecting {len(top_level_nodes)} regions.")
@@ -774,14 +774,14 @@ class TerraBuilder:
                 if len(children_ids) == 0: # leaf node
                     ## Connect to terrain nodes in nx.Graph...
                     for n_id in g.nodes:
-                        wij = self.edge_weight(self.terra_graph, g_id, n_id)
+                        wij = self.edge_weight(self.terra_graph, g_id, n_id, self.cossim_weight_ratio)
                         self.terra_graph.add_edge(g_id,n_id,weight=wij)
                     if parent_id is not None:
-                        wij = self.edge_weight(self.terra_graph, g_id, parent_id)
+                        wij = self.edge_weight(self.terra_graph, g_id, parent_id, self.cossim_weight_ratio)
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
                 else: # region node
                     if parent_id is not None:
-                        wij = self.edge_weight(self.terra_graph, g_id, parent_id)
+                        wij = self.edge_weight(self.terra_graph, g_id, parent_id, self.cossim_weight_ratio)
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_terra(self):
@@ -813,7 +813,8 @@ class TerraBuilder:
         if self.DEBUG_MODE:
             terra.display_3dsg()
 
-    def edge_weight(self, G, n1_id, n2_id):  
+    @staticmethod
+    def edge_weight(G, n1_id, n2_id, cossim_weight_ratio):  
         cos_sim_places = tensor_cosine_similarity(G.nodes[n1_id]["embedding"], G.nodes[n2_id]["embedding"]).item()
         # cos_sim_terrain = tensor_cosine_similarity(
         #     terrain_embeddings[G.nodes[n1_id]["terrain_id"]],
@@ -822,11 +823,11 @@ class TerraBuilder:
         
         euclidean_dist = np.linalg.norm(G.nodes[n1_id]["pos"] - G.nodes[n2_id]["pos"]) 
 
-        paper_weight = euclidean_dist + self.cossim_weight_ratio * (1 - cos_sim_places)
+        paper_weight = euclidean_dist + cossim_weight_ratio * (1 - cos_sim_places)
         return paper_weight
 
     @staticmethod
-    def connect_all_components(G: nx.Graph):
+    def connect_all_components(G: nx.Graph, cossim_weight_ratio):
         G = G.copy()
         components = list(nx.connected_components(G))
 
@@ -862,7 +863,9 @@ class TerraBuilder:
                     edge_key = tuple(sorted((u, v)))
                     if edge_key not in added_edges and not G.has_edge(u, v):
                         print("Adding edge to connect components:", u, v)
-                        G.add_edge(u, v)
+                        wij = TerraBuilder.edge_weight(G, u, v, cossim_weight_ratio)
+                        wij *= 100 # Large weight to discourage traversing these edges
+                        G.add_edge(u, v, weight=wij)
                         added_edges.add(edge_key)
 
             components = list(nx.connected_components(G))
