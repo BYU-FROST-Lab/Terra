@@ -833,7 +833,7 @@ class TerraBuilder:
 
         # Nothing to do if already connected
         while len(components) > 1:
-            print(f"Graph has {len(components)} disconnected components, connecting...")
+            # print(f"Graph has {len(components)} disconnected components, connecting...")
         
             # For fast lookup
             components = [set(c) for c in components]
@@ -862,7 +862,7 @@ class TerraBuilder:
                     # Avoid duplicating edges if two components pick each other
                     edge_key = tuple(sorted((u, v)))
                     if edge_key not in added_edges and not G.has_edge(u, v):
-                        print("Adding edge to connect components:", u, v)
+                        # print("Adding edge to connect components:", u, v)
                         wij = TerraBuilder.edge_weight(G, u, v, cossim_weight_ratio)
                         wij *= 100 # Large weight to discourage traversing these edges
                         G.add_edge(u, v, weight=wij)
@@ -871,7 +871,6 @@ class TerraBuilder:
             components = list(nx.connected_components(G))
 
         return G
-
 
     @staticmethod
     def get_largest_merged_component(G: nx.Graph):

@@ -302,7 +302,7 @@ class MSMap:
             cam_points = cam_points_h[:, :3]
 
             # Project onto image plane (N, 3)
-            proj_points = cam_points @ self.K[cam_idx].T # assumes same intrinsic matrix for all cams
+            proj_points = cam_points @ self.K[cam_idx].T
 
             # Normalize by z (N,) and round to nearest pixel
             zs = proj_points[:, 2]
@@ -319,7 +319,7 @@ class MSMap:
             points_xyz = points_xyz[in_bounds]
             intensity = intensity[in_bounds]
 
-            # LiDAR → global (N,3), avoids np.append per point
+            # LiDAR → global (N,3)
             p_Gs = points_xyz @ self.transform_lidar_to_global[:3, :3].T + self.transform_lidar_to_global[:3, 3]
 
             # Batch KD-tree query
