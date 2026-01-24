@@ -120,18 +120,18 @@ class TerraBuilder:
         self.input_terrain_clip_embs = [self.clip_model.encode_text(clip.tokenize([terrain]).to(self.device)).float() for terrain in self.terrain_classes]
         self.input_terrain_clip_tensor = torch.vstack(self.input_terrain_clip_embs) # (num_input_terrain, 512)
 
-    def avg_clip_embeddings(self):
+    def avg_clip_embeddings(self, batch_size=4096):
         print("Begin averaging CLIP embeddings for each global point...")
-        self.global_clip_filt = torch.zeros((self.global_pc.shape[0],512),device=self.device) # (num_global_pts, 512)
         self.terrain_ids = {} # Dictionary of terrain index to global point indices classified as that terrain
         self.nonsemantic_gidx = []
         self.terrain_gidx = []
         self.nonterrain_gidx = []
         self.semantic_gidxs = []
         
-        # clip_emb_list = []
-        write_idx = 0
-        clip_emb_vec = torch.zeros(512, device=self.device)
+        clip_emb_list = []
+        batch_clip = []
+        batch_indices = []
+        
         max_prompt_scores = []
         t0_clipavg = time.time()
         for global_idx in tqdm(range(self.global_pc.shape[0]), desc="Processing points"):
@@ -141,40 +141,50 @@ class TerraBuilder:
                 self.nonsemantic_gidx.append(global_idx)
                 continue
             
+            clip_emb_vec = torch.zeros(512, device=self.device)
             num_detections = 0
-            clip_emb_vec.zero_()
             for clip_id, count in pc_dict_entry.items():
                 clip_emb_vec.add_(self.clip_tensor[clip_id,:], alpha=count)
                 num_detections += count
             clip_emb_vec.div_(num_detections)
             
-            # clip_emb_list.append(clip_avg_emb)
-            self.global_clip_filt[write_idx,:] = clip_emb_vec
+            batch_clip.append(clip_emb_vec)
+            batch_indices.append(global_idx)
             
             self.semantic_gidxs.append(global_idx)
 
-            # Score how close the avg clip embedding is to each terrain class
-            scores = tensor_cosine_similarity(
-                clip_emb_vec.unsqueeze(0), 
-                self.input_terrain_clip_tensor
-            ) # (num_clusters, num_prompt_tasks)
+            if len(batch_clip) >= batch_size or global_idx == self.global_pc.shape[0] - 1:
+                batch_tensor = torch.stack(batch_clip)  # (B, 512)
             
-            max_score, max_score_idx = scores.max(dim=1)
-            max_score = max_score.item()
-            max_score_idx = max_score_idx.item()
+                # Score how close the avg clip embedding is to each terrain class
+                scores = tensor_cosine_similarity(
+                    batch_tensor, 
+                    self.input_terrain_clip_tensor
+                ) # (batch_size, num_terrains)
             
-            max_prompt_scores.append(max_score)
+                max_scores, max_score_idxs = scores.max(dim=1) # each global point's best terrain match
+            
+                for i, g_idx in enumerate(batch_indices):
+                    max_score = max_scores[i].item()
+                    max_idx = max_score_idxs[i].item()
+                    max_prompt_scores.append(max_score)
 
-            if max_score > self.terrain_threshold:
-                self.terrain_gidx.append(global_idx)
-                self.terrain_ids.setdefault(max_score_idx, []).append(global_idx)
-            else:
-                self.nonterrain_gidx.append(global_idx)
-                
-            write_idx += 1
+                    if max_score > self.terrain_threshold:
+                        self.terrain_gidx.append(g_idx)
+                        self.terrain_ids.setdefault(max_idx, []).append(g_idx)
+                    else:
+                        self.nonterrain_gidx.append(g_idx)
+            
+                # Store embeddings detached to avoid retaining computation graph
+                clip_emb_list.extend([emb.detach() for emb in batch_clip])
+
+                # Clear batch to free memory
+                batch_clip = []
+                batch_indices = []
+                del batch_tensor, scores, max_scores, max_score_idxs
+                torch.cuda.empty_cache()
         
-        self.global_clip_filt = self.global_clip_filt[:write_idx, :]
-        # self.global_clip_filt = torch.stack(clip_emb_list, dim=0)
+        self.global_clip_filt = torch.stack(clip_emb_list, dim=0).to(self.device)
         
         t1_clipavg = time.time()    
         print(f"Finished averaging CLIP embedings for each global point in {t1_clipavg-t0_clipavg} seconds")
@@ -474,6 +484,7 @@ class TerraBuilder:
         
         if self.DEBUG_MODE:
             print("Before connecting all components")
+            self.visualizer.display_3dsg(terra_graph)
             self.visualizer.display_3dsg(terra_graph, pc=self.global_pc[:,:3])
         
         # self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
@@ -482,6 +493,7 @@ class TerraBuilder:
 
         if self.DEBUG_MODE:
             print("After connecting all components")
+            self.visualizer.display_3dsg(self.terra_graph)
             self.visualizer.display_3dsg(self.terra_graph, pc=self.global_pc[:,:3])
         
     def build_hierarchical_regions(self):
