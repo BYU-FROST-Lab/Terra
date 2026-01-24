@@ -122,44 +122,60 @@ class TerraBuilder:
 
     def avg_clip_embeddings(self):
         print("Begin averaging CLIP embeddings for each global point...")
-        self.global_clip_filt = torch.zeros((0,512),device=self.device) # (num_global_pts, 512)
+        self.global_clip_filt = torch.zeros((self.global_pc.shape[0],512),device=self.device) # (num_global_pts, 512)
         self.terrain_ids = {} # Dictionary of terrain index to global point indices classified as that terrain
         self.nonsemantic_gidx = []
         self.terrain_gidx = []
         self.nonterrain_gidx = []
         self.semantic_gidxs = []
-        t0_clipavg = time.time()
+        
+        # clip_emb_list = []
+        write_idx = 0
+        clip_emb_vec = torch.zeros(512, device=self.device)
         max_prompt_scores = []
+        t0_clipavg = time.time()
         for global_idx in tqdm(range(self.global_pc.shape[0]), desc="Processing points"):
-            if global_idx in self.pc_dict.keys():
-                num_detections = 0
-                clip_emb_vec = torch.zeros((1,512),device=self.device)
-                for clip_id, count in self.pc_dict[global_idx].items():
-                    clip_emb_vec += count * self.clip_tensor[clip_id,:]
-                    num_detections += count
-                clip_avg_emb = clip_emb_vec / num_detections
-                self.global_clip_filt = torch.concatenate((self.global_clip_filt, clip_avg_emb))
-                
-                self.semantic_gidxs.append(global_idx)
+            pc_dict_entry = self.pc_dict.get(global_idx, None)
+            
+            if pc_dict_entry is None:
+                self.nonsemantic_gidx.append(global_idx)
+                continue
+            
+            num_detections = 0
+            clip_emb_vec.zero_()
+            for clip_id, count in pc_dict_entry.items():
+                clip_emb_vec.add_(self.clip_tensor[clip_id,:], alpha=count)
+                num_detections += count
+            clip_emb_vec.div_(num_detections)
+            
+            # clip_emb_list.append(clip_avg_emb)
+            self.global_clip_filt[write_idx,:] = clip_emb_vec
+            
+            self.semantic_gidxs.append(global_idx)
 
-                # Score how close the avg clip embedding is to each terrain class
-                scores = tensor_cosine_similarity(
-                                clip_avg_emb, 
-                                self.input_terrain_clip_tensor) # (num_clusters, num_prompt_tasks)
-                max_prompt_score = scores.max().item()
-                max_prompt_scores.append(max_prompt_score)
-                max_prompt_score_idx = scores.argmax().item()
+            # Score how close the avg clip embedding is to each terrain class
+            scores = tensor_cosine_similarity(
+                clip_emb_vec.unsqueeze(0), 
+                self.input_terrain_clip_tensor
+            ) # (num_clusters, num_prompt_tasks)
+            
+            max_score, max_score_idx = scores.max(dim=1)
+            max_score = max_score.item()
+            max_score_idx = max_score_idx.item()
+            
+            max_prompt_scores.append(max_score)
 
-                if max_prompt_score > self.terrain_threshold:
-                    self.terrain_gidx.append(global_idx)
-                    if max_prompt_score_idx not in self.terrain_ids.keys():
-                        self.terrain_ids[max_prompt_score_idx] = [global_idx]
-                    else:
-                        self.terrain_ids[max_prompt_score_idx].append(global_idx)
-                else:
-                    self.nonterrain_gidx.append(global_idx)
+            if max_score > self.terrain_threshold:
+                self.terrain_gidx.append(global_idx)
+                self.terrain_ids.setdefault(max_score_idx, []).append(global_idx)
             else:
-                self.nonsemantic_gidx.append(global_idx)    
+                self.nonterrain_gidx.append(global_idx)
+                
+            write_idx += 1
+        
+        self.global_clip_filt = self.global_clip_filt[:write_idx, :]
+        # self.global_clip_filt = torch.stack(clip_emb_list, dim=0)
+        
         t1_clipavg = time.time()    
         print(f"Finished averaging CLIP embedings for each global point in {t1_clipavg-t0_clipavg} seconds")
 
