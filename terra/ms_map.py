@@ -149,6 +149,7 @@ class MSMap:
         #Iterate through each scan
         last_saved_idx = self.last_scan_idx
         for scan_idx, transform_lidar2global_file in enumerate(sorted(Path(self.transforms_lidar2global_folder).glob("*.npy"), key=numeric_key)):
+            self.num_scans = scan_idx
             if self.continue_processing and scan_idx <= self.last_scan_idx:
                 continue # Skip over already processed scans
 
@@ -221,7 +222,6 @@ class MSMap:
                     self.display_global_pcl()
 
             itr_t1 = time.time()
-            self.num_scans = scan_idx
             print(f"Iteration {scan_idx} runtime:",itr_t1 - itr_t0,"sec")
             self.scan_times.append(itr_t1 - itr_t0)
 
