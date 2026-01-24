@@ -72,13 +72,13 @@ class MSMap:
             self.yolo_model = YOLOE("yoloe-11s-seg.pt")
             self.yolo_model.set_classes(args['terrain_prompts'], self.yolo_model.get_text_pe(args['terrain_prompts']))
         else:
-            self.yolo_model = YOLO(args['yolo_model_path']) # orig_and_sunnyfeb_11nano_640sz/weights/best.pt
+            self.yolo_model = YOLO(args['yolo_model_path']) 
         self.yolo_conf_thresh = args['yolo_conf_threshold']
         
         # Load global point cloud
         global_pc_folder = os.path.join(self.data_folder, "global_pc")
         global_pc_files = sorted(Path(global_pc_folder).glob("*.npy"),  key=numeric_key)        
-        latest_global_pc_file = global_pc_files[-1] # global_map_idx 33 for sunny midday data
+        latest_global_pc_file = global_pc_files[-1]
         self.global_pc = np.load(latest_global_pc_file)
         self.global_kdtree = KDTree(self.global_pc[:, :3])  # Dictionary to hold matching global points using the x, y, z columns
 
@@ -138,6 +138,7 @@ class MSMap:
             self.clip_tensor = torch.vstack(yolo_clip_embs) # (num_classes, 512)
             self.pc_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
             self.num_scans = 0
+            self.last_scan_idx = 0
             self.img_clips = []
             self.saved_img_names = []
             self.map_globalidx2imgidx = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
@@ -146,7 +147,7 @@ class MSMap:
 
 
         #Iterate through each scan
-        last_saved_idx = 0
+        last_saved_idx = self.last_scan_idx
         for scan_idx, transform_lidar2global_file in enumerate(sorted(Path(self.transforms_lidar2global_folder).glob("*.npy"), key=numeric_key)):
             if self.continue_processing and scan_idx <= self.last_scan_idx:
                 continue # Skip over already processed scans
