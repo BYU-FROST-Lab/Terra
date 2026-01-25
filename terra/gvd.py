@@ -564,22 +564,21 @@ class DistanceMap:
                             connected_node_ids.add(tuple((self.gvd_ids[y, x], self.gvd_ids[ny, nx])))
         return connected_node_ids
     
-    def get_connected_node_id_counts(self):
-        connected_node_id_counts = {}
+    def get_node_id_neighbor_counts(self):
+        neighbor_counts = {}
         for y in range(self.gvd_ids.shape[0]):
             for x in range(self.gvd_ids.shape[1]):
+                if self.gvd_ids[y, x] != -1 and self.gvd_ids[y, x] not in neighbor_counts:
+                    neighbor_counts[self.gvd_ids[y, x]] = 0
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
                         if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
-                            if self.gvd_ids[y, x] not in connected_node_id_counts:
-                                connected_node_id_counts[self.gvd_ids[y, x]] = 1
+                            neighbor_counts[self.gvd_ids[y, x]] += 1
+                            if self.gvd_ids[ny, nx] not in neighbor_counts:
+                                neighbor_counts[self.gvd_ids[ny, nx]] = 1
                             else:
-                                connected_node_id_counts[self.gvd_ids[y, x]] += 1
-                            if self.gvd_ids[ny, nx] not in connected_node_id_counts:
-                                connected_node_id_counts[self.gvd_ids[ny, nx]] = 1
-                            else:
-                                connected_node_id_counts[self.gvd_ids[ny, nx]] += 1
-        return connected_node_id_counts
+                                neighbor_counts[self.gvd_ids[ny, nx]] += 1
+        return neighbor_counts
     
     def get_connected_node_coords(self):
         connected_node_ids = self.get_connected_node_ids()

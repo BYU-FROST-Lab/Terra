@@ -317,7 +317,7 @@ class TerraBuilder:
         terrain_deadend_nodes = {}
         for terrain_idx, dm in enumerate(tqdm(self.dist_maps, desc="Adding edges between same terrain")):
             terrain_deadend_nodes[terrain_idx] = []
-            connected_node_id_counts = dm.get_connected_node_id_counts()
+            connected_node_id_counts = dm.get_node_id_neighbor_counts()
             for node_id, count in connected_node_id_counts.items():
                 if count <= 2:
                     y, x = dm.gvd_node_ids2coords[node_id]
@@ -422,7 +422,7 @@ class TerraBuilder:
                 for cntr, img_idx in enumerate(img_indices):
                     if cntr < num_disp_imgs:
                         plt.figure()
-                        plt.imshow(plt.imread(self.img_names[img_idx]))
+                        plt.imshow(plt.imread(self.data_folder+"/"+self.img_names[img_idx]))
                     else:
                         break
                 plt.show()
@@ -851,8 +851,9 @@ class TerraBuilder:
         
         euclidean_dist = np.linalg.norm(G.nodes[n1_id]["pos"] - G.nodes[n2_id]["pos"]) 
 
-        paper_weight = euclidean_dist + cossim_weight_ratio * (1 - cos_sim_places)
-        return paper_weight
+        weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
+        
+        return weight
 
     @staticmethod
     def connect_all_components(G: nx.Graph, cossim_weight_ratio):

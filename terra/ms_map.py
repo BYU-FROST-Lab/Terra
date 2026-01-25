@@ -257,7 +257,12 @@ class MSMap:
             prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
             with torch.no_grad():
                 self.img_clips.append(self.clip_model.encode_image(prep))
-            self.saved_img_names.append(camera_image_files[cam_idx])
+                
+            # self.saved_img_names.append(camera_image_files[cam_idx])
+            img_path = Path(camera_image_files[cam_idx])
+            folder_name = img_path.parent.name  # e.g., "camera1_images"
+            file_name = img_path.name           # e.g., "cam1_img_123456.jpg"
+            self.saved_img_names.append(f"{folder_name}/{file_name}")            
 
     def get_pcl_points_found_in_image(self, scan_idx):
         # Get the 3D point cloud points that correspond to the 2D image
