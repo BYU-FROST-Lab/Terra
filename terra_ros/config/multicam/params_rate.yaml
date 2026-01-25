@@ -1,8 +1,8 @@
 save_metric_data_multicam_rate:
   ros__parameters:
-    rosbag_path: /ros2_bags/marina_v1_1_23_26
+    rosbag_path: /ros2_bags/marina_v4_1_23_26
     lidar_topic: /lio_sam/deskew/cloud_deskewed
-    save_folder: /ros2_bags/metric_data_sparse/save_sec0.5/marina_v1_1_23_26
+    save_folder: /ros2_bags/metric_data_sparse/save_sec0.5/marina_v4_1_23_26
     save_period: 0.5 # second(s) between saves
     num_cameras: 3
     camera1_topic: /oak_d_lr_forward/rgb/image_raw
