@@ -29,6 +29,7 @@ setup(
         'console_scripts': [
             'save_metric_data = terra_ros.save_metric_data:main',
             'save_metric_data_multicam = terra_ros.save_metric_data_multicam:main',
+            'save_metric_data_multicam_rate = terra_ros.save_metric_data_multicam_rate:main',
         ]
     },
 )
