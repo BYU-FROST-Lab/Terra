@@ -110,7 +110,7 @@ class SaveMetricData(Node):
         self.local_cam_img = img
         self.local_cam_msg = msg
         cam_time = self.header_to_seconds(self.local_cam_msg.header)
-        cv2.imwrite(os.path.join(self.local_imgs_dir, f'cam1_img_{cam_time}.jpg'), self.local_cam_img)
+        cv2.imwrite(os.path.join(self.local_imgs_dir, f'cam1_img_{cam_time:.6f}.jpg'), self.local_cam_img)
     
     def lidar_pc_callback(self, msg):
         try:
@@ -126,10 +126,10 @@ class SaveMetricData(Node):
             tf_time = self.header_to_seconds(transform_lidar2map.header)
             
             # Save lidar scan
-            np.save(os.path.join(self.lidar_pc_dir, f'lidar_pc_{pc_time}.npy'), lidar_pc_arr)
+            np.save(os.path.join(self.lidar_pc_dir, f'lidar_pc_{pc_time:.6f}.npy'), lidar_pc_arr)
 
             # Save transformations
-            np.save(os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{tf_time}.npy'), [
+            np.save(os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{tf_time:.6f}.npy'), [
                 transform_lidar2map.transform.translation.x, 
                 transform_lidar2map.transform.translation.y, 
                 transform_lidar2map.transform.translation.z,
@@ -139,7 +139,7 @@ class SaveMetricData(Node):
                 transform_lidar2map.transform.rotation.w
             ])
             if self.publish_extrinsics:
-                np.save(os.path.join(self.trans_l2c_pc_dir, f'transform_lidar_to_cam1_{pc_time}.npy'), [
+                np.save(os.path.join(self.trans_l2c_pc_dir, f'transform_lidar_to_cam1_{pc_time:.6f}.npy'), [
                     self.trans_l2c[0], # x 
                     self.trans_l2c[1], # y 
                     self.trans_l2c[2], # z
@@ -161,7 +161,7 @@ class SaveMetricData(Node):
         for p_idx in range(len(global_pc_list)):
             global_pts.append(list(global_pc_list[p_idx])[:4])
         global_pc_arr = np.array(global_pts) # (num_pts, 4)
-        np.save(os.path.join(self.global_pc_dir, f'global_pc_{global_pc_time}.npy'), global_pc_arr)   
+        np.save(os.path.join(self.global_pc_dir, f'global_pc_{global_pc_time:.6f}.npy'), global_pc_arr)   
         
     def header_to_seconds(self, header: Header) -> float:
         return header.stamp.sec + header.stamp.nanosec * 1e-9
