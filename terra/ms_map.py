@@ -162,7 +162,7 @@ class MSMap:
             if abs(closest_lidar_pc_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("lidar scan unaligned")
                 continue
-            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp}.npy') #TODO Change this back to 4 decimal places
+            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp:.6f}.npy') #TODO Change this back to 4 decimal places
                         
             all_cameras_aligned = True
             camera_image_files = []
@@ -171,7 +171,7 @@ class MSMap:
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("Camera stream unaligned")
                     all_cameras_aligned = False
-                camera_image_files.append(os.path.join(folder, f"cam{nc+1}_img_{closest_ts}.jpg"))
+                camera_image_files.append(os.path.join(folder, f"cam{nc+1}_img_{closest_ts:.6f}.jpg"))
             if not all_cameras_aligned:
                 print("Skipping to next scan")
                 continue
@@ -183,7 +183,7 @@ class MSMap:
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("TF lidar-to-camera unaligned")
                     all_lidar2cameras_aligned = False
-                transform_lidar_to_cam_files.append(os.path.join(folder, f"transform_lidar_to_cam{nc+1}_{closest_ts}.npy"))
+                transform_lidar_to_cam_files.append(os.path.join(folder, f"transform_lidar_to_cam{nc+1}_{closest_ts:.6f}.npy"))
             if not all_lidar2cameras_aligned:
                 print("Skipping to next scan")
                 continue
