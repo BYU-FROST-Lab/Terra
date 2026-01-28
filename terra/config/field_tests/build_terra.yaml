@@ -1,8 +1,6 @@
-# data_folder: /docker_ros2_ws/src/oasis2/data/provo_river_p1_11_3_2025
-# output_folder: /docker_ros2_ws/src/oasis2/data/provo_river_p1_11_3_2025/output/goose_ground_7cls/3_cam
-data_folder: /ros2_bags/metric_data_dense/hope_campground_11_3_25
-output_folder: /ros2_bags/metric_data_dense/hope_campground_11_3_25/output/goose_ground_7cls/3_cam
-save_average_embeddings: false
+data_folder: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25
+output_folder: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25/output/goose_ground_7cls/3_cam
+save_average_embeddings: true
 debug: false
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 

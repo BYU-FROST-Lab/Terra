@@ -12,11 +12,11 @@ from terra_utils import copy_obb
 class TerraVisualizer():
     def __init__(self, level_offset, terrain_colors=None, num_terrains=None):
         self.level_offset = level_offset
+        cmap = plt.get_cmap("tab10")  # 10 distinct colors
         if terrain_colors:
             self.num_terrains = len(terrain_colors)
             self.terrain_colors = terrain_colors
         elif num_terrains:
-            cmap = plt.get_cmap("tab10")  # 10 distinct colors
             self.terrain_colors = [cmap(i % 10)[:3] for i in range(num_terrains)]
         else:
             self.num_terrains = 3
@@ -286,6 +286,10 @@ if __name__ == '__main__':
     parser.add_argument('--global_pc',
                         type=str,
                         help='Directory where global point clouds are saved')
+    parser.add_argument('--num_terrains',
+                        type=int,
+                        default=3,
+                        help="Number of terrain classes YOLO model used")
     args = parser.parse_args()
     
     global_pc_files = sorted(Path(args.global_pc).glob("*.npy"),key=numeric_key)        
@@ -309,7 +313,7 @@ if __name__ == '__main__':
     with open(args.terra_3dsg, "rb") as f:
         terra_3dsg = pkl.load(f)
     
-    tv = TerraVisualizer(level_offset=50)
+    tv = TerraVisualizer(level_offset=50, num_terrains=args.num_terrains)
     
     # Display Regions 
     tv.display_regions(terra_3dsg)
