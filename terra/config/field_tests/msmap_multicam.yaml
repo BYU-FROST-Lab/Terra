@@ -1,0 +1,32 @@
+## Processing parameters
+data_folder: /ros2_bags/metric_data_0.5s/consistency/marina_v4_1_23_26
+output_folder: /ros2_bags/metric_data_0.5s/consistency/marina_v4_1_23_26/output/goose_ground_7cls/1_cam
+num_cams: 1
+debug: false
+continue_processing: false
+save_step_size: 500
+unaligned_threshold: 0.5 # seconds
+
+## Camera intrinsics
+cam1_K:  [458.17091039, 0.0, 388.71610935, 
+        0.0, 457.99950521, 230.87195191, 
+        0.0, 0.0, 1.0] # 768 x 480
+cam2_K:  [455.47078158, 0.0, 386.00515232, 
+        0.0, 455.32530496, 244.20159992, 
+        0.0, 0.0, 1.0] # 768 x 480
+cam3_K:  [456.77801458, 0.0, 378.49188005, 
+        0.0, 456.3905806,  240.8612888, 
+        0.0, 0.0, 1.0] # 768 x 480
+
+## YOLO Model
+use_yoloe: false
+yolo_model_path: /goose_7cls_ground.pt
+yolo_conf_threshold: 0.05
+
+## MS Map parameters
+match_threshold: 0.9
+use_dbscan: true
+dbscan_eps: 2.0
+dbscan_min_samples: 5
+cam2point_dist_threshold: 20.0 # [m]
+cam_axis: ['-x', '-y', '+y']  # ['+x', '-x', '+y', '-y']

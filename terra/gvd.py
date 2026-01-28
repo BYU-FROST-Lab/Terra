@@ -4,7 +4,8 @@ from collections import deque
 import matplotlib.pyplot as plt
 
 class DistanceMap:
-    def __init__(self, grid):
+    def __init__(self, grid, resolution):
+        self.resolution = resolution # Grid cell size in meters [m/cell]
         self.grid = grid
         self.height, self.width = grid.shape
         self.dist_map = np.full_like(grid, np.inf, dtype=float)
@@ -546,10 +547,10 @@ class DistanceMap:
             if len(edge_path) > 4:
                 dev_split_point, deviation = self.max_deviation_point(edge_path)
                 dist_split_point, distance = self.mid_distance_point(edge_path)
-                if deviation > max_dev_voxels:
+                if deviation > (max_dev_voxels/self.resolution):
                     # print(f"Adding new node between {nID1} and {nID2} b/c of deviation: {deviation*0.2} [m]")
                     new_nodes.append(dev_split_point)
-                elif distance > max_dist_voxels: # If nodes are far enough apart, split halfway
+                elif distance > (max_dist_voxels/self.resolution): # If nodes are far enough apart, split halfway
                     # print(f"Adding new node between {nID1} and {nID2} b/c of distance: {distance*0.2} [m]")
                     new_nodes.append(dist_split_point)
         return new_nodes

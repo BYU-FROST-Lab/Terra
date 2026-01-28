@@ -273,7 +273,7 @@ class TerraBuilder:
             final_arr = binary_dilation(eroded_arr, structure=structure, iterations=1)
             
             #Build distance map and GVD
-            dm = DistanceMap(final_arr.astype(int))
+            dm = DistanceMap(final_arr.astype(int), self.gvd_params['og_res'])
             gvd_t0 = time.time()
             dm.compute_static()
             gvd_t1 = time.time()
