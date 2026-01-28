@@ -37,7 +37,7 @@ def arg_parser():
     parser.add_argument('--data_folder', 
                         type=str, 
                         default="/docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025", 
-                        help='Directory to where folders of local and global scans were saved')
+                        help='Directory to where folders of lidar and global scans were saved')
     parser.add_argument('--output_folder', 
                         type=str, 
                         default="/docker_ros2_ws/src/oasis2/data/south_campus_4_21_2025/output", 

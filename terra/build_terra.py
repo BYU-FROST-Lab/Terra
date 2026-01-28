@@ -8,7 +8,7 @@ import itertools
 from collections import defaultdict
 import numpy as np
 import pickle as pkl
-from scipy.spatial import KDTree
+from scipy.spatial import KDTree, cKDTree
 from sklearn.cluster import AgglomerativeClustering, SpectralClustering
 import torch
 import matplotlib.pyplot as plt
@@ -336,27 +336,57 @@ class TerraBuilder:
                 plt.show()
 
         ## Connect Dead-End Nodes to closest node in diff. terrain (takes a long time in debug mode)
+        gvd_trees = []
+        gvd_coords = []
+        for dm in self.dist_maps:
+            coords = np.column_stack(np.where(dm.gvd_nodes))
+            gvd_coords.append(coords)
+            gvd_trees.append(cKDTree(coords) if len(coords) > 0 else None)
+            
         self.new_terrain_connections = []
         connecting_terrains = []
         for terrain_idx in tqdm(terrain_deadend_nodes.keys(), desc="Connecting dead-end nodes"):
-            for dy,dx in terrain_deadend_nodes[terrain_idx]:
+            for dy, dx in terrain_deadend_nodes[terrain_idx]:
                 min_dist = np.inf
                 min_coord = None
                 min_terrain_idx = -1
-                for dm_idx, dm in enumerate(self.dist_maps):        
-                    if dm_idx == terrain_idx:
+
+                for dm_idx, tree in enumerate(gvd_trees):
+                    if dm_idx == terrain_idx or tree is None:
                         continue
-                    for y in range(dm.gvd_nodes.shape[0]):
-                        for x in range(dm.gvd_nodes.shape[1]):
-                            if dm.gvd_nodes[y,x]:
-                                dist = np.linalg.norm(np.array([y,x])-np.array([dy,dx]))
-                                if dist < min_dist:
-                                    min_dist = dist
-                                    min_coord = (y,x)
-                                    min_terrain_idx = dm_idx
-                if min_dist < (2*self.gvd_params['max_dist']):
+
+                    dist, idx = tree.query([dy, dx], k=1)
+
+                    if dist < min_dist:
+                        min_dist = dist
+                        min_coord = tuple(gvd_coords[dm_idx][idx])
+                        min_terrain_idx = dm_idx
+
+                if min_dist < 2 * (self.gvd_params['max_dist']/self.gvd_params['og_res']):
                     connecting_terrains.append((terrain_idx, min_terrain_idx))
-                    self.new_terrain_connections.append([(dy,dx), min_coord])
+                    self.new_terrain_connections.append([(dy, dx), min_coord])
+
+        # self.new_terrain_connections = []
+        # connecting_terrains = []
+        # for terrain_idx in tqdm(terrain_deadend_nodes.keys(), desc="Connecting dead-end nodes"):
+        #     for dy,dx in terrain_deadend_nodes[terrain_idx]:
+        #         min_dist = np.inf
+        #         min_coord = None
+        #         min_terrain_idx = -1
+        #         for dm_idx, dm in enumerate(self.dist_maps):        
+        #             if dm_idx == terrain_idx:
+        #                 continue
+        #             for y in range(dm.gvd_nodes.shape[0]):
+        #                 for x in range(dm.gvd_nodes.shape[1]):
+        #                     if dm.gvd_nodes[y,x]:
+        #                         dist = np.linalg.norm(np.array([y,x])-np.array([dy,dx]))
+        #                         if dist < min_dist:
+        #                             min_dist = dist
+        #                             min_coord = (y,x)
+        #                             min_terrain_idx = dm_idx
+        #         if min_dist < (2*self.gvd_params['max_dist']/self.gvd_params['og_res']):
+        #             connecting_terrains.append((terrain_idx, min_terrain_idx))
+        #             self.new_terrain_connections.append([(dy,dx), min_coord])
 
         # Convert GVD Nodes to real-world coordinates
         cmap = plt.get_cmap("tab10")  # 10 distinct colors
