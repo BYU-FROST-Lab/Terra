@@ -1,5 +1,18 @@
 ---
-terra: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+data_folder: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25
+output_folder: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25/output/goose_ground_7cls/3_cam
+num_cams: 3
+cam1_K:  [458.17091039, 0.0, 388.71610935, 
+        0.0, 457.99950521, 230.87195191, 
+        0.0, 0.0, 1.0] # 768 x 480
+cam2_K:  [455.47078158, 0.0, 386.00515232, 
+        0.0, 455.32530496, 244.20159992, 
+        0.0, 0.0, 1.0] # 768 x 480
+cam3_K:  [456.77801458, 0.0, 378.49188005, 
+        0.0, 456.3905806,  240.8612888, 
+        0.0, 0.0, 1.0] # 768 x 480
+
+terra: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25/output/goose_ground_7cls/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.23
 prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg]
 object_tasks:
