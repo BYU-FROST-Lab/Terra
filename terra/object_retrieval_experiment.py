@@ -105,34 +105,50 @@ def visualize_objects(cfg, terra):
         # Images that see this node
         img_indices = terra.nodeid_2_img_idx[closest_place_node]
 
+        shown = 0
         for img_idx in img_indices:
+            if shown >= 20:
+                break
+
             img_path = terra.img_names[img_idx]
             cam_id, timestamp = parse_camera_and_timestamp(img_path)
 
-            # Load image
-            img_full_path = os.path.join(cam_image_folders[cam_id], os.path.basename(img_path))
+            img_full_path = os.path.join(
+                cam_image_folders[cam_id],
+                os.path.basename(img_path)
+            )
             if not os.path.exists(img_full_path):
                 continue
+
             img = cv2.imread(img_full_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             # Load closest transforms
             lidar2cam_file = find_closest_transform(timestamp, lidar2cam_transforms[cam_id])
             lidar2global_file = find_closest_transform(timestamp, lidar2global_transforms)
+
             T_cam_lidar = load_transformation(lidar2cam_file)
             T_global_lidar = load_transformation(lidar2global_file)
 
             # Project 3D bbox
-            bbox_2d = project_bbox_to_image(obb_corners, T_global_lidar, T_cam_lidar, K_list[cam_id])
+            bbox_2d = project_bbox_to_image(
+                obb_corners, T_global_lidar, T_cam_lidar, K_list[cam_id]
+            )
 
-            # Draw bbox
-            img = draw_bbox_on_image(img, bbox_2d, color=(255,0,0), thickness=2)
+            img = draw_bbox_on_image(img, bbox_2d)
 
-            # Display
-            plt.figure(figsize=(8,6))
+            # Create figure but DO NOT show yet
+            plt.figure(figsize=(8, 6))
             plt.imshow(img)
-            plt.title(f"Object {obj_idx} in {os.path.basename(img_path)} (place node {closest_place_node})")
-            plt.axis('off')
+            plt.title(
+                f"Object {obj_idx} | {os.path.basename(img_path)} | place {closest_place_node}"
+            )
+            plt.axis("off")
+
+            shown += 1
+
+        # 🔑 ONE blocking call per object
+        if shown > 0:
             plt.show()
 
 # ---------------------------
