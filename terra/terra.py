@@ -219,12 +219,11 @@ class Terra():
                 level_dict[d["level"]].append(n)
         return dict(level_dict)
          
-    def display_places(self, display_pc=False, plot_ids=False):
+    def display_places(self, display_pc=False, plot_ids=False, no_spheres=False):
         if display_pc:
-            self.visualizer.display_places(self.terra_3dsg, pc=self.pc, plot_ids=plot_ids)
+            self.visualizer.display_places(self.terra_3dsg, pc=self.pc, plot_ids=plot_ids, no_spheres=no_spheres)
         else:
-            self.visualizer.display_places(self.terra_3dsg, plot_ids=plot_ids)
-
+            self.visualizer.display_places(self.terra_3dsg, plot_ids=plot_ids, no_spheres=no_spheres)
     def display_regions(self):
         self.visualizer.display_regions(self.terra_3dsg)
             

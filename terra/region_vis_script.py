@@ -26,20 +26,57 @@ if __name__ == '__main__':
     terra = load_terra(region_task_params["terra"])
     terra.visualizer.level_offset = 0.0  # Set level offset for better visualization
     
+    # # Display just place nodes
+    # terra.display_places(
+    #     display_pc=False,
+    #     plot_ids=False
+    # )
+
+    # # Display Places
+    # terra.display_places(
+    #     display_pc=True,
+    #     plot_ids=True
+    # )
+
     # Display just place nodes
     terra.display_places(
         display_pc=False,
-        plot_ids=False
+        plot_ids=True,
+        no_spheres=True
     )
 
-    # Display Places
-    terra.display_places(
-        display_pc=True,
-        plot_ids=True
+    red_indeces = [1689, 331, 1547, 1416]
+    included_nodes = terra.visualizer.get_nodes_in_rectangle_from_refs(
+        terra.terra_3dsg,
+        red_indeces
+    )
+    print(f"Red Nodes: {included_nodes}")
+
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        included_nodes
     )
 
-    # Display just place nodes
-    terra.display_places(
-        display_pc=False,
-        plot_ids=True
+    blue_indeces = [(734, 737), (737, 1383), (1401, 1402), (2820, 746)]
+    blue_nodes= terra.visualizer.get_nodes_in_polygon_from_sides(
+        terra.terra_3dsg,
+        blue_indeces
     )
+    print(f"Blue Nodes: {blue_nodes}")
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        blue_nodes
+    )
+
+
+    purple_indeces = [(639, 1578), (1580, 1593), (754, 2664), (644, 1549)]
+    purple_nodes= terra.visualizer.get_nodes_in_polygon_from_sides(
+        terra.terra_3dsg,
+        purple_indeces
+    )
+    print(f"Purple Nodes: {purple_nodes}")
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        purple_nodes
+    )
+
