@@ -218,11 +218,13 @@ class Terra():
             if d["level"] > min_level:
                 level_dict[d["level"]].append(n)
         return dict(level_dict)
-    
-        
-    def display_places(self):
-        self.visualizer.display_places(self.terra_3dsg)
-    
+         
+    def display_places(self, display_pc=False, plot_ids=False):
+        if display_pc:
+            self.visualizer.display_places(self.terra_3dsg, pc=self.pc, plot_ids=plot_ids)
+        else:
+            self.visualizer.display_places(self.terra_3dsg, plot_ids=plot_ids)
+
     def display_regions(self):
         self.visualizer.display_regions(self.terra_3dsg)
             
@@ -236,8 +238,9 @@ class Terra():
                       display_pc=False, 
                       plot_objects_on_ground=False,
                       color_pc_clip=True, 
-                      color_terrain=False):
-        self.visualizer.display_terra(self, display_pc, plot_objects_on_ground, color_pc_clip, color_terrain)
+                      color_terrain=False,
+                      plot_ids=False):
+        self.visualizer.display_terra(self, display_pc, plot_objects_on_ground, color_pc_clip, color_terrain, plot_ids=plot_ids)
 
     def display_task_relevant_places(self, task_idx=-1, heatmap_mode=False):
         self.visualizer.display_task_relevant_places(

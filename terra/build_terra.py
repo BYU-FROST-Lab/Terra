@@ -405,7 +405,7 @@ class TerraBuilder:
             # Find closest global_idx node
             xyz = sphere.get_center()
             xyz[2] = self.z_offset_lidar # shifts node point to be on ground
-            dist, g_idxs = global_kdtree.query(xyz, k=20) # 20 closest neighboring pts
+            dist, g_idxs = global_kdtree.query(xyz, k=50) # 20 closest neighboring pts
             
             found = False
             for g_idx in g_idxs:        

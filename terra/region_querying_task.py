@@ -11,7 +11,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--params',
         type=str,
-        help="/path/to/region_monitoring.yaml file of region monitoring tasks"
+        help="/path/to/region_querying.yaml file of region monitoring tasks"
     )
     args = parser.parse_args()
     

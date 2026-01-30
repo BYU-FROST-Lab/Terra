@@ -23,11 +23,11 @@ class TerraVisualizer():
             self.terrain_colors = [cmap(i % 10)[:3] for i in range(self.num_terrains)]
         self.grays = [[0.3,0.3,0.3],[0.7,0.7,0.7],[0.1,0.1,0.1],[0.9,0.9,0.9]]
            
-    def display_places(self, G, pc=None):
+    def display_places(self, G, pc=None, plot_ids=False):
         places_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] == 1]
         )
-        self.display_3dsg(places_subgraph, pc=pc)
+        self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids)
     
     def display_regions(self, G, pc=None):
         regions_subgraph = G.subgraph(
@@ -40,7 +40,8 @@ class TerraVisualizer():
                      node_colors=None, 
                      pc=None, 
                      plot_objects_on_ground=False, 
-                     return_geo=False):
+                     return_geo=False,
+                     plot_ids=False):
         geometries = []
         nodes = []
         points = []
@@ -51,6 +52,13 @@ class TerraVisualizer():
             level_num = G.nodes[n_id]["level"] + 1
             z = level_num * self.level_offset
             xy = G.nodes[n_id]["pos"]
+
+            if plot_ids:
+                text_label = o3d.t.geometry.TriangleMesh.create_text(str(n_id), depth=1.2).to_legacy()
+                text_label.paint_uniform_color([0, 0, 0])  # or any color
+                text_label.transform([[0.05, 0, 0, xy[0]], [0, 0.05, 0, xy[1]], [0, 0, 0.1, z+2],
+                                            [0, 0, 0, 1]])
+                nodes.append(text_label)
             
             if G.nodes[n_id]["level"] == 0 and plot_objects_on_ground:
                 sphere = o3d.geometry.TriangleMesh.create_sphere(radius=1.5).translate([xy[0],xy[1],xy[2]])
@@ -108,8 +116,9 @@ class TerraVisualizer():
                       display_pc=False, 
                       plot_objects_on_ground=False, 
                       color_pc_clip=True, 
-                      color_terrain=False):
-        geo_3dsg = self.display_3dsg(terra.terra_3dsg, plot_objects_on_ground=plot_objects_on_ground, return_geo=True)
+                      color_terrain=False,
+                      plot_ids=False):
+        geo_3dsg = self.display_3dsg(terra.terra_3dsg, plot_objects_on_ground=plot_objects_on_ground, return_geo=True, plot_ids=plot_ids)
         
         # add in bounding boxes for nodes
         num_tasks = len(set(t.get_task_idx() for t in terra.objects))
