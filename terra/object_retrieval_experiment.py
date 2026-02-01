@@ -57,22 +57,26 @@ class ObjectEvaluator():
         precision = sum(self.task_rel_matches) / sum(self.task_rel_count)
         F1 = 0.0 if (recall + precision) == 0 else 2 * (precision * recall) / (precision + recall)
         
-        print(f"OBJECT METRICS FOR DATASET: {self.data_folder}")
-        print(f"Precision = {precision:.3f}, Recall = {recall:.3f}, F1 = {F1:.3f}")
+        print(f"\n\nOBJECT METRICS FOR DATASET: {self.data_folder}")
+        print(f"Precision = {precision:.3f}, Recall = {recall:.3f}, F1 = {F1:.3f}\n\n")
     
     def record_precision_metrics(self):
+        print("\n\nCalculating Precision Metrics:")
         Nbar_t = self.get_top90percent_objs()
         for t in range(self.num_tasks):
-            self.task_rel_count = len(Nbar_t[t])
+            self.task_rel_count[t] = len(Nbar_t[t])
             Mbar_t = self.count_matches(Nbar_t[t])
             self.task_rel_matches[t] = Mbar_t            
-    
+            print(f"Task {self.task_names[t]}: GT Count = {len(Nbar_t[t])}, GT Matches = {Mbar_t}")
+            
     def record_recall_metrics(self):
+        print("\n\nCalculating Recall Metrics:")
         for t in range(self.num_tasks):
             Nt = self.gt_obj_count[t]
             topk_objs = self.get_topk_objs_for_task(t, Nt)
-            Mt = self.count_matches(topk_objs)
+            Mt = self.count_matches(topk_objs, task_idx=t)
             self.gt_matches[t] = Mt
+            print(f"Task {self.task_names[t]}: GT Count = {Nt}, GT Matches = {Mt}")
     
     def get_top90percent_objs(self):
         max_task_scores = {task_idx: 0.0 for task_idx in range(self.num_tasks)}
@@ -106,11 +110,12 @@ class ObjectEvaluator():
         topk_objs = sorted_objs[:k]
         return topk_objs
 
-    def count_matches(self, objects):
+    def count_matches(self, objects, task_idx=None):
         num_matches = 0
         for obj_idx, tobj in enumerate(objects):
             obb = tobj.get_bbox()
-            task_idx = tobj.get_task_idx()
+            if task_idx is None:
+                task_idx = tobj.get_task_idx()
             obb_corners = np.asarray(obb.get_box_points())
             edges = self.build_obb_edges(obb_corners)
             obb_center_xy = obb.center[:2]
@@ -184,8 +189,8 @@ class ObjectEvaluator():
                     num_matches += 1
                 else:
                     print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match (n)")
-            else:
-                assert False, "No images see bounding box!"
+            # else:
+            #     assert False, "No images see bounding box!"
         return num_matches
     
     
