@@ -21,6 +21,19 @@ def load_terra(src):
             tobj.bbox = o3d.geometry.OrientedBoundingBox(tobb.center, tobb.R, tobb.extent)
     return terra
 
+def copy_obb(original_obb):
+    """
+    Creates a new OBB object that is a deep copy of the original
+    using the correct Open3D constructor.
+    """
+    # Create a new OBB object by explicitly calling the constructor
+    # with the properties of the original OBB.
+    return o3d.geometry.OrientedBoundingBox(
+        original_obb.center,
+        original_obb.R,
+        original_obb.extent
+    )
+
 class TerraOBB():
     def __init__(self, center, R, extent):
         self.center = center
@@ -46,16 +59,3 @@ class TerraObject():
     
     def get_bbox(self):
         return self.bbox
-
-def copy_obb(original_obb):
-    """
-    Creates a new OBB object that is a deep copy of the original
-    using the correct Open3D constructor.
-    """
-    # Create a new OBB object by explicitly calling the constructor
-    # with the properties of the original OBB.
-    return o3d.geometry.OrientedBoundingBox(
-        original_obb.center,
-        original_obb.R,
-        original_obb.extent
-    )
