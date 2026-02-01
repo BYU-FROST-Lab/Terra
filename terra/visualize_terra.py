@@ -3,6 +3,7 @@ from pathlib import Path
 import pickle as pkl
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
 
 import open3d as o3d
 
@@ -23,12 +24,16 @@ class TerraVisualizer():
             self.terrain_colors = [cmap(i % 10)[:3] for i in range(self.num_terrains)]
         self.grays = [[0.3,0.3,0.3],[0.7,0.7,0.7],[0.1,0.1,0.1],[0.9,0.9,0.9]]
            
-    def display_places(self, G, pc=None, plot_ids=False):
+    def display_places(self, G, pc=None, plot_ids=False, no_spheres=False):
         places_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] == 1]
         )
-        self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids)
+        if no_spheres:
+            self.display_3dsg_points(places_subgraph, pc=pc, plot_ids=plot_ids)
+        else:
+            self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids)
     
+
     def display_regions(self, G, pc=None):
         regions_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] > 1]
@@ -110,6 +115,232 @@ class TerraVisualizer():
             render_opt.point_size = 2.0
             vis.run()
             vis.destroy_window()
+
+    def display_3dsg_points(self, 
+                         G, 
+                         node_colors=None, 
+                         pc=None, 
+                         plot_objects_on_ground=False, 
+                         return_geo=False,
+                         plot_ids=False):
+        geometries = []
+
+        node_points = []
+        node_colors_arr = []
+        node_idx_map = {}
+
+        text_geometries = []
+
+        # ---- Nodes (POINTS instead of spheres) ----
+        for i, n_id in enumerate(G.nodes):
+            level_num = G.nodes[n_id]["level"] + 1
+            z = level_num * self.level_offset
+            xy = G.nodes[n_id]["pos"]
+
+            if G.nodes[n_id]["level"] == 0 and plot_objects_on_ground:
+                p = [xy[0], xy[1], 0]
+            else:
+                p = [xy[0], xy[1], z]
+
+            node_points.append(p)
+            node_idx_map[n_id] = i
+
+            # ---- Color logic (unchanged) ----
+            if node_colors is not None:
+                if n_id in node_colors:
+                    node_colors_arr.append(node_colors[n_id])
+                else:
+                    node_colors_arr.append([0, 0, 0])
+            elif G.nodes[n_id]["terrain_id"] > -1:
+                node_colors_arr.append(
+                    self.terrain_colors[G.nodes[n_id]["terrain_id"]]
+                )
+            else:
+                node_colors_arr.append([0, 0, 0])
+
+            # ---- Optional text labels ----
+            if plot_ids:
+                text_label = o3d.t.geometry.TriangleMesh.create_text(
+                    str(n_id), depth=1.2
+                ).to_legacy()
+                text_label.paint_uniform_color([0, 0, 0])
+                text_label.transform([
+                    [0.05, 0,    0,    p[0]],
+                    [0,    0.05, 0,    p[1]],
+                    [0,    0,    0.1,  p[2] + 2],
+                    [0,    0,    0,    1]
+                ])
+                text_geometries.append(text_label)
+
+        # ---- Create single PointCloud for all nodes ----
+        node_pcd = o3d.geometry.PointCloud()
+        node_pcd.points = o3d.utility.Vector3dVector(np.asarray(node_points))
+        node_pcd.colors = o3d.utility.Vector3dVector(np.asarray(node_colors_arr))
+
+        geometries.append(node_pcd)
+        geometries.extend(text_geometries)
+
+        # ---- Edges (LineSet) ----
+        lines = []
+        line_colors = []
+
+        for (u, v) in G.edges:
+            if u in node_idx_map and v in node_idx_map:
+                lines.append([node_idx_map[u], node_idx_map[v]])
+                line_colors.append([0.75, 0.75, 0.75])
+
+        line_set = o3d.geometry.LineSet()
+        line_set.points = o3d.utility.Vector3dVector(np.asarray(node_points))
+        line_set.lines = o3d.utility.Vector2iVector(np.asarray(lines))
+        line_set.colors = o3d.utility.Vector3dVector(np.asarray(line_colors))
+
+        geometries.append(line_set)
+
+        # ---- Optional external point cloud ----
+        if pc is not None:
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(pc)
+            pcd.paint_uniform_color([0.5, 0.5, 0.5])
+            geometries.append(pcd)
+
+        # ---- Return or visualize ----
+        if return_geo:
+            return geometries
+        else:
+            vis = o3d.visualization.Visualizer()
+            vis.create_window()
+
+            for geo in geometries:
+                vis.add_geometry(geo)
+
+            render_opt = vis.get_render_option()
+            render_opt.point_size = 6.0  # make nodes visible without spheres
+
+            vis.run()
+            vis.destroy_window()
+
+    def display_selected_nodes(self, G, selected_node_ids, pc=None):
+        selected_subgraph = G.subgraph(selected_node_ids)
+        self.display_3dsg(selected_subgraph, pc=pc)
+
+    def get_nodes_in_rectangle_from_refs(self, G, ref_node_ids):
+        """
+        ref_node_ids: iterable of 4 node IDs defining the rectangle extremes
+        Returns: list of node IDs inside the rectangle (inclusive)
+        """
+
+        if len(ref_node_ids) != 4:
+            raise ValueError("Exactly 4 reference node IDs are required")
+
+        # Collect XY positions of the reference nodes
+        ref_points = []
+        for n_id in ref_node_ids:
+            if n_id not in G.nodes:
+                raise KeyError(f"Node ID {n_id} not found in graph")
+            x, y = G.nodes[n_id]["pos"][:2]
+            ref_points.append([x, y])
+
+        ref_points = np.asarray(ref_points)
+
+        # Rectangle bounds
+        min_x, min_y = np.min(ref_points, axis=0)
+        max_x, max_y = np.max(ref_points, axis=0)
+
+        # Select nodes inside rectangle
+        selected_ids = []
+        for n_id in G.nodes:
+            x, y = G.nodes[n_id]["pos"][:2]
+
+            if min_x <= x <= max_x and min_y <= y <= max_y:
+                selected_ids.append(n_id)
+
+        return selected_ids
+
+    def get_nodes_in_polygon_from_sides(self, G, side_node_pairs):
+        """
+        side_node_pairs: list of 4 tuples [(id1, id2), ...]
+                        each tuple defines one polygon side
+
+        Returns: list of node IDs inside the polygon
+        """
+        # Convert 4 sides (8 nodes) into polygon vertices
+        polygon = self.build_polygon_from_8_indices(
+            G, [n for pair in side_node_pairs for n in pair]
+        )
+
+        # Create a Path object for point-in-polygon test
+        poly_path = Path(polygon)
+
+        selected_ids = []
+
+        # Check each node
+        for n_id in G.nodes:
+            xy = G.nodes[n_id]["pos"][:2]  # take XY only
+            if poly_path.contains_point(xy):
+                selected_ids.append(n_id)
+
+        # Display polygon and selected nodes (for debugging)
+        # plt.figure()
+        # plt.plot(*polygon[[0,1,2,3,0]].T, 'r-')  # polygon outline
+        # selected_points = np.array([G.nodes[n_id]["pos"][:2] for n_id in selected_ids])
+        # plt.scatter(selected_points[:,0], selected_points[:,1], c='b')
+        # plt.xlabel("X")
+        # plt.ylabel("Y")
+        # plt.title("Selected Nodes Inside Polygon")
+        # plt.axis('equal')
+        # plt.show()
+
+
+        return selected_ids
+
+    def build_polygon_from_8_indices(self, G, indices):
+        """
+        indices: list of 8 node IDs, two per side (side0, side1, side2, side3)
+        Returns: 4 polygon vertices in order (numpy array Nx2)
+        """
+        if len(indices) != 8:
+            raise ValueError("Exactly 8 node IDs required")
+
+        # Get XY positions of the 8 nodes
+        points = [G.nodes[n_id]["pos"][:2] for n_id in indices]
+
+        # Each side: two points
+        side0 = points[0:2]
+        side1 = points[2:4]
+        side2 = points[4:6]
+        side3 = points[6:8]
+
+        # Polygon vertices: intersections of adjacent sides
+        # Order: top-left, top-right, bottom-right, bottom-left (or similar)
+        v0 = self._line_intersection(side0[0], side0[1], side3[0], side3[1])
+        v1 = self._line_intersection(side0[0], side0[1], side1[0], side1[1])
+        v2 = self._line_intersection(side1[0], side1[1], side2[0], side2[1])
+        v3 = self._line_intersection(side2[0], side2[1], side3[0], side3[1])
+
+        polygon = np.array([v0, v1, v2, v3])
+        return polygon
+
+    def _line_intersection(self, p1, p2, p3, p4):
+        """
+        Find intersection of line (p1,p2) and (p3,p4) in 2D.
+        Returns intersection point as (x, y)
+        """
+        # Convert to numpy arrays
+        p1, p2, p3, p4 = map(np.array, [p1, p2, p3, p4])
+
+        # Line vectors
+        A = p2 - p1
+        B = p4 - p3
+        C = p3 - p1
+
+        # Solve t: intersection = p1 + t*A
+        denom = A[0]*B[1] - A[1]*B[0]
+        if np.isclose(denom, 0):
+            # Lines are parallel; return midpoint as fallback
+            return (p1 + p2) / 2
+        t = (C[0]*B[1] - C[1]*B[0]) / denom
+        intersection = p1 + t*A
+        return intersection
 
     def display_terra(self, 
                       terra, 
