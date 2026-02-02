@@ -57,22 +57,28 @@ class ObjectPredictor:
                 del scores
             
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
-            idx_scores = {}
-            matched_idxs = []
+            clipid_scores = {}
             for start, scores in chunked_tensor_cosine_similarity(
                 self.terra.clip_tensor,
                 tasks_tensor,
                 chunk_size=8192
             ):
                 max_scores, max_tasks = scores.max(dim=1)
-                for local_idx in range(scores.shape[0]):
-                    clip_id = start + local_idx
+                for local_clip_idx in range(scores.shape[0]):
+                    clip_id = start + local_clip_idx
                     if clip_id not in self.terra.pcidx_2_clipid:
                         continue
-                    if max_tasks[local_idx] >= self.terra.num_terrain and max_scores[local_idx] > self.terra.alpha:
-                        idx_scores[clip_id] = scores[local_idx, self.terra.num_terrain:].cpu()
-                        matched_idxs.append(clip_id)
+                    if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
+                        clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
                 del scores
+            idx_scores = {}
+            matched_idxs = []
+            for idx, clip_ids in self.terra.pcidx_2_clipid.items():
+                curr_clipid, curr_count = max(self.terra.pcidx_2_clipid[idx].items(), key=lambda x: x[1])
+                if curr_clipid not in clipid_scores:
+                    continue
+                idx_scores[idx] = clipid_scores[curr_clipid]
+                matched_idxs.append(idx)
                 
         else:
             task_pts = {}
@@ -92,8 +98,8 @@ class ObjectPredictor:
                     for local_idx in local_idxs:
                         idx_filt = start + local_idx.item()
                         idx = self.terra.semantic_pc_idxs[idx_filt]
-                        max_score = scores[local_idx].max().item()
-                        max_task = scores[local_idx].argmax().item()
+                        max_score = scores[local_idx,:].max().item()
+                        max_task = scores[local_idx,:].argmax().item()
                         if (
                             max_task >= self.terra.num_terrain
                             and max_score > self.terra.alpha
