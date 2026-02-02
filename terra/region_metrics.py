@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+import time
 import yaml
 import torch
 import numpy as np
@@ -8,7 +9,7 @@ from terra_utils import load_terra
 
 
 def compute_region_metrics(pred_places, gt_places):
-    precisions, recalls, f1s = [], [], []
+    tps, fps, fns = 0,0,0
     for query_idx in gt_places.keys():
         if query_idx in pred_places:
             pred_set = set(pred_places[query_idx])
@@ -16,21 +17,15 @@ def compute_region_metrics(pred_places, gt_places):
             pred_set = set()
         gt_set = set(gt_places[query_idx])
 
-        prec, rec, f1 = compute_precision_recall_f1(pred_set, gt_set)
-        
-        precisions.append(prec)
-        recalls.append(rec)
-        f1s.append(f1)
+        tp, fp, fn, tn = compute_confusion_matrix(pred_set, gt_set)
+        tps += tp
+        fps += fp
+        fns += fn
     
-    macro_precision = sum(precisions) / len(precisions)
-    macro_recall = sum(recalls) / len(recalls)
-    macro_f1 = sum(f1s) / len(f1s)
-    return macro_precision, macro_recall, macro_f1
+    prec, rec, f1 = compute_precision_recall_f1(tps, fps, fns)
+    return prec, rec, f1
 
-def compute_precision_recall_f1(pred_places_set, gt_places_set):
-    true_positives = len(gt_places_set & pred_places_set)
-    false_positives = len(pred_places_set - gt_places_set)
-    false_negatives = len(gt_places_set - pred_places_set)
+def compute_precision_recall_f1(true_positives, false_positives, false_negatives):
     
     precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.0
     recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0.0
@@ -38,6 +33,13 @@ def compute_precision_recall_f1(pred_places_set, gt_places_set):
     
     return precision, recall, f1
 
+def compute_confusion_matrix(pred_places_set, gt_places_set):
+    true_positives = len(gt_places_set & pred_places_set)
+    false_positives = len(pred_places_set - gt_places_set)
+    false_negatives = len(gt_places_set - pred_places_set)
+    true_negatives = 0  # Not computable without total population size
+    
+    return true_positives, false_positives, false_negatives, true_negatives
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="Region Monitoring Test")
@@ -81,18 +83,22 @@ if __name__ == '__main__':
     input_task_clip_tensor = torch.vstack(input_task_clip_embs) # (num_input_classes, 512)
     print("\nCollected region tasks:", tasks)
 
-    alpha_values = np.linspace(0.2, 0.4, 21)
-    k_values = np.linspace(1, 10, 10)
+    alpha_values = np.linspace(0.2, 0.35, 16)
+    k_values = np.linspace(1, 12, 12)
+    # alpha_values = np.linspace(0.25, 0.25, 1)
+    # k_values = np.linspace(11, 11, 1)
     best_alpha = None
     best_k = None
     best_f1 = 0.0
+    best_precision = 0.0
+    best_recall = 0.0
 
     # Find the best alpha and k based on evaluation metrics
     for alpha in alpha_values:
-        terra.reset_region_tasks()
         terra.alpha = alpha
         for k in k_values:
             print(f"\nPredicting regions with alpha: {alpha}, k: {k}")
+            terra.reset_region_tasks()
             # Prediction regions given prompts
             terra.predict_regions(
                 input_task_clip_tensor, 
@@ -111,22 +117,28 @@ if __name__ == '__main__':
                 best_f1 = f1
                 best_alpha = alpha
                 best_k = k
+                best_precision = precision
+                best_recall = recall
 
-    print(f"\nBest parameters found - Alpha: {best_alpha}, K: {best_k} with F1: {best_f1:.4f}")
+    print(f"\nBest parameters found - Alpha: {best_alpha}, K: {best_k} with Precision: {best_precision:.4f}, Recall: {best_recall:.4f}, F1: {best_f1:.4f}")
             
     
     #Predict and Display Best Results
     terra.reset_region_tasks()
     terra.alpha = best_alpha
+
+    start_time = time.time()
     terra.predict_regions(
         input_task_clip_tensor, 
         tasks, 
         region_task_params["prediction_method"], 
         K = int(best_k)
     )
+    end_time = time.time()
+    print(f"\nRuntime (ms): {(end_time - start_time)*1000:.2f}")
 
-    terra.display_terra()
-    for task_idx in range(len(region_tasks)):
-        terra.display_task_relevant_places(task_idx, heatmap_mode=True)
-    terra.display_task_relevant_places()
+    # # terra.display_terra()
+    # for task_idx in range(len(region_tasks)):
+    #     terra.display_task_relevant_places(task_idx, heatmap_mode=True)
+    # terra.display_task_relevant_places()
 
