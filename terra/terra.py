@@ -224,6 +224,7 @@ class Terra():
             self.visualizer.display_places(self.terra_3dsg, pc=self.pc, plot_ids=plot_ids, no_spheres=no_spheres)
         else:
             self.visualizer.display_places(self.terra_3dsg, plot_ids=plot_ids, no_spheres=no_spheres)
+    
     def display_regions(self):
         self.visualizer.display_regions(self.terra_3dsg)
             
@@ -258,6 +259,10 @@ class Terra():
             self.pc
         )
 
+    def reset_region_tasks(self):
+        self.region_tasks = []
+        self.task_relevant_place_nodes = {}
+        self.prev_region_task_idx = 0
 
 if __name__ == '__main__':
     parser = ArgumentParser()

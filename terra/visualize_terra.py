@@ -256,6 +256,39 @@ class TerraVisualizer():
 
         return selected_ids
 
+    def get_nodes_in_diagonal_rectangle(self, G, ref_node_ids):
+        """
+        ref_node_ids: two nodes defining the diagonal corners of the rectangle
+        Returns: list of node IDs inside the rectangle (inclusive)
+        """
+
+        if len(ref_node_ids) != 2:
+            raise ValueError("Exactly 2 reference node IDs are required")
+
+        # Collect XY positions of the reference nodes
+        ref_points = []
+        for n_id in ref_node_ids:
+            if n_id not in G.nodes:
+                raise KeyError(f"Node ID {n_id} not found in graph")
+            x, y = G.nodes[n_id]["pos"][:2]
+            ref_points.append([x, y])
+
+        ref_points = np.asarray(ref_points)
+
+        # Rectangle bounds
+        min_x, min_y = np.min(ref_points, axis=0)
+        max_x, max_y = np.max(ref_points, axis=0)
+
+        # Select nodes inside rectangle
+        selected_ids = []
+        for n_id in G.nodes:
+            x, y = G.nodes[n_id]["pos"][:2]
+
+            if min_x <= x <= max_x and min_y <= y <= max_y:
+                selected_ids.append(n_id)
+
+        return selected_ids
+
     def get_nodes_in_polygon_from_sides(self, G, side_node_pairs):
         """
         side_node_pairs: list of 4 tuples [(id1, id2), ...]
