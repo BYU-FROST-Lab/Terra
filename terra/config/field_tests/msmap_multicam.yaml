@@ -1,24 +1,29 @@
 ## Processing parameters
-# data_folder: /ros2_bags/metric_data_0.5s/nunns_park_p2_10_15_25
-# output_folder: /ros2_bags/metric_data_0.5s/nunns_park_p2_10_15_25/output/testing
-data_folder: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25
-output_folder: /ros2_bags/metric_data_0.5s/utah_lake_park_p1_11_6_25/output/testing
+data_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25
+output_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25/output/
 num_cams: 3
 debug: true
 continue_processing: false
-save_step_size: 50
-unaligned_threshold: 0.25 # seconds
+save_step_size: 500
+unaligned_threshold: 0.10 # seconds
 
 ## Camera intrinsics
+IMG_W: 768
+IMG_H: 480
 cam1_K:  [458.17091039, 0.0, 388.71610935, 
         0.0, 457.99950521, 230.87195191, 
         0.0, 0.0, 1.0] # 768 x 480
+cam1_dist: [0.03738764, -0.07371669, -0.00024887, 0.00058859] # forward (cam1) - ssp
+
 cam2_K:  [455.47078158, 0.0, 386.00515232, 
         0.0, 455.32530496, 244.20159992, 
         0.0, 0.0, 1.0] # 768 x 480
+cam2_dist: [0.04187796, -0.0808205, -0.0001623, -0.00039214] # left (cam2) - ssp
+
 cam3_K:  [456.77801458, 0.0, 378.49188005, 
         0.0, 456.3905806,  240.8612888, 
         0.0, 0.0, 1.0] # 768 x 480
+cam3_dist: [0.02182443, -0.04749719, 0.00062508, 0.00044833] # right (cam3) - ssp
 
 ## YOLO Model
 use_yoloe: false

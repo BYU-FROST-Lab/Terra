@@ -41,6 +41,16 @@ class MSMap:
         ## Define Parameters ##
         #######################
         self.K = [np.array(args[f'cam{nc+1}_K']).reshape(3,3) for nc in range(self.num_cams)]
+        self.dist = [np.array(args[f'cam{nc+1}_dist']) for nc in range(self.num_cams)]
+        self.IMG_W = int(args['IMG_W'])
+        self.IMG_H = int(args['IMG_H'])
+        self.newK = []
+        self.roi = []
+        for i in range(self.num_cams):
+            newK, roi = cv2.getOptimalNewCameraMatrix(self.K[i], self.dist[i], (self.IMG_W, self.IMG_H), 1, (self.IMG_W, self.IMG_H))
+            self.newK.append(newK)
+            self.roi.append(roi)
+            
         self.theta_cos_sim = args['match_threshold'] # cos_sim threshold to determine a match
         self.use_dbscan = args['use_dbscan']
         self.dbscan_global = DBSCAN(eps=args['dbscan_eps'], min_samples=args['dbscan_min_samples']) # change depending on voxel sizes of global PC
@@ -192,8 +202,8 @@ class MSMap:
             if len(camera_image_files) == 0 or len(transform_lidar_to_cam_files) == 0:
                 continue
             
-            ## Load lidar Data ##
-            self.load_lidar_data(lidar_pc_file, camera_image_files, transform_lidar_to_cam_files, transform_lidar2global_file)
+            ## Load synced data ##
+            self.load_synced_data(lidar_pc_file, camera_image_files, transform_lidar_to_cam_files, transform_lidar2global_file)
 
             ## CLIP vector of base image ##
             self.clip_base_image(camera_image_files)
@@ -241,13 +251,15 @@ class MSMap:
         ## Visualize final global map colored by class ##
         self.display_global_pcl()
 
-    def load_lidar_data(self, lidar_pc_file, camera_image_files, transform_lidar_to_cam_files, transform_lidar_to_global_file):
+    def load_synced_data(self, lidar_pc_file, camera_image_files, transform_lidar_to_cam_files, transform_lidar_to_global_file):
         # Load lidar point cloud data
         self.lidar_pc = np.load(lidar_pc_file)
     
-        # Load all images
-        self.camera_images = [cv2.imread(f) for f in camera_image_files]
-        self.IMG_H, self.IMG_W = self.camera_images[0].shape[:2]
+        # Load all images # TODO: Changed for undistorting
+        # self.camera_images = [cv2.imread(f) for f in camera_image_files]
+        # self.IMG_H, self.IMG_W = self.camera_images[0].shape[:2]
+        dist_cam_imgs = [cv2.imread(f) for f in camera_image_files]
+        self.camera_images = [cv2.undistort(img, self.K[i], self.dist[i], None, self.newK[i]) for i, img in enumerate(dist_cam_imgs)]
 
         # Load transformation data
         self.transforms_lidar_to_cam = [self.load_transformation(tf_l2c_file) for tf_l2c_file in transform_lidar_to_cam_files]
@@ -255,7 +267,12 @@ class MSMap:
 
     def clip_base_image(self, camera_image_files):
         for cam_idx, img in enumerate(self.camera_images):
-            prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
+            # prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
+            prep = self.clip_preprocess(
+                Image.fromarray(img[
+                    self.roi[cam_idx][1]:self.roi[cam_idx][1]+self.roi[cam_idx][3],
+                    self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
+            ).unsqueeze(0).to(self.device) # TODO: Changed for undistorting
             with torch.no_grad():
                 self.img_clips.append(self.clip_model.encode_image(prep))
                 
@@ -309,7 +326,8 @@ class MSMap:
             cam_points = cam_points_h[:, :3]
 
             # Project onto image plane (N, 3)
-            proj_points = cam_points @ self.K[cam_idx].T
+            # proj_points = cam_points @ self.K[cam_idx].T
+            proj_points = cam_points @ self.newK[cam_idx].T
 
             # Normalize by z (N,) and round to nearest pixel
             zs = proj_points[:, 2]
@@ -319,8 +337,11 @@ class MSMap:
             # Original indices (needed for map lookups)
             pt_indices = np.nonzero(mask)[0]
 
-            # Filter which points are in the image bounds
-            in_bounds = (xs >= 0) & (xs < self.IMG_W) & (ys >= 0) & (ys < self.IMG_H)
+            # Filter which points are in the image bounds # TODO: Changed for undistorting
+            # in_bounds = (xs >= 0) & (xs < self.IMG_W) & (ys >= 0) & (ys < self.IMG_H)
+            ## Only match points within undistorted part of image using undist_img[y:y+h, x:x+w] (x, y, w, h = roi)
+            in_bounds = (xs >= self.roi[cam_idx][0]) & (xs < (self.roi[cam_idx][0]+self.roi[cam_idx][2])) \
+                & (ys >= self.roi[cam_idx][1]) & (ys < (self.roi[cam_idx][1]+self.roi[cam_idx][3]))
             xs, ys = xs[in_bounds], ys[in_bounds]
             pt_indices = pt_indices[in_bounds]
             points_xyz = points_xyz[in_bounds]
@@ -361,7 +382,15 @@ class MSMap:
             lidar_imgs[cam_idx] = lidar_imgs[cam_idx] / np.max(lidar_imgs[cam_idx])
             self.lidar_imgs_bool.append(lidar_imgs[cam_idx].astype(bool)) # True for non-zero intensities
             if self.DEBUG_MODE and (scan_idx % self.scan_step_sz == 0):
-                self.display_image("Lidar Image", lidar_imgs[cam_idx])
+                # self.display_image("Lidar Image", lidar_imgs[cam_idx])
+                self.display_lidar_overlay(
+                    cam_idx=cam_idx,
+                    xs=xs,
+                    ys=ys,
+                    intensities=intensity,
+                    base_img=self.camera_images[cam_idx],
+                    point_size=1
+                )
 
     def yolo_segmentation(self, scan_idx):
         self.yolo_results = []
@@ -625,7 +654,43 @@ class MSMap:
             pkl.dump(self.saved_img_names, f)
 
         print(f"\nSaved pc_dict and clip_tensor at iteration {itr}\n")
+       
+    def display_lidar_overlay(
+        self,
+        cam_idx,
+        xs,
+        ys,
+        intensities,
+        base_img,
+        point_size=2
+    ):
+        """
+        Overlay projected LiDAR points on the original camera image.
+        Points are colored by intensity using JET.
+        """
+        overlay = base_img.copy()
 
+        # Normalize intensities to [0, 255]
+        intensities = intensities.astype(np.float32)
+        intensities -= intensities.min()
+        if intensities.max() > 0:
+            intensities /= intensities.max()
+        intensities = (intensities * 255).astype(np.uint8)
+
+        # Apply JET colormap
+        colors = cv2.applyColorMap(intensities.reshape(-1, 1), cv2.COLORMAP_JET)
+
+        for x, y, c in zip(xs, ys, colors):
+            cv2.circle(
+                overlay,
+                (int(x), int(y)),
+                point_size,
+                color=tuple(int(v) for v in c[0]),
+                thickness=-1
+            )
+
+        self.display_image(f"LiDAR Overlay Cam {cam_idx}", overlay)
+    
     def display_image(self, window_name, image):
         cv2.imshow(window_name, image)
         cv2.waitKey(0)

@@ -266,9 +266,9 @@ class Terra():
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--terra',
+    parser.add_argument('--Terra',
                         type=str,
-                        help='Filepath for Terra saved from build_terra.py')
+                        helpk='Filepath for Terra saved from build_terra.py')
     args = parser.parse_args()
     
     terra = load_terra(args.terra)

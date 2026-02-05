@@ -1,8 +1,8 @@
 save_metric_data_multicam_rate:
   ros__parameters:
-    rosbag_path: /ros2_bags/nunns_park_p2_10_15_2025
+    rosbag_path: /ros2_bags/provo_river_p1_11_3_25
     lidar_topic: /lio_sam/deskew/cloud_deskewed
-    save_folder: /ros2_bags/metric_data_0.5s/nunns_park_p2_10_15_25
+    save_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25
     save_period: 0.5 # second(s) between saves
     num_cameras: 3
     camera1_topic: /oak_d_lr_forward/rgb/image_raw
@@ -11,18 +11,42 @@ save_metric_data_multicam_rate:
 
     # extrinsic_transforms
     publish_extrinsics: true
-    lidar_to_camera1:
-      translation: [ -0.12586, 0.021, -0.08154 ] # x, y, z in meters
-      rotation_quaternion: [ -0.5, -0.5, 0.5, -0.5 ] # qx, qy, qz, qw (L to Cam)
+
+    ## CAD calibrations
+    # lidar_to_camera1:
+    #   translation: [ -0.12586, 0.021, -0.08154 ] # x, y, z in meters
+    #   rotation_quaternion: [ -0.5, -0.5, 0.5, -0.5 ] # qx, qy, qz, qw (L to Cam)
+    #   parent_frame:  oak_d_lr_forward_rgb_camera_frame
+    #   child_frame: os_lidar
+    # lidar_to_camera2:
+    #   translation: [ -0.021, -0.12522, -0.08232 ] # x, y, z in meters
+    #   rotation_quaternion: [ 0.0, -0.7071068, 0.7071068, 0.0 ] # qx, qy, qz, qw (L to Cam)
+    #   parent_frame:  oak_d_lr_left_rgb_camera_frame
+    #   child_frame: os_lidar
+    # lidar_to_camera3:
+    #   translation: [ 0.021, 0.125, -0.08232 ] # x, y, z in meters
+    #   rotation_quaternion: [ 0.7071068, 0.0, 0.0, 0.7071068 ] # qx, qy, qz, qw (L to Cam)
+    #   parent_frame:  oak_d_lr_right_rgb_camera_frame
+    #   child_frame: os_lidar
+    
+    ## Manual calibrations
+    # lidar_to_camera1: # (undist_ssp_nocrop2)
+    #   translation: [ -0.04, -0.12, -0.14 ] # x, y, z in meters
+    #   rotation_quaternion: [ 0.49855879,  0.50111381, -0.49969398,  0.50062961] # qx, qy, qz, qw (L to Cam)
+    #   parent_frame:  oak_d_lr_forward_rgb_camera_frame
+    #   child_frame: os_lidar
+    lidar_to_camera1: # for provo_river ONLY (undist_ssp_nocrop)
+      translation: [ -0.04, -0.12, -0.14 ] # x, y, z in meters
+      rotation_quaternion: [ -0.49628265, -0.50096366,  0.50543674, -0.49726517] # qx, qy, qz, qw (L to Cam)
       parent_frame:  oak_d_lr_forward_rgb_camera_frame
       child_frame: os_lidar
     lidar_to_camera2:
-      translation: [ -0.021, -0.12522, -0.08232 ] # x, y, z in meters
-      rotation_quaternion: [ 0.0, -0.7071068, 0.7071068, 0.0 ] # qx, qy, qz, qw (L to Cam)
+      translation: [ 0.02, -0.1, -0.17 ] # x, y, z in meters
+      rotation_quaternion: [ 0.00433074, -0.70524, 0.70894233,  0.00430812] # qx, qy, qz, qw (L to Cam)
       parent_frame:  oak_d_lr_left_rgb_camera_frame
       child_frame: os_lidar
     lidar_to_camera3:
-      translation: [ 0.021, 0.125, -0.08232 ] # x, y, z in meters
-      rotation_quaternion: [ 0.7071068, 0.0, 0.0, 0.7071068 ] # qx, qy, qz, qw (L to Cam)
+      translation: [ -0.03, -0.11, -0.12 ] # x, y, z in meters
+      rotation_quaternion: [ 0.69778099,  0.00376668, -0.00488761,  0.71628459] # qx, qy, qz, qw (L to Cam)
       parent_frame:  oak_d_lr_right_rgb_camera_frame
       child_frame: os_lidar

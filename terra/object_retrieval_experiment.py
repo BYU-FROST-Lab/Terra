@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
 from scipy.spatial.transform import Rotation as R
 
+import open3d as o3d
 import clip
 
 from terra_utils import load_terra
@@ -53,8 +54,8 @@ class ObjectEvaluator():
         self.record_precision_metrics()
         
         # Print out metrics
-        recall = sum(self.gt_matches) / sum(self.gt_obj_count)
-        precision = sum(self.task_rel_matches) / sum(self.task_rel_count)
+        recall = sum(self.gt_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
+        precision = sum(self.task_rel_matches) / sum(self.task_rel_count) if sum(self.task_rel_count) > 0 else 0.0
         F1 = 0.0 if (recall + precision) == 0 else 2 * (precision * recall) / (precision + recall)
         
         print(f"\n\nOBJECT METRICS FOR DATASET: {self.data_folder}")
@@ -62,12 +63,13 @@ class ObjectEvaluator():
     
     def record_precision_metrics(self):
         print("\n\nCalculating Precision Metrics:")
-        Nbar_t = self.get_top90percent_objs()
+        task_relevant_objs = self.get_top90percent_objs()
         for t in range(self.num_tasks):
-            self.task_rel_count[t] = len(Nbar_t[t])
-            Mbar_t = self.count_matches(Nbar_t[t])
+            Nbar_t = len(task_relevant_objs[t])
+            self.task_rel_count[t] = Nbar_t
+            Mbar_t = self.count_matches(task_relevant_objs[t])
             self.task_rel_matches[t] = Mbar_t            
-            print(f"Task {self.task_names[t]}: GT Count = {len(Nbar_t[t])}, GT Matches = {Mbar_t}")
+            print(f"Task {self.task_names[t]}: GT Count = {Nbar_t}, GT Matches = {Mbar_t}")
             
     def record_recall_metrics(self):
         print("\n\nCalculating Recall Metrics:")
@@ -112,6 +114,8 @@ class ObjectEvaluator():
 
     def count_matches(self, objects, task_idx=None):
         num_matches = 0
+        print(f"Count matches out of {len(objects)} objects")
+        
         for obj_idx, tobj in enumerate(objects):
             obb = tobj.get_bbox()
             if task_idx is None:
@@ -123,13 +127,48 @@ class ObjectEvaluator():
             # Nearest place node
             _, idx = self.kdt_places.query(obb_center_xy)
             closest_place_node = self.place_nodes[idx]
+            
+            ####
+            # DEBUGGING
+            
+            ## DISPLAY PCD + Place Nodes
+            # place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
+            # place_subgraph = self.terra.terra_3dsg.subgraph(place_nodes)
+            # colors = {}
+            # for n in place_nodes:
+            #     if n == closest_place_node:
+            #         colors[n] = (0,0,1.0)
+            #     else:
+            #         colors[n] = (0.75,0.75,0.75)    
+            # self.terra.visualizer.level_offset = 0.0 
+            # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True)
+            # self.terra.visualizer.level_offset = 50.0
+            
+            ## OR just DISPLAY PCD
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(self.terra.pc)
+            pcd.paint_uniform_color([0.5,0.5,0.5])
+            
+            spheres = []
+            for corner in obb_corners:
+                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([corner[0],corner[1],corner[2]])
+                sphere.paint_uniform_color([1.0, 0.0, 0.0])
+                spheres.append(sphere)
+            sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([obb.center[0],obb.center[1],obb.center[2]])
+            sphere.paint_uniform_color([0.0, 1.0, 0.0])
+            spheres.append(sphere)
+            # o3d.visualization.draw_geometries(geo + spheres)
+            o3d.visualization.draw_geometries([pcd] + spheres)
+            ####
 
             # Images that see this node
             img_indices = self.terra.nodeid_2_img_idx[closest_place_node]
 
             shown = 0
+            img_buffer = []
+            
             for img_idx in img_indices:
-                if shown >= self.display_num_imgs:
+                if self.display_num_imgs != -1 and shown >= self.display_num_imgs:
                     break
 
                 img_path = self.terra.img_names[img_idx]
@@ -170,14 +209,27 @@ class ObjectEvaluator():
                 img = self.draw_task(img, self.task_names[task_idx], position=(10, 30))
                 
                 # Create figure but DO NOT show yet
-                plt.figure(figsize=(8, 6))
-                plt.imshow(img)
-                plt.title(
-                    f"Object {obj_idx} | {os.path.basename(img_path)} | place {closest_place_node}"
-                )
-                plt.axis("off")
+                # plt.figure(figsize=(8, 6))
+                # plt.imshow(img)
+                # plt.title(
+                #     f"Object {obj_idx} | {os.path.basename(img_path)} | place {closest_place_node}"
+                # )
+                # plt.axis("off")
+                title = f"{os.path.basename(img_path)} | place {closest_place_node}"
+                img_buffer.append((img, title))
 
                 shown += 1
+                
+                if len(img_buffer) == 9:
+                    self._show_image_batch(
+                        img_buffer, obj_idx, task_idx
+                    )
+                    img_buffer.clear()
+            
+            if img_buffer:
+                self._show_image_batch(
+                    img_buffer, obj_idx, task_idx
+                )
 
             if shown > 0:
                 decision = self._wait_for_yn()
@@ -188,7 +240,7 @@ class ObjectEvaluator():
                     print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Matched (y)")
                     num_matches += 1
                 else:
-                    print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match (n)")
+                    print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match or GT already detected (n)")
             # else:
             #     assert False, "No images see bounding box!"
         return num_matches
@@ -204,14 +256,40 @@ class ObjectEvaluator():
         def on_key(event):
             if event.key in ("y", "n"):
                 decision["value"] = (event.key == "y")
-                plt.close(event.canvas.figure)
+                for fig_num in plt.get_fignums():
+                    plt.close(fig_num)
 
-        fig = plt.gcf()
-        cid = fig.canvas.mpl_connect("key_press_event", on_key)
+        for fig_num in plt.get_fignums():
+            fig = plt.figure(fig_num)
+            fig.canvas.mpl_connect("key_press_event", on_key)
         plt.show()  # blocks
-        fig.canvas.mpl_disconnect(cid)
+        # fig.canvas.mpl_disconnect(cid)
 
         return decision["value"]
+    
+    def _show_image_batch(self, img_buffer, obj_idx, task_idx):
+        """
+        Display up to 6 images in a 3x3 subplot figure.
+        """
+        fig, axes = plt.subplots(3, 3, figsize=(10, 15))
+        axes = axes.flatten()
+
+        for ax, (img, title) in zip(axes, img_buffer):
+            ax.imshow(img)
+            ax.set_title(title, fontsize=9)
+            ax.axis("off")
+
+        # Hide unused subplots
+        for ax in axes[len(img_buffer):]:
+            ax.axis("off")
+
+        fig.suptitle(
+            f"Object {obj_idx} | Task: {self.task_names[task_idx]}\nPress Y / N",
+            fontsize=14
+        )
+
+        fig.tight_layout(rect=[0, 0, 1, 1])
+
     
     def build_obb_edges(self, corners_3d, angle_eps=1e-3):
         edges = set()
@@ -367,6 +445,7 @@ class ObjectEvaluator():
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--params', type=str, help="YAML file with object tasks and Terra path")
+    parser.add_argument('--num_imgs', type=int, default=-1, help="Number of images to process (-1 = all)")
     args = parser.parse_args()
 
     with open(args.params, 'r') as f:
@@ -388,6 +467,7 @@ if __name__ == '__main__':
 
     # Predict objects
     terra.predict_objects(input_task_tensor, tasks[terra.num_terrain:], cfg['prediction_method'])
+    print(f"Predicted {len(terra.objects)} objects")
     
     # Display Terra
     # terra.display_terra()
@@ -395,5 +475,5 @@ if __name__ == '__main__':
     # Evaluate object detections
     cfg_eval = dict(cfg)
     cfg_eval.pop("terra", None)  # prevent double-passing
-    obj_eval = ObjectEvaluator(1, terra, **cfg_eval)
+    obj_eval = ObjectEvaluator(args.num_imgs, terra, **cfg_eval)
     obj_eval.evaluate()
