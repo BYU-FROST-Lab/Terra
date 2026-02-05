@@ -11,6 +11,7 @@ from terra_utils import load_terra
 
 def compute_region_metrics(pred_places, gt_places):
     tps, fps, fns = 0,0,0
+    task_metrics = {}
     for query_idx in gt_places.keys():
         if query_idx in pred_places:
             pred_set = set(pred_places[query_idx])
@@ -19,12 +20,13 @@ def compute_region_metrics(pred_places, gt_places):
         gt_set = set(gt_places[query_idx])
 
         tp, fp, fn, tn = compute_confusion_matrix(pred_set, gt_set)
+        task_metrics[query_idx] = compute_precision_recall_f1(tp, fp, fn)
         tps += tp
         fps += fp
         fns += fn
     
-    prec, rec, f1 = compute_precision_recall_f1(tps, fps, fns)
-    return prec, rec, f1
+    overall_prec, overall_rec, overall_f1 = compute_precision_recall_f1(tps, fps, fns)
+    return overall_prec, overall_rec, overall_f1, task_metrics
 
 def compute_precision_recall_f1(true_positives, false_positives, false_negatives):
     
@@ -83,6 +85,7 @@ if __name__ == '__main__':
             self.place_nodes_dict = {}
             self.input_task_clip_embs = None
             self.input_task_clip_tensor = None
+            self.task_metrics = []
 
 
     agg_3cam_config = RegionQueryingConfig(
@@ -163,10 +166,11 @@ if __name__ == '__main__':
 
                 pred_places = config.terra.task_relevant_place_nodes
 
-                precision, recall, f1 = compute_region_metrics(pred_places, config.place_nodes_dict)
+                precision, recall, f1, task_metrics = compute_region_metrics(pred_places, config.place_nodes_dict)
                 config.f1_scores.append(f1)
                 config.alphas.append(alpha)
                 config.ks.append(k)
+                config.task_metrics.append(task_metrics)
                 print(f"Alpha: {alpha}, K: {k} => Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
                 
                 # Update best parameters
@@ -179,9 +183,13 @@ if __name__ == '__main__':
 
         print(f"\nBest parameters found - Alpha: {config.best_alpha}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
 
-    for config in configs:
-        print(f"\nFinal Best parameters for {config.name} - Alpha: {config.best_alpha}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
-
+    # for config in configs:
+    #     print(f"\nFinal Best parameters for {config.name} - Alpha: {config.best_alpha}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
+    #     print("Best per Task Metrics:")
+    #     for task_idx, task in enumerate(config.region_tasks):
+    #         task_prec, task_rec, task_f1 = config.task_metrics[config.alphas.index(config.best_alpha) + config.ks.index(config.best_k)*len(alpha_values)][task_idx]
+    #         print(f"  Task: {task['task']}")
+    #         print(f"    Precision: {task_prec:.4f}, Recall: {task_rec:.4f}, F1: {task_f1:.4f}")
 
     #Plot grid of 4 plots of F1 vs Alpha with best K for each configuration
     fig, axs = plt.subplots(2, 2, figsize=(12, 10))
