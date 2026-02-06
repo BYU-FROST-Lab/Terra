@@ -3,7 +3,7 @@ from pathlib import Path
 import pickle as pkl
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.path import Path
+from matplotlib.path import Path as mp_Path
 
 import open3d as o3d
 
@@ -32,8 +32,7 @@ class TerraVisualizer():
             self.display_3dsg_points(places_subgraph, pc=pc, plot_ids=plot_ids)
         else:
             self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids)
-    
-
+   
     def display_regions(self, G, pc=None):
         regions_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] > 1]
@@ -303,7 +302,7 @@ class TerraVisualizer():
         )
 
         # Create a Path object for point-in-polygon test
-        poly_path = Path(polygon)
+        poly_path = mp_Path(polygon)
 
         selected_ids = []
 

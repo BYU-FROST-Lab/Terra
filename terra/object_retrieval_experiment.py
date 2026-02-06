@@ -27,7 +27,16 @@ class ObjectEvaluator():
         self.task_names = [self.obj_tasks[i]["task"] for i in range(self.num_tasks)]
         
         # Camera intrinsics
-        self.K_list = [np.array(kwargs[f'cam{i}_K']).reshape(3,3) for i in range(1,self.num_cams+1)]
+        self.K_list = [np.array(kwargs[f'cam{nc+1}_K']).reshape(3,3) for nc in range(self.num_cams)]
+        self.dist = [np.array(kwargs[f'cam{nc+1}_dist']) for nc in range(self.num_cams)]
+        self.IMG_W = int(kwargs['IMG_W'])
+        self.IMG_H = int(kwargs['IMG_H'])
+        self.newK_list = []
+        self.roi = []
+        for i in range(self.num_cams):
+            newK, roi = cv2.getOptimalNewCameraMatrix(self.K_list[i], self.dist[i], (self.IMG_W, self.IMG_H), 1, (self.IMG_W, self.IMG_H))
+            self.newK_list.append(newK)
+            self.roi.append(roi)
         
         # Image and transform folders
         self.cam_image_folders = [os.path.join(self.data_folder, f"camera{i}_images") for i in range(1,self.num_cams+1)]
@@ -128,38 +137,38 @@ class ObjectEvaluator():
             _, idx = self.kdt_places.query(obb_center_xy)
             closest_place_node = self.place_nodes[idx]
             
-            ####
-            # DEBUGGING
+            # ####
+            # # DEBUGGING
             
-            ## DISPLAY PCD + Place Nodes
-            # place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
-            # place_subgraph = self.terra.terra_3dsg.subgraph(place_nodes)
-            # colors = {}
-            # for n in place_nodes:
-            #     if n == closest_place_node:
-            #         colors[n] = (0,0,1.0)
-            #     else:
-            #         colors[n] = (0.75,0.75,0.75)    
-            # self.terra.visualizer.level_offset = 0.0 
-            # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True)
-            # self.terra.visualizer.level_offset = 50.0
+            # ## DISPLAY PCD + Place Nodes
+            # # place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
+            # # place_subgraph = self.terra.terra_3dsg.subgraph(place_nodes)
+            # # colors = {}
+            # # for n in place_nodes:
+            # #     if n == closest_place_node:
+            # #         colors[n] = (0,0,1.0)
+            # #     else:
+            # #         colors[n] = (0.75,0.75,0.75)    
+            # # self.terra.visualizer.level_offset = 0.0 
+            # # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True)
+            # # self.terra.visualizer.level_offset = 50.0
             
-            ## OR just DISPLAY PCD
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(self.terra.pc)
-            pcd.paint_uniform_color([0.5,0.5,0.5])
+            # ## OR just DISPLAY PCD
+            # pcd = o3d.geometry.PointCloud()
+            # pcd.points = o3d.utility.Vector3dVector(self.terra.pc)
+            # pcd.paint_uniform_color([0.5,0.5,0.5])
             
-            spheres = []
-            for corner in obb_corners:
-                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([corner[0],corner[1],corner[2]])
-                sphere.paint_uniform_color([1.0, 0.0, 0.0])
-                spheres.append(sphere)
-            sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([obb.center[0],obb.center[1],obb.center[2]])
-            sphere.paint_uniform_color([0.0, 1.0, 0.0])
-            spheres.append(sphere)
-            # o3d.visualization.draw_geometries(geo + spheres)
-            o3d.visualization.draw_geometries([pcd] + spheres)
-            ####
+            # spheres = []
+            # for corner in obb_corners:
+            #     sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([corner[0],corner[1],corner[2]])
+            #     sphere.paint_uniform_color([1.0, 0.0, 0.0])
+            #     spheres.append(sphere)
+            # sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([obb.center[0],obb.center[1],obb.center[2]])
+            # sphere.paint_uniform_color([0.0, 1.0, 0.0])
+            # spheres.append(sphere)
+            # # o3d.visualization.draw_geometries(geo + spheres)
+            # o3d.visualization.draw_geometries([pcd] + spheres)
+            # ####
 
             # Images that see this node
             img_indices = self.terra.nodeid_2_img_idx[closest_place_node]
@@ -181,29 +190,119 @@ class ObjectEvaluator():
                 if not os.path.exists(img_full_path):
                     continue
 
-                img = cv2.imread(img_full_path)
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                dist_img = cv2.imread(img_full_path)
+                dist_img = cv2.cvtColor(dist_img, cv2.COLOR_BGR2RGB)
 
                 # Load closest transforms
                 lidar2cam_file = self.find_closest_transform(timestamp, self.lidar2cam_transforms[cam_id])
                 lidar2global_file = self.find_closest_transform(timestamp, self.lidar2global_transforms)
 
-                T_cam_lidar = self.load_transformation(lidar2cam_file)
-                T_global_lidar = self.load_transformation(lidar2global_file)
+                T_lidar2cam = self.load_transformation(lidar2cam_file)
+                T_lidar2global = self.load_transformation(lidar2global_file)
+                
+                # ############# DISPLAY 3D Camera COORD ###################
+                # print("Camera Image:",img_full_path)
+                # pc_h = np.hstack([self.terra.pc[:,:3], np.ones((self.terra.pc.shape[0],1))]) # (N,4)
+                # # for nc in range(self.num_cams):
+                # #     lidar2cam_file = self.find_closest_transform(timestamp, self.lidar2cam_transforms[nc])
+                # #     T_lidar2cam = self.load_transformation(lidar2cam_file)
+                # print("Lidar 2 cam:",T_lidar2cam)
+                # # cam_points_h = pc_h @ (T_lidar2cam @ np.linalg.inv(T_lidar2global)).T # (N,4)
+                # T_lidar2global_inv = np.eye(4)
+                # T_lidar2global_inv[:3,:3] = T_lidar2global[:3,:3].T
+                # T_lidar2global_inv[:3,3] = - T_lidar2global[:3,:3].T @ T_lidar2global[:3,3]
+                # cam_points_h = pc_h @ (T_lidar2cam @ T_lidar2global_inv).T # (N,4)
+                # cam_points = cam_points_h[:,:3] # (N,3)
+                
+                # proj_pts = cam_points @ self.newK_list[cam_id].T
+                # # Keep points in front of camera
+                # zs = proj_pts[:, 2]
+                # valid_z = zs > 0
+                # xs = np.round(proj_pts[:, 0] / zs).astype(int)
+                # ys = np.round(proj_pts[:, 1] / zs).astype(int)
+                
+                # in_bounds = (
+                #     valid_z &
+                #     (xs >= self.roi[cam_id][0]) & 
+                #     (xs < (self.roi[cam_id][0]+self.roi[cam_id][2])) & 
+                #     (ys >= self.roi[cam_id][1]) & 
+                #     (ys < (self.roi[cam_id][1]+self.roi[cam_id][3]))
+                # )
+                # xs, ys = xs[in_bounds], ys[in_bounds]
+                # cam_points = cam_points[in_bounds]
+                
+                # colors = np.full((self.terra.pc.shape[0], 3), [0.5, 0.5, 0.5])  # gray
+                # colors[in_bounds] = [1.0, 0.0, 1.0]        # red for FOV points
+
+                # pcd = o3d.geometry.PointCloud()
+                # pcd.points = o3d.utility.Vector3dVector(self.terra.pc)
+                # # pcd.paint_uniform_color([0.5,0.5,0.5])
+                # pcd.colors = o3d.utility.Vector3dVector(colors)
+                
+                # spheres = []
+                # for corner in obb_corners:
+                #     sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([corner[0],corner[1],corner[2]])
+                #     sphere.paint_uniform_color([1.0, 0.0, 0.0])
+                #     spheres.append(sphere)
+                # sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([obb.center[0],obb.center[1],obb.center[2]])
+                # sphere.paint_uniform_color([0.0, 1.0, 0.0])
+                # spheres.append(sphere)
+                # # Math for camera location
+                # cam_origin_h_in_Cframe = np.array([0,0,0,1])
+                # cam_origin_h_in_Gframe = T_lidar2global @ np.linalg.inv(T_lidar2cam) @ cam_origin_h_in_Cframe
+                # cam_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+                # cam_sphere.translate([cam_origin_h_in_Gframe[0],cam_origin_h_in_Gframe[1],cam_origin_h_in_Gframe[2]])
+                # cam_sphere.paint_uniform_color([0.0, 0.0, 1.0])
+                # spheres.append(cam_sphere)
+                # # Math for lidar originW
+                # lidar_origin_h_in_Lframe = np.array([0,0,0,1])
+                # lidar_origin_h_in_Gframe = T_lidar2global @ lidar_origin_h_in_Lframe
+                # lidar_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+                # lidar_sphere.translate([lidar_origin_h_in_Gframe[0],lidar_origin_h_in_Gframe[1],lidar_origin_h_in_Gframe[2]])
+                # lidar_sphere.paint_uniform_color([0.0, 0.0, 0.0])
+                # spheres.append(lidar_sphere)
+                
+                # lidar_x_origin_h_in_Lframe = np.array([0.5,0,0,1])
+                # lidar_x_origin_h_in_Gframe = T_lidar2global @ lidar_x_origin_h_in_Lframe
+                # lidar_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+                # lidar_sphere.translate([lidar_x_origin_h_in_Gframe[0],lidar_x_origin_h_in_Gframe[1],lidar_x_origin_h_in_Gframe[2]])
+                # lidar_sphere.paint_uniform_color([1.0, 0.0, 0.0])
+                # spheres.append(lidar_sphere)
+                
+                # lidar_y_origin_h_in_Lframe = np.array([0,0.5,0,1])
+                # lidar_y_origin_h_in_Gframe = T_lidar2global @ lidar_y_origin_h_in_Lframe
+                # lidar_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+                # lidar_sphere.translate([lidar_y_origin_h_in_Gframe[0],lidar_y_origin_h_in_Gframe[1],lidar_y_origin_h_in_Gframe[2]])
+                # lidar_sphere.paint_uniform_color([0.0, 1.0, 0.0])
+                # spheres.append(lidar_sphere)
+                
+                # lidar_z_origin_h_in_Lframe = np.array([0,0,0.5,1])
+                # lidar_z_origin_h_in_Gframe = T_lidar2global @ lidar_z_origin_h_in_Lframe
+                # lidar_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+                # lidar_sphere.translate([lidar_z_origin_h_in_Gframe[0],lidar_z_origin_h_in_Gframe[1],lidar_z_origin_h_in_Gframe[2]])
+                # lidar_sphere.paint_uniform_color([0.0, 0.0, 1.0])
+                # spheres.append(lidar_sphere)
+                
+                
+                
+                # # o3d.visualization.draw_geometries(geo + spheres)
+                # o3d.visualization.draw_geometries([pcd] + spheres)
+                # ###########################################################
 
                 # Project 3D bbox
                 bbox_2d, valid = self.project_box_3dto2d(
-                    obb_corners, T_global_lidar, T_cam_lidar, self.K_list[cam_id]
+                    obb_corners, T_lidar2global, T_lidar2cam, self.newK_list[cam_id]
                 ) # [8x2]
                 
                 center_2d = self.project_point_3dto2d(
-                    obb.center, T_global_lidar, T_cam_lidar, self.K_list[cam_id],
-                    img.shape[0], img.shape[1]
+                    obb.center, T_lidar2global, T_lidar2cam, self.newK_list[cam_id], self.IMG_H, self.IMG_W
+                    #img.shape[0], img.shape[1]
                 )
                 if center_2d is None:
                     continue
                 
                 ## Draw on image
+                img = cv2.undistort(dist_img, self.K_list[cam_id], self.dist[cam_id], None, self.newK_list[cam_id])
                 img = self.draw_center_point(img, center_2d)
                 img = self.draw_projected_obb(img, bbox_2d, edges, valid)
                 img = self.draw_task(img, self.task_names[task_idx], position=(10, 30))
@@ -332,15 +431,14 @@ class ObjectEvaluator():
         trans_mat[:3, 3] = transform_1d[:3]
         return trans_mat
 
-    def project_point_3dto2d(self, pt, T_global_lidar, T_cam_lidar, K, h, w):
+    def project_point_3dto2d(self, pt, T_lidar2global, T_lidar2cam, K, h, w):
         pt_h = np.array([pt[0], pt[1], pt[2], 1.0])  # (4,)
-        cam_pt = (T_cam_lidar @ np.linalg.inv(T_global_lidar) @ pt_h)[:3]
-
-        z = cam_pt[2]
-        if z <= 1e-6:
-            return None  # behind camera
+        cam_pt = (T_lidar2cam @ np.linalg.inv(T_lidar2global) @ pt_h)[:3]
 
         proj = K @ cam_pt
+        z = proj[2]
+        if z <= 1e-6:
+            return None  # behind camera
         x = int(proj[0] / z)
         y = int(proj[1] / z)
 
@@ -349,19 +447,15 @@ class ObjectEvaluator():
         
         return np.array([x, y])
 
-    def project_box_3dto2d(self, bbox_3d, T_global_lidar, T_cam_lidar, K):
-        corners_h = np.hstack([bbox_3d, np.ones((bbox_3d.shape[0],1))]).T
-        cam_points_h_wide = T_cam_lidar @ np.linalg.inv(T_global_lidar) @ corners_h # [4x8]
-        cam_points_h = cam_points_h_wide.T # [8x4] 
+    def project_box_3dto2d(self, bbox_3d, T_lidar2global, T_lidar2cam, K):
+        corners_h = np.hstack([bbox_3d, np.ones((bbox_3d.shape[0],1))]) # (8,4)
+        cam_points_h = corners_h @ (T_lidar2cam @ np.linalg.inv(T_lidar2global)).T # (8,4)
         cam_points = cam_points_h[:,:3] # [8x3]
         
-        # Keep points in front of camera
-        zs = cam_points[:, 2]
-        valid = zs > 1e-6
-        # cam_points = cam_points[valid]
-        # zs = zs[valid]
-        
         proj_pts = cam_points @ K.T
+        # Keep points in front of camera
+        zs = proj_pts[:, 2]
+        valid = zs > 0
         xs = (proj_pts[:,0] / zs).astype(int)
         ys = (proj_pts[:,1] / zs).astype(int)
         
@@ -470,7 +564,7 @@ if __name__ == '__main__':
     print(f"Predicted {len(terra.objects)} objects")
     
     # Display Terra
-    # terra.display_terra()
+    terra.display_terra()
 
     # Evaluate object detections
     cfg_eval = dict(cfg)
