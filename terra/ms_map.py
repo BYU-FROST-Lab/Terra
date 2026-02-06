@@ -327,7 +327,7 @@ class MSMap:
 
             # Project onto image plane (N, 3)
             # proj_points = cam_points @ self.K[cam_idx].T
-            proj_points = cam_points @ self.newK[cam_idx].T
+            proj_points = cam_points @ self.newK[cam_idx].T  # TODO: Changed for undistorting
 
             # Normalize by z (N,) and round to nearest pixel
             zs = proj_points[:, 2]

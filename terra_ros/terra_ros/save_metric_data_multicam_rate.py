@@ -130,105 +130,130 @@ class SaveMetricDataMultiCam(Node):
         self.trans_l2g_pc_dir = os.path.join(self.base_dir, 'transformations_lidar2global')
         os.makedirs(self.trans_l2g_pc_dir, exist_ok=True)
         
-        self.last_save_time = None  # seconds        
+        self.last_save_time = None # seconds 
         self.cam_buffer = [[] for _ in range(self.num_cameras)]
         self.lidar_buffer = []
-        self.max_buffer_time = 30.0  # seconds of history to keep
+        self.max_dt = 0.05          # [sec] max allowed camera–lidar skew
+        # self.lookback = 0.5  # [sec] grab data this long ago 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        
+        self.timer = self.create_timer(self.save_period, self.save_callback)
+        self.cam_tstamps = [[] for _ in range(self.num_cameras)]
+        self.lidar_tstamps = []
+        self.lidar_camera_pairs = []
+
     
     def cam_img_callback(self, msg, cam_id):
         t = self.header_to_seconds(msg.header)
-
         img_data = np.frombuffer(msg.data, dtype=np.uint8)
         img = img_data.reshape(msg.height, msg.width, -1)
 
-        self.cam_buffer[cam_id].append((t, img, msg))
-
-        # prune old
-        self.cam_buffer[cam_id] = [
-            x for x in self.cam_buffer[cam_id]
-            if t - x[0] <= self.max_buffer_time
-        ]
+        self.cam_buffer[cam_id].append((t, img))
+        self.cam_tstamps[cam_id].append(t)
         
     def lidar_pc_callback(self, msg):
         t = self.header_to_seconds(msg.header)
         self.lidar_buffer.append((t, msg))
+        self.lidar_tstamps.append(t)
 
-        # prune old
-        self.lidar_buffer = [
-            x for x in self.lidar_buffer
-            if t - x[0] <= self.max_buffer_time
-        ]
-
-        self.try_save()
+        # self.save_callback()
         
-    def try_save(self):
+    def save_callback(self):
         if not self.lidar_buffer:
             return
+        
+        # Need at least one image from every camera
+        if any(len(buf) == 0 for buf in self.cam_buffer):
+            return
+        
+        best = None  # (score, lidar_time, lidar_msg, cam_matches)
+        for lidar_time, lidar_msg in self.lidar_buffer:
+            cam_matches = []
+            max_dt = 0.0
+            for cam_id in range(self.num_cameras):
+                t_img, img = min(
+                    self.cam_buffer[cam_id],
+                    key=lambda x: abs(x[0] - lidar_time)
+                )
+                dt = abs(t_img - lidar_time)
+                max_dt = max(max_dt, dt)
+                cam_matches.append((cam_id, t_img, img))
 
-        lidar_time, lidar_msg = self.lidar_buffer[-1]
-
-        # rate limiting
-        if self.last_save_time is not None:
-            if lidar_time - self.last_save_time < self.save_period:
-                return
-
-        # find closest image per camera
-        closest_imgs = []
-        for cam_id in range(self.num_cameras):
-            if not self.cam_buffer[cam_id]:
-                return  # wait until all cams have data
-
-            closest = min(
-                self.cam_buffer[cam_id],
-                key=lambda x: abs(x[0] - lidar_time)
+            if max_dt > self.max_dt:
+                continue
+            if best is None or max_dt < best[0]:
+                best = (max_dt, lidar_time, lidar_msg, cam_matches)
+        if best is None:
+            self.cam_tstamps = [[] for _ in range(self.num_cameras)]
+            self.lidar_tstamps = []
+            self.lidar_camera_pairs = []
+            self.lidar_buffer = []
+            for cam_id in range(self.num_cameras):
+                self.cam_buffer[cam_id] = []
+            return
+        
+        _, lidar_time, lidar_msg, cam_matches = best
+            
+        try:
+            tf_l2g = self.tf_buffer.lookup_transform(
+                'map',
+                lidar_msg.header.frame_id,
+                Time.from_msg(lidar_msg.header.stamp),
+                timeout=Duration(seconds=0.1)
             )
-            closest_imgs.append(closest)
+        except tf2_ros.TransformException as e:
+            self.get_logger().warning(f"TF lookup failed: {e}")
+            return
 
         # === SAVE ===
-        self.save_lidar(lidar_msg, lidar_time)
-        self.save_images(closest_imgs)
-        self.last_save_time = lidar_time
+        self.lidar_camera_pairs.append((lidar_time, cam_matches[0][1], cam_matches[1][1], cam_matches[2][1]))
+        self.save_lidar(lidar_msg, tf_l2g, lidar_time)
+        self.save_images(cam_matches)
 
-    def save_lidar(self, msg, pc_time):
+        self.get_logger().info(
+            f"Saved best-aligned frame @ {lidar_time:.6f} (max Δt = {best[0]*1000:.1f} ms)"
+        )
+
+        # ---- RESET BUFFERS (consume everything up to this time) ----
+        if len(self.lidar_tstamps) > 500:
+            # Save
+            np.save(
+                os.path.join(self.base_dir, f'lidar_tstamps_{lidar_time:.6f}.npy'),
+                np.array(self.lidar_tstamps)
+            )
+            for nc in range(self.num_cameras):
+                np.save(
+                    os.path.join(self.base_dir, f'cam{nc+1}_tstamps_{cam_matches[nc][1]:.6f}.npy'),
+                    np.array(self.cam_tstamps[nc])
+                )
+            np.save(
+                os.path.join(self.base_dir, f'lidarcam_pair_tstamps_{lidar_time:.6f}.npy'),
+                np.array(self.lidar_camera_pairs)
+            )
+            
+            self.cam_tstamps = [[] for _ in range(self.num_cameras)]
+            self.lidar_tstamps = []
+            self.lidar_camera_pairs = []
+            
+        self.lidar_buffer = []
+        for cam_id in range(self.num_cameras):
+            self.cam_buffer[cam_id] = []
+
+    def save_lidar(self, msg, transform_lidar2map, pc_time):
         lidar_pc_list = list(read_points(
             msg, field_names=("x", "y", "z", "intensity"), skip_nans=True
         ))
         lidar_pc_arr = np.array([list(p)[:4] for p in lidar_pc_list])
-
-        try:
-            if not self.tf_buffer.can_transform(
-                'map',
-                msg.header.frame_id,
-                Time(),
-                timeout=Duration(seconds=0.1),
-            ):
-                self.get_logger().warning(
-                    f"No TF from {msg.header.frame_id} to map yet, skipping frame"
-                )
-                return
-
-            transform_lidar2map = self.tf_buffer.lookup_transform(
-                'map',
-                msg.header.frame_id,
-                Time(),
-            )
-
-        except (tf2_ros.LookupException,
-                tf2_ros.ConnectivityException,
-                tf2_ros.ExtrapolationException) as e:
-            self.get_logger().warning(f"TF lookup failed: {e}")
-            return
-        tf_time = self.header_to_seconds(transform_lidar2map.header)
 
         np.save(
             os.path.join(self.lidar_pc_dir, f'lidar_pc_{pc_time:.6f}.npy'),
             lidar_pc_arr
         )
 
+        tf_time = self.header_to_seconds(transform_lidar2map.header)
         np.save(
-            os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{pc_time:.6f}.npy'),
+            os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{tf_time:.6f}.npy'),
             [
                 transform_lidar2map.transform.translation.x,
                 transform_lidar2map.transform.translation.y,
@@ -253,7 +278,7 @@ class SaveMetricDataMultiCam(Node):
         self.get_logger().info("Saved metric data")
         
     def save_images(self, closest_imgs):
-        for cam_id, (t, img, _) in enumerate(closest_imgs):
+        for cam_id, t, img in closest_imgs:
             cv2.imwrite(
                 os.path.join(
                     self.cam_imgs_dirs[cam_id],
@@ -265,10 +290,7 @@ class SaveMetricDataMultiCam(Node):
     def global_pc_callback(self, msg):
         global_pc_time = self.header_to_seconds(msg.header)
         global_pc_list = list(read_points(msg, field_names=("x", "y", "z", "intensity"), skip_nans=True))
-        global_pts = []
-        for p_idx in range(len(global_pc_list)):
-            global_pts.append(list(global_pc_list[p_idx])[:4])
-        global_pc_arr = np.array(global_pts) # (num_pts, 4)
+        global_pc_arr = np.array([list(p)[:4] for p in global_pc_list])
         np.save(os.path.join(self.global_pc_dir, f'global_pc_{global_pc_time:.6f}.npy'), global_pc_arr)   
     
     @staticmethod

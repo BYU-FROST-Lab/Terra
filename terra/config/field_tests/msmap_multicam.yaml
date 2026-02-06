@@ -1,6 +1,6 @@
 ## Processing parameters
-data_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25
-output_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25/output/
+data_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25_betteralligned
+output_folder: /ros2_bags/metric_data_0.5s/manual_calib/provo_river_p1_11_3_25_betteralligned/output_0.10syncthresh/
 num_cams: 3
 debug: true
 continue_processing: false
