@@ -20,7 +20,8 @@ def compute_region_metrics(pred_places, gt_places):
         gt_set = set(gt_places[query_idx])
 
         tp, fp, fn, tn = compute_confusion_matrix(pred_set, gt_set)
-        task_metrics[query_idx] = compute_precision_recall_f1(tp, fp, fn)
+        task_prec, task_rec, task_f1 = compute_precision_recall_f1(tp, fp, fn)
+        task_metrics[query_idx] = (task_prec, task_rec, task_f1, tp, fp, fn)
         tps += tp
         fps += fp
         fns += fn
@@ -58,8 +59,8 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     
-    with open(args.params_1cam, 'rb') as f:
-        region_task_params_1cam = yaml.safe_load(f)
+    # with open(args.params_1cam, 'rb') as f:
+    #     region_task_params_1cam = yaml.safe_load(f)
     
     with open(args.params_3cam, 'rb') as f:
         region_task_params_3cam = yaml.safe_load(f)
@@ -88,41 +89,49 @@ if __name__ == '__main__':
             self.task_metrics = []
 
 
-    agg_3cam_config = RegionQueryingConfig(
-        name = "Agglomerative 3 Cam",
+    # agg_3cam_config = RegionQueryingConfig(
+    #     name = "Agglomerative 3 Cam",
+    #     terra_path=region_task_params_3cam["terra"],
+    #     region_tasks=region_task_params_3cam["region_tasks"],
+    #     prediction_method=region_task_params_3cam["prediction_method"]
+    # )
+
+    # agg_1cam_config = RegionQueryingConfig(
+    #     name = "Agglomerative 1 Cam",
+    #     terra_path=region_task_params_1cam["terra"],
+    #     region_tasks=region_task_params_1cam["region_tasks"],
+    #     prediction_method=region_task_params_1cam["prediction_method"]
+    # )
+
+    # spec_3cam_terra_path = region_task_params_3cam["terra"].replace("agglomerative", "spectral")
+    # spec_3cam_config = RegionQueryingConfig(
+    #     name = "Spectral 3 Cam",
+    #     terra_path=spec_3cam_terra_path,
+    #     region_tasks=region_task_params_3cam["region_tasks"],
+    #     prediction_method=region_task_params_3cam["prediction_method"]
+    # )
+
+    # spec_1cam_terra_path = region_task_params_1cam["terra"].replace("agglomerative", "spectral")
+    # spec_1cam_config = RegionQueryingConfig(
+    #     name = "Spectral 1 Cam",
+    #     terra_path=spec_1cam_terra_path,
+    #     region_tasks=region_task_params_1cam["region_tasks"],
+    #     prediction_method=region_task_params_1cam["prediction_method"]
+    # )
+
+    syncThresh025_config = RegionQueryingConfig(
+        name = "SyncThresh025",
         terra_path=region_task_params_3cam["terra"],
         region_tasks=region_task_params_3cam["region_tasks"],
         prediction_method=region_task_params_3cam["prediction_method"]
     )
 
-    agg_1cam_config = RegionQueryingConfig(
-        name = "Agglomerative 1 Cam",
-        terra_path=region_task_params_1cam["terra"],
-        region_tasks=region_task_params_1cam["region_tasks"],
-        prediction_method=region_task_params_1cam["prediction_method"]
-    )
-
-    spec_3cam_terra_path = region_task_params_3cam["terra"].replace("agglomerative", "spectral")
-    spec_3cam_config = RegionQueryingConfig(
-        name = "Spectral 3 Cam",
-        terra_path=spec_3cam_terra_path,
-        region_tasks=region_task_params_3cam["region_tasks"],
-        prediction_method=region_task_params_3cam["prediction_method"]
-    )
-
-    spec_1cam_terra_path = region_task_params_1cam["terra"].replace("agglomerative", "spectral")
-    spec_1cam_config = RegionQueryingConfig(
-        name = "Spectral 1 Cam",
-        terra_path=spec_1cam_terra_path,
-        region_tasks=region_task_params_1cam["region_tasks"],
-        prediction_method=region_task_params_1cam["prediction_method"]
-    )
-
     configs = [
-        agg_3cam_config,
-        agg_1cam_config,
-        spec_3cam_config,
-        spec_1cam_config
+        # agg_3cam_config,
+        # agg_1cam_config,
+        # spec_3cam_config,
+        # spec_1cam_config,
+        syncThresh025_config
     ]
 
     for config in configs:
@@ -183,45 +192,72 @@ if __name__ == '__main__':
 
         print(f"\nBest parameters found - Alpha: {config.best_alpha}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
 
-    # for config in configs:
-    #     print(f"\nFinal Best parameters for {config.name} - Alpha: {config.best_alpha}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
-    #     print("Best per Task Metrics:")
-    #     for task_idx, task in enumerate(config.region_tasks):
-    #         task_prec, task_rec, task_f1 = config.task_metrics[config.alphas.index(config.best_alpha) + config.ks.index(config.best_k)*len(alpha_values)][task_idx]
-    #         print(f"  Task: {task['task']}")
-    #         print(f"    Precision: {task_prec:.4f}, Recall: {task_rec:.4f}, F1: {task_f1:.4f}")
 
-    #Plot grid of 4 plots of F1 vs Alpha with best K for each configuration
-    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-    for i, config in enumerate(configs):
-        ax = axs[i//2, i%2]
-        best_ks = []
-        best_f1s = []
+
+    # Find the best parameters for each task and print them out
+    for config in configs:
+        print(f"\nBest parameters for each task in {config.name}:")
+        tps, fps, fns = 0,0,0
+        for task_idx, task in enumerate(config.region_tasks):
+            best_task_tps, best_task_fps, best_task_fns = 0,0,0
+            best_task_f1 = 0.0
+            best_task_prec = 0.0
+            best_task_rec = 0.0
+            best_task_alpha = 0.0
+            best_task_k = 0
+            for alpha, k, task_metrics in zip(config.alphas, config.ks, config.task_metrics):
+                task_prec, task_rec, task_f1, tp, fp, fn = task_metrics[task_idx]
+                if task_f1 > best_task_f1:
+                    best_task_f1 = task_f1
+                    best_task_prec = task_prec
+                    best_task_rec = task_rec
+                    best_task_alpha = alpha
+                    best_task_k = k
+                    best_task_tps = tp
+                    best_task_fps = fp
+                    best_task_fns = fn
+            print(f"  Task: {task['task']}")
+            print(f"    Best Alpha: {best_task_alpha}, Best K: {best_task_k} with Precision: {best_task_prec:.4f}, Recall: {best_task_rec:.4f}, F1: {best_task_f1:.4f}")
+
+            tps += best_task_tps
+            fps += best_task_fps
+            fns += best_task_fns
+        
+        overall_prec, overall_rec, overall_f1 = compute_precision_recall_f1(tps, fps, fns)
+        print(f"\nOverall Metrics for {config.name} with best per-task parameters => Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}")
+
+
+    # #Plot grid of 4 plots of F1 vs Alpha with best K for each configuration
+    # fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+    # for i, config in enumerate(configs):
+    #     ax = axs[i//2, i%2]
+    #     best_ks = []
+    #     best_f1s = []
     
-        f1s_for_alpha = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if k == config.best_k]
+    #     f1s_for_alpha = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if k == config.best_k]
 
-        ax.plot(alpha_values, f1s_for_alpha, marker='o')
-        ax.set_title(f'F1 vs Alpha - {config.name}(K={int(config.best_k)})')
-        ax.set_xlabel('Alpha')
-        ax.set_ylabel('F1 Score')
-        ax.grid(True)
+    #     ax.plot(alpha_values, f1s_for_alpha, marker='o')
+    #     ax.set_title(f'F1 vs Alpha - {config.name}(K={int(config.best_k)})')
+    #     ax.set_xlabel('Alpha')
+    #     ax.set_ylabel('F1 Score')
+    #     ax.grid(True)
     
-    plt.show()
+    # plt.show()
 
-    #Plot grid of 4 plots of F1 vs K with best Alpha for each configuration
-    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-    for i, config in enumerate(configs):
-        ax = axs[i//2, i%2]
-        best_ks = []
-        best_f1s = []
+    # #Plot grid of 4 plots of F1 vs K with best Alpha for each configuration
+    # fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+    # for i, config in enumerate(configs):
+    #     ax = axs[i//2, i%2]
+    #     best_ks = []
+    #     best_f1s = []
     
-        f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if a == config.best_alpha]
+    #     f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if a == config.best_alpha]
 
-        ax.plot(k_values, f1s_for_k, marker='o')
-        ax.set_title(f'F1 vs K - {config.name}(Alpha={config.best_alpha})')
-        ax.set_xlabel('K')
-        ax.set_ylabel('F1 Score')
-        ax.grid(True)
+    #     ax.plot(k_values, f1s_for_k, marker='o')
+    #     ax.set_title(f'F1 vs K - {config.name}(Alpha={config.best_alpha})')
+    #     ax.set_xlabel('K')
+    #     ax.set_ylabel('F1 Score')
+    #     ax.grid(True)
 
-    plt.show()
+    # plt.show()
 
