@@ -65,7 +65,6 @@ if __name__ == '__main__':
     # Encode prompts with CLIP
     tasks = []
     place_nodes_dict = {}
-    
     for task_index, task in enumerate(region_tasks):
         tasks.append(task["task"])
         place_nodes = task["place_nodes"]
@@ -84,9 +83,9 @@ if __name__ == '__main__':
     print("\nCollected region tasks:", tasks)
 
     alpha_values = np.linspace(0.2, 0.35, 16)
-    k_values = np.linspace(1, 12, 12)
-    # alpha_values = np.linspace(0.25, 0.25, 1)
-    # k_values = np.linspace(11, 11, 1)
+    k_values = np.linspace(1, 10, 10)
+    # alpha_values = np.linspace(0.26, 0.26, 1)
+    # k_values = np.linspace(1, 1, 1)
     best_alpha = None
     best_k = None
     best_f1 = 0.0
@@ -137,8 +136,9 @@ if __name__ == '__main__':
     end_time = time.time()
     print(f"\nRuntime (ms): {(end_time - start_time)*1000:.2f}")
 
-    # # terra.display_terra()
-    # for task_idx in range(len(region_tasks)):
-    #     terra.display_task_relevant_places(task_idx, heatmap_mode=True)
-    # terra.display_task_relevant_places()
+    # terra.display_terra()
+    pred_places = terra.task_relevant_place_nodes
+    for task_idx in range(len(region_tasks)):
+        terra.display_task_relevant_places(task_idx, heatmap_mode=True)
+    terra.display_task_relevant_places()
 

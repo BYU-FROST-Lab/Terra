@@ -91,11 +91,12 @@ class TerraVisualizer():
                 lines.append([node_idx_map[u], node_idx_map[v]])
                 colors.append([0.75,0.75,0.75])
         
-        line_set = o3d.geometry.LineSet()
-        line_set.points = o3d.utility.Vector3dVector(np.asarray(points))
-        line_set.lines = o3d.utility.Vector2iVector(np.asarray(lines))
-        line_set.colors = o3d.utility.Vector3dVector(np.asarray(colors))
-        geometries.extend([line_set])
+        if len(colors) > 0:
+            line_set = o3d.geometry.LineSet()
+            line_set.points = o3d.utility.Vector3dVector(np.asarray(points))
+            line_set.lines = o3d.utility.Vector2iVector(np.asarray(lines))
+            line_set.colors = o3d.utility.Vector3dVector(np.asarray(colors))
+            geometries.extend([line_set])
         
         if pc is not None:
             pcd = o3d.geometry.PointCloud()
@@ -308,19 +309,23 @@ class TerraVisualizer():
         # Check each node
         for n_id in G.nodes:
             xy = G.nodes[n_id]["pos"][:2]  # take XY only
-            if poly_path.contains_point(xy):
+            level = G.nodes[n_id]["level"]
+            if level != 1: # Only consider place nodes
+                continue
+            if poly_path.contains_point(xy) or n_id in [n for pair in side_node_pairs for n in pair]: # Include boundary nodes
                 selected_ids.append(n_id)
+        
 
         # Display polygon and selected nodes (for debugging)
-        # plt.figure()
-        # plt.plot(*polygon[[0,1,2,3,0]].T, 'r-')  # polygon outline
-        # selected_points = np.array([G.nodes[n_id]["pos"][:2] for n_id in selected_ids])
-        # plt.scatter(selected_points[:,0], selected_points[:,1], c='b')
-        # plt.xlabel("X")
-        # plt.ylabel("Y")
-        # plt.title("Selected Nodes Inside Polygon")
-        # plt.axis('equal')
-        # plt.show()
+        plt.figure()
+        plt.plot(*polygon[[0,1,2,3,0]].T, 'r-')  # polygon outline
+        selected_points = np.array([G.nodes[n_id]["pos"][:2] for n_id in selected_ids])
+        plt.scatter(selected_points[:,0], selected_points[:,1], c='b')
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.title("Selected Nodes Inside Polygon")
+        plt.axis('equal')
+        plt.show()
 
 
         return selected_ids
