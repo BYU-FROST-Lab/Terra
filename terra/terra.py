@@ -18,10 +18,10 @@ class Terra():
                  pc: np.array, # global point cloud (num_pts, 3)
                  nodeid_2_imgidx: dict, # {node_id: [img_idx0, img_idx1, ...], }
                  image_names: list,
-                 pcidx_2_clipid: dict, # {global_pt_idx: {clip_id: count, ...}, ...}
-                 clip_tensor: torch.Tensor, # (num_clip_ids, 512)
-                 clip_tensor_semanticpc: torch.Tensor, # (num_semantic_pts, 512)
-                 semantic_pc_idxs: list,
+                 pcidx_2_clipcounts: dict, # {global_pt_idx: {clip_id: count, ...}, ...}
+                 clip_segs: torch.Tensor, # (num_clip_ids, 512)
+                 semantic_gidx_avgclip: torch.Tensor, # (num_semantic_pts, 512)
+                 semantic_gidxs: list,
                  dbscan_params: dict,
                  search_rad: float,
                  terrain_thresh: float,
@@ -32,10 +32,10 @@ class Terra():
         self.pc = pc
         self.nodeid_2_img_idx = nodeid_2_imgidx
         self.img_names = image_names
-        self.pcidx_2_clipid = pcidx_2_clipid
-        self.clip_tensor = clip_tensor
-        self.clip_tensor_semanticpc = clip_tensor_semanticpc
-        self.semantic_pc_idxs = semantic_pc_idxs
+        self.pcidx_2_clipcounts = pcidx_2_clipcounts
+        self.clip_segs = clip_segs
+        self.semantic_gidx_avgclip = semantic_gidx_avgclip
+        self.semantic_gidxs = semantic_gidxs
         self.dbscan = DBSCAN(eps=dbscan_params['eps'],
                              min_samples=dbscan_params['min_samples'])
         self.search_rad = search_rad
