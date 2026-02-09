@@ -30,7 +30,6 @@ setup(
             'save_metric_data = terra_ros.save_metric_data:main',
             'save_metric_data_multicam = terra_ros.save_metric_data_multicam:main',
             'save_metric_data_multicam_rate = terra_ros.save_metric_data_multicam_rate:main',
-            'save_metric_data_multicam_fix_rate = terra_ros.save_metric_data_multicam_fix_rate:main',
         ]
     },
 )

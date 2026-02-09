@@ -1,10 +1,10 @@
 ## Processing parameters
-data_folder: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25
-output_folder: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25/output/
+data_folder: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_realigned
+output_folder: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_realigned/output/
 num_cams: 3
-debug: false
+debug: true
 continue_processing: false
-save_step_size: 500
+save_step_size: 50
 unaligned_threshold: 0.05 # seconds
 
 ## Camera intrinsics
