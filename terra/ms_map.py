@@ -832,7 +832,7 @@ class MSMap:
     def load_transformation(file_path):
         transform_1d = np.load(file_path)
         trans_mat = np.eye(4)
-        rot = R.from_quat(transform_1d[3:])
+        rot = R.from_quat(transform_1d[3:]) # [x,y,z,w]
         trans_mat[:3,:3] = rot.as_matrix()
         trans_mat[:3,3] = transform_1d[:3]
         return trans_mat
