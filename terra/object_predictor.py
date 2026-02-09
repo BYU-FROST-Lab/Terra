@@ -40,7 +40,7 @@ class ObjectPredictor:
             idx_scores = {}
             matched_idxs = []
             for start, scores in chunked_tensor_cosine_similarity(
-                self.terra.clip_tensor_semanticpc,
+                self.terra.semantic_gidx_avgclip,
                 tasks_tensor,
                 chunk_size=8192
             ):
@@ -49,7 +49,7 @@ class ObjectPredictor:
                 valid_idxs = mask.nonzero(as_tuple=True)[0]
                 for local_idx in valid_idxs:
                     idx_filt = start + local_idx.item()
-                    idx = self.terra.semantic_pc_idxs[idx_filt]
+                    idx = self.terra.semantic_gidxs[idx_filt]
                     # Move small data to CPU immediately
                     idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
                     matched_idxs.append(idx)
@@ -59,7 +59,7 @@ class ObjectPredictor:
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
             clipid_scores = {}
             for start, scores in chunked_tensor_cosine_similarity(
-                self.terra.clip_tensor,
+                self.terra.clip_segs,
                 tasks_tensor,
                 chunk_size=8192
             ):
@@ -89,7 +89,7 @@ class ObjectPredictor:
             idx_scores = {}
             matched_idxs = set()
             for start, scores in chunked_tensor_cosine_similarity(
-                self.terra.clip_tensor_semanticpc,
+                self.terra.semantic_gidx_avgclip,
                 tasks_tensor,
                 chunk_size=8192
             ):
@@ -97,7 +97,7 @@ class ObjectPredictor:
                     local_idxs = (scores[:, task_idx] > self.terra.alpha).nonzero(as_tuple=True)[0]
                     for local_idx in local_idxs:
                         idx_filt = start + local_idx.item()
-                        idx = self.terra.semantic_pc_idxs[idx_filt]
+                        idx = self.terra.semantic_gidxs[idx_filt]
                         max_score = scores[local_idx,:].max().item()
                         max_task = scores[local_idx,:].argmax().item()
                         if (

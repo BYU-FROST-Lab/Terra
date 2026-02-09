@@ -72,13 +72,13 @@ class TerraBuilder:
         self.global_pc = np.load(latest_global_pc_file) # (num_pts,4)
 
         self.last_itr = find_latest_itr(self.output_folder)
-        self.clip_tensor = torch.load(self.output_folder+f"/ptxpt_clip_tensor_itr{self.last_itr}.pt") # (num_clip_ids,512)
-        with open(self.output_folder+f"/ptxpt_pc_dict_itr{self.last_itr}.pkl", "rb") as f:
-            self.pc_dict = pkl.load(f) # {global_pt_idx: {clip_id: count, ...}, ...}
-        self.img_clip_tensor = torch.load(self.output_folder+f"/img_clip_tensor_itr{self.last_itr}.pt") # (num_imgs,512)
-        with open(self.output_folder+f"/ptxpt_gidx2imgidx_{self.cam2pt_dist_thresh}m_dist_dict_itr{self.last_itr}.pkl", "rb") as f:
+        self.clip_segs = torch.load(self.output_folder+f"/clip_segs_itr{self.last_itr}.pt") # (num_clip_ids,512)
+        with open(self.output_folder+f"/gidx2clipcounts_dict_itr{self.last_itr}.pkl", "rb") as f:
+            self.gidx2clipcounts_dict = pkl.load(f) # {global_pt_idx: {clip_id: count, ...}, ...}
+        self.clip_imgs = torch.load(self.output_folder+f"/clip_imgs_itr{self.last_itr}.pt") # (num_imgs,512)
+        with open(self.output_folder+f"/gidx2imgs_{self.cam2pt_dist_thresh}m_dict_itr{self.last_itr}.pkl", "rb") as f:
             self.map_globalidx2imgidx = pkl.load(f) # {global_pt_idx: set{img_idx0, ...}, ...}
-        with open(self.output_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{self.last_itr}.pkl", "rb") as f:
+        with open(self.output_folder+f"/gidx2closestimg_dict_itr{self.last_itr}.pkl", "rb") as f:
             self.map_globalidx2imgidx_nodist = pkl.load(f) # {global_pt_idx: set{img_idx0, ...}, ...}
         with open(self.output_folder+f"/saved_img_names_itr{self.last_itr}.pkl", "rb") as f:
             self.img_names = pkl.load(f)
@@ -122,7 +122,7 @@ class TerraBuilder:
 
     def avg_clip_embeddings(self, batch_size=4096):
         print("Begin averaging CLIP embeddings for each global point...")
-        self.terrain_ids = {} # Dictionary of terrain index to global point indices classified as that terrain
+        self.terrainid2gidxs_dict = {} # Dictionary of terrain index to global point indices classified as that terrain
         self.nonsemantic_gidx = []
         self.terrain_gidx = []
         self.nonterrain_gidx = []
@@ -135,16 +135,16 @@ class TerraBuilder:
         max_prompt_scores = []
         t0_clipavg = time.time()
         for global_idx in tqdm(range(self.global_pc.shape[0]), desc="Processing points"):
-            pc_dict_entry = self.pc_dict.get(global_idx, None)
+            gidx2clipcounts_dict_entry = self.gidx2clipcounts_dict.get(global_idx, None)
             
-            if pc_dict_entry is None:
+            if gidx2clipcounts_dict_entry is None:
                 self.nonsemantic_gidx.append(global_idx)
                 continue
             
             clip_emb_vec = torch.zeros(512, device=self.device)
             num_detections = 0
-            for clip_id, count in pc_dict_entry.items():
-                clip_emb_vec.add_(self.clip_tensor[clip_id,:], alpha=count)
+            for clip_id, count in gidx2clipcounts_dict_entry.items():
+                clip_emb_vec.add_(self.clip_segs[clip_id,:], alpha=count)
                 num_detections += count
             clip_emb_vec.div_(num_detections)
             
@@ -171,7 +171,7 @@ class TerraBuilder:
 
                     if max_score > self.terrain_threshold:
                         self.terrain_gidx.append(g_idx)
-                        self.terrain_ids.setdefault(max_idx, []).append(g_idx)
+                        self.terrainid2gidxs_dict.setdefault(max_idx, []).append(g_idx)
                     else:
                         self.nonterrain_gidx.append(g_idx)
             
@@ -184,7 +184,7 @@ class TerraBuilder:
                 del batch_tensor, scores, max_scores, max_score_idxs
                 torch.cuda.empty_cache()
         
-        self.global_clip_filt = torch.stack(clip_emb_list, dim=0).to(self.device)
+        self.semantic_gidx_avgclip = torch.stack(clip_emb_list, dim=0).to(self.device)
         
         t1_clipavg = time.time()    
         print(f"Finished averaging CLIP embedings for each global point in {t1_clipavg-t0_clipavg} seconds")
@@ -197,24 +197,24 @@ class TerraBuilder:
 
     def load_or_save_avg_embeddings(self, save=False):
         # Get Paths to save data   
-        global_clip_path = os.path.join(self.output_folder, "global_clip_filt.pt")
+        semantic_gidx_avgclip_path = os.path.join(self.output_folder, "semantic_gidx_avgclip.pt")
         semantic_gidxs_path = os.path.join(self.output_folder, "semantic_gidxs.pkl")
         terrain_gidx_path = os.path.join(self.output_folder, "terrain_gidx.pkl")
-        terrain_ids_path = os.path.join(self.output_folder, "terrain_ids.pkl")
+        terrainid2gidxs_dict_path = os.path.join(self.output_folder, "terrainid2gidxs_dict.pkl")
         nonterrain_gidx_path = os.path.join(self.output_folder, "nonterrain_gidx.pkl")
 
         if save:
             ## Save average embeddings and global to semantic index map and terrain points
-            torch.save(self.global_clip_filt, global_clip_path)
+            torch.save(self.semantic_gidx_avgclip, semantic_gidx_avgclip_path)
             with open(semantic_gidxs_path, "wb") as f: pkl.dump(self.semantic_gidxs, f)
             with open(terrain_gidx_path, "wb") as f: pkl.dump(self.terrain_gidx, f)
             with open(nonterrain_gidx_path, "wb") as f: pkl.dump(self.nonterrain_gidx, f)
-            with open(terrain_ids_path, "wb") as f: pkl.dump(self.terrain_ids, f)
+            with open(terrainid2gidxs_dict_path, "wb") as f: pkl.dump(self.terrainid2gidxs_dict, f)
         
         else:
             print("Loading saved CLIP semantic results...")
-            self.global_clip_filt = torch.load(global_clip_path)
-            with open(terrain_ids_path, "rb") as f: self.terrain_ids = pkl.load(f)   
+            self.semantic_gidx_avgclip = torch.load(semantic_gidx_avgclip_path)
+            with open(terrainid2gidxs_dict_path, "rb") as f: self.terrainid2gidxs_dict = pkl.load(f)   
             with open(semantic_gidxs_path, "rb") as f: self.semantic_gidxs = pkl.load(f)
 
     def plot_score_dist(self, scores):
@@ -243,8 +243,8 @@ class TerraBuilder:
         t0_terrain_gvd = time.time() 
         terrain_list = []
         for t_idx in range(len(self.terrain_classes)):
-            if t_idx in self.terrain_ids:
-                terrain_list.append(self.global_pc[self.terrain_ids[t_idx],:2])
+            if t_idx in self.terrainid2gidxs_dict:
+                terrain_list.append(self.global_pc[self.terrainid2gidxs_dict[t_idx],:2])
             else:
                 terrain_list.append(np.array([[0,0]]))
         terrain_tuple = tuple(terrain_list)       
@@ -447,7 +447,7 @@ class TerraBuilder:
                 
             self.map_nodeid2imgidx[node_idx] = img_indices
             
-            clip_emb_vec = torch.mean(self.img_clip_tensor[img_indices,:], dim=0, keepdim=True)
+            clip_emb_vec = torch.mean(self.clip_imgs[img_indices,:], dim=0, keepdim=True)
                     
             self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec    
         # print(f"20m image matches {local_img_cntr}, other image matches {other_img_cntr}")
@@ -821,7 +821,7 @@ class TerraBuilder:
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_terra(self):
-        with open(self.output_folder+f"/terra_3dsg_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
         with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
@@ -831,10 +831,10 @@ class TerraBuilder:
             pc = self.global_pc[:,:3],
             nodeid_2_imgidx = self.map_nodeid2imgidx,
             image_names = self.img_names,
-            pcidx_2_clipid = self.pc_dict,
-            clip_tensor = self.clip_tensor,
-            clip_tensor_semanticpc = self.global_clip_filt,
-            semantic_pc_idxs = self.semantic_gidxs,
+            gidx_2_clipcounts = self.gidx2clipcounts_dict,
+            clip_segs = self.clip_segs,
+            semantic_gidx_avgclip = self.semantic_gidx_avgclip,
+            semantic_gidxs = self.semantic_gidxs,
             dbscan_params = self.dbscan_params,
             search_rad = self.search_rad,
             terrain_thresh = self.terrain_threshold,

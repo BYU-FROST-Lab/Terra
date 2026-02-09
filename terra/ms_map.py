@@ -146,8 +146,8 @@ class MSMap:
                 yolo_clip_embs.append(clip_emb)
 
             #Initialize data structures
-            self.clip_tensor = torch.vstack(yolo_clip_embs) # (num_classes, 512)
-            self.pc_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
+            self.clip_segs = torch.vstack(yolo_clip_embs) # (num_classes, 512)
+            self.gidx2clipcounts_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
             self.num_scans = 0
             self.last_scan_idx = 0
             self.img_clips = []
@@ -369,15 +369,14 @@ class MSMap:
                         self.map_globalidx2imgidx[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
 
                 # --- No distance threshold ---
-                if g_idx not in self.map_globalidx2imgidx:
-                    if g_idx in self.map_globalidx2dist_nodistthresh:
-                        if p_L_dist < self.map_globalidx2dist_nodistthresh[g_idx]:
-                            # If there is a closer image, replace previous distance and image with closer image and its distance
-                            self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
-                            self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
-                    else:
+                if g_idx in self.map_globalidx2dist_nodistthresh:
+                    if p_L_dist < self.map_globalidx2dist_nodistthresh[g_idx]:
+                        # If there is a closer image, replace previous distance and image with closer image and its distance
                         self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
                         self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
+                else:
+                    self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
+                    self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
 
             lidar_imgs[cam_idx] = lidar_imgs[cam_idx] / np.max(lidar_imgs[cam_idx])
             self.lidar_imgs_bool.append(lidar_imgs[cam_idx].astype(bool)) # True for non-zero intensities
@@ -424,7 +423,7 @@ class MSMap:
                     y_indices, x_indices = np.where(filtered_lidar_img > 0)
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
-                        self.pc_dict[g_idx][cls_id] += 1
+                        self.gidx2clipcounts_dict[g_idx][cls_id] += 1
             else:
                 self.yolo_masks.append([])
 
@@ -444,7 +443,7 @@ class MSMap:
             self.extract_mask_embs_times.append(extract_mask_embs_t1 - extract_mask_embs_t0)
 
             if clip_embs_tensor.shape[0] > 0:  # Only update if we have valid embeddings
-                self.update_clip_and_pc_dict(clip_embs_tensor, global_idxs)
+                self.update_clip_and_gidx2clipcounts_dict(clip_embs_tensor, global_idxs)
 
     def prepare_filtered_image(self, cam_idx, scan_idx):
         """
@@ -588,7 +587,7 @@ class MSMap:
             valid_masks_global_idxs.append(largest_global_pt_indices)
 
         if len(clip_input_list) == 0:
-            return torch.empty((0, self.clip_tensor.shape[1])), []
+            return torch.empty((0, self.clip_segs.shape[1])), []
 
         # preprocess and batch for CLIP
         preprocessed = [self.clip_preprocess(img).unsqueeze(0) for img in clip_input_list]
@@ -599,11 +598,11 @@ class MSMap:
 
         return fastsam_clip_embs_tensor, valid_masks_global_idxs
 
-    def update_clip_and_pc_dict(self, clip_embs_tensor, global_idxs):
+    def update_clip_and_gidx2clipcounts_dict(self, clip_embs_tensor, global_idxs):
         """
         Compares embeddings to existing CLIP tensor and updates:
             - CLIP embeddings
-            - Point cloud dictionary (pc_dict)
+            - Point cloud dictionary (gidx2clipcounts_dict)
         """
         device = clip_embs_tensor.device
         num_masks = clip_embs_tensor.shape[0]
@@ -614,7 +613,7 @@ class MSMap:
         
         for start, scores in chunked_tensor_cosine_similarity(
             clip_embs_tensor,          # (num_masks, D)
-            self.clip_tensor,          # (num_existing, D)
+            self.clip_segs,          # (num_existing, D)
             chunk_size=8192
         ): # scores: (num_masks, chunk)
 
@@ -631,29 +630,29 @@ class MSMap:
             if best_scores[mask_idx] > self.theta_cos_sim:
                 max_clip_id = best_clip_ids[mask_idx].item()
             else:
-                self.clip_tensor = torch.cat([self.clip_tensor, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-                max_clip_id = self.clip_tensor.shape[0] - 1
+                self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+                max_clip_id = self.clip_segs.shape[0] - 1
 
             for g_idx in global_idxs[mask_idx]:
-                self.pc_dict[g_idx][max_clip_id] += 1
+                self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
 
     def save_semantic_pcl(self, itr):
         ## Save Semantic Point Cloud
-        with open(self.output_folder+f"/ptxpt_pc_dict_itr{itr}.pkl", "wb") as f:
-            pkl.dump(self.pc_dict, f)
-        torch.save(self.clip_tensor,self.output_folder+f"/ptxpt_clip_tensor_itr{itr}.pt")
-        with open(self.output_folder+f"/ptxpt_gidx2imgidx_{self.cam2point_dist_thresh}m_dist_dict_itr{itr}.pkl", "wb") as f:
+        with open(self.output_folder+f"/gidx2clipcounts_dict_itr{itr}.pkl", "wb") as f:
+            pkl.dump(self.gidx2clipcounts_dict, f)
+        torch.save(self.clip_segs,self.output_folder+f"/clip_segs_itr{itr}.pt")
+        with open(self.output_folder+f"/gidx2imgs_{self.cam2point_dist_thresh}m_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2imgidx, f)
-        with open(self.output_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{itr}.pkl", "wb") as f:
+        with open(self.output_folder+f"/gidx2closestimg_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2imgidx_nodistthresh, f)
-        with open(self.output_folder+f"/ptxpt_gidx2dist_no_dist_dict_itr{itr}.pkl", "wb") as f:
+        with open(self.output_folder+f"/gidx2closestimgdist_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2dist_nodistthresh, f)
-        img_clip_tensor = torch.vstack(self.img_clips)
-        torch.save(img_clip_tensor,self.output_folder+f"/img_clip_tensor_itr{itr}.pt")
+        clip_imgs = torch.vstack(self.img_clips)
+        torch.save(clip_imgs,self.output_folder+f"/clip_imgs_itr{itr}.pt")
         with open(self.output_folder+f"/saved_img_names_itr{itr}.pkl","wb") as f:
             pkl.dump(self.saved_img_names, f)
 
-        print(f"\nSaved pc_dict and clip_tensor at iteration {itr}\n")
+        print(f"\nSaved gidx2clipcounts_dict and clip_segs at iteration {itr}\n")
        
     def display_lidar_overlay(
         self,
@@ -705,8 +704,8 @@ class MSMap:
 
         # Map global point indices to their classes
         for global_idx in range(self.global_pc.shape[0]):
-            if global_idx in self.pc_dict.keys():
-                max_class, max_count = max(self.pc_dict[global_idx].items(), key=lambda x: x[1])
+            if global_idx in self.gidx2clipcounts_dict.keys():
+                max_class, max_count = max(self.gidx2clipcounts_dict[global_idx].items(), key=lambda x: x[1])
                 # Make sure max_count is more than some threshold
                 if max_count < count_threshold:
                     if -1 in global_pts.keys():
@@ -747,7 +746,7 @@ class MSMap:
 
     def load_last_saved_data(self):
         # Find the index of the last saved data
-        start_string = "ptxpt_pc_dict_itr"
+        start_string = "gidx2clipcounts_dict_itr"
         matching_files = [f for f in os.listdir(self.output_folder) if f.startswith(start_string)]
         numbers = []
         for f in matching_files:
@@ -758,19 +757,19 @@ class MSMap:
         print("Last scan:",self.last_scan_idx)
         
         ## Load saved data
-        with open(self.output_folder+f"/ptxpt_pc_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
-            self.pc_dict = pkl.load(f)
-        self.clip_tensor = torch.load(self.output_folder+f"/ptxpt_clip_tensor_itr{self.last_scan_idx}.pt")
-        self.clip_tensor = self.clip_tensor.to(self.device)
-        with open(self.output_folder+f"/ptxpt_gidx2imgidx_{self.cam2point_dist_thresh}m_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/gidx2clipcounts_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+            self.gidx2clipcounts_dict = pkl.load(f)
+        self.clip_segs = torch.load(self.output_folder+f"/clip_segs_itr{self.last_scan_idx}.pt")
+        self.clip_segs = self.clip_segs.to(self.device)
+        with open(self.output_folder+f"/gidx2imgs_{self.cam2point_dist_thresh}m_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.map_globalidx2imgidx = pkl.load(f)
-        with open(self.output_folder+f"/ptxpt_gidx2imgidx_no_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/gidx2closestimg_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.map_globalidx2imgidx_nodistthresh = pkl.load(f)
-        with open(self.output_folder+f"/ptxpt_gidx2dist_no_dist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+        with open(self.output_folder+f"/gidx2closestimgdist_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.map_globalidx2dist_nodistthresh = pkl.load(f)
-        self.img_clip_tensor = torch.load(self.output_folder+f"/img_clip_tensor_itr{self.last_scan_idx}.pt")
-        self.img_clip_tensor = self.img_clip_tensor.to(self.device)
-        self.img_clips = list(self.img_clip_tensor.unbind(dim=0))
+        self.clip_imgs = torch.load(self.output_folder+f"/clip_imgs_itr{self.last_scan_idx}.pt")
+        self.clip_imgs = self.clip_imgs.to(self.device)
+        self.clip_imgs = list(self.clip_imgs.unbind(dim=0))
         with open(self.output_folder+f"/saved_img_names_itr{self.last_scan_idx}.pkl","rb") as f:
             self.saved_img_names = pkl.load(f)
         self.num_scans = self.last_scan_idx + 1
@@ -832,7 +831,7 @@ class MSMap:
     def load_transformation(file_path):
         transform_1d = np.load(file_path)
         trans_mat = np.eye(4)
-        rot = R.from_quat(transform_1d[3:])
+        rot = R.from_quat(transform_1d[3:]) # [x,y,z,w]
         trans_mat[:3,:3] = rot.as_matrix()
         trans_mat[:3,3] = transform_1d[:3]
         return trans_mat
