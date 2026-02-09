@@ -1,4 +1,4 @@
-save_metric_data_multicam_rate:
+save_metric_data_multicam_fix_rate:
   ros__parameters:
     rosbag_path: /ros2_bags/provo_river_p1_11_3_25
     lidar_topic: /lio_sam/deskew/cloud_deskewed
