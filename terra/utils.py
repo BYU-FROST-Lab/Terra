@@ -50,7 +50,7 @@ def int_defaultdict():
 
 def find_latest_itr(folder: str):
     """Finds the largest iteration number."""
-    regex = re.compile(r"ptxpt_pc_dict_itr(\d+)\.pkl")
+    regex = re.compile(r"gidx2clipcounts_dict_itr(\d+)\.pkl")
     max_itr = -1
     for f in os.listdir(folder):
         match = regex.search(f)
@@ -60,8 +60,8 @@ def find_latest_itr(folder: str):
                 max_itr = itr
     return max_itr
 
-def find_latest_file(folder: str, pattern=r"ptxpt_pc_dict_itr(\d+)\.pkl"):
-    """Finds the ptxpt_pc_dict_itr{last_itr}.pkl file with the largest iteration number."""
+def find_latest_file(folder: str, pattern=r"gidx2clipcounts_dict_itr(\d+)\.pkl"):
+    """Finds the gidx2clipcounts_dict_itr{last_itr}.pkl file with the largest iteration number."""
     regex = re.compile(pattern)
     max_itr, latest_file = -1, None
     for f in os.listdir(folder):
