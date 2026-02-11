@@ -150,7 +150,7 @@ class MSMap:
             self.gidx2clipcounts_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
             self.num_scans = 0
             self.last_scan_idx = 0
-            self.img_clips = []
+            self.clip_imgs = []
             self.saved_img_names = []
             self.map_globalidx2imgidx = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2imgidx_nodistthresh = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
@@ -274,7 +274,7 @@ class MSMap:
                     self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
             ).unsqueeze(0).to(self.device) # TODO: Changed for undistorting
             with torch.no_grad():
-                self.img_clips.append(self.clip_model.encode_image(prep))
+                self.clip_imgs.append(self.clip_model.encode_image(prep))
                 
             # self.saved_img_names.append(camera_image_files[cam_idx])
             img_path = Path(camera_image_files[cam_idx])
@@ -647,7 +647,7 @@ class MSMap:
             pkl.dump(self.map_globalidx2imgidx_nodistthresh, f)
         with open(self.output_folder+f"/gidx2closestimgdist_dict_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.map_globalidx2dist_nodistthresh, f)
-        clip_imgs = torch.vstack(self.img_clips)
+        clip_imgs = torch.vstack(self.clip_imgs)
         torch.save(clip_imgs,self.output_folder+f"/clip_imgs_itr{itr}.pt")
         with open(self.output_folder+f"/saved_img_names_itr{itr}.pkl","wb") as f:
             pkl.dump(self.saved_img_names, f)
