@@ -145,7 +145,7 @@ class SaveMetricDataMultiCam(Node):
 
     
     def cam_img_callback(self, msg, cam_id):
-        t = self.get_ros_bag_time_now(msg.header)
+        t = self.get_ros_bag_time_now()
         img_data = np.frombuffer(msg.data, dtype=np.uint8)
         img = img_data.reshape(msg.height, msg.width, -1)
 
@@ -153,7 +153,7 @@ class SaveMetricDataMultiCam(Node):
         self.cam_tstamps[cam_id].append(t)
         
     def lidar_pc_callback(self, msg):
-        t = self.get_ros_bag_time_now(msg.header)
+        t = self.get_ros_bag_time_now()
         self.lidar_buffer.append((t, msg))
         self.lidar_tstamps.append(t)
 
@@ -252,9 +252,9 @@ class SaveMetricDataMultiCam(Node):
             lidar_pc_arr
         )
 
-        tf_time = self.get_ros_bag_time_now(transform_lidar2map.header)
+        # tf_time = self.get_ros_bag_time_now(transform_lidar2map.header)
         np.save(
-            os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{tf_time:.6f}.npy'),
+            os.path.join(self.trans_l2g_pc_dir, f'transform_lidar_to_map_{pc_time:.6f}.npy'),
             [
                 transform_lidar2map.transform.translation.x,
                 transform_lidar2map.transform.translation.y,
@@ -289,7 +289,7 @@ class SaveMetricDataMultiCam(Node):
             )
     
     def global_pc_callback(self, msg):
-        global_pc_time = self.get_ros_bag_time_now(msg.header)
+        global_pc_time = self.get_ros_bag_time_now()
         global_pc_list = list(read_points(msg, field_names=("x", "y", "z", "intensity"), skip_nans=True))
         global_pc_arr = np.array([list(p)[:4] for p in global_pc_list])
         np.save(os.path.join(self.global_pc_dir, f'global_pc_{global_pc_time:.6f}.npy'), global_pc_arr)   
@@ -298,7 +298,7 @@ class SaveMetricDataMultiCam(Node):
     def header_to_seconds(header: Header) -> float:
         return header.stamp.sec + header.stamp.nanosec * 1e-9
     
-    def get_ros_bag_time_now(self, header: Header) -> float:
+    def get_ros_bag_time_now(self) -> float:
         now = self.get_clock().now()
         sec, nsec = now.seconds_nanoseconds()
         return sec + nsec * 1e-9
