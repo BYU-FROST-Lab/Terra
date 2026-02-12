@@ -80,6 +80,7 @@ if __name__ == '__main__':
 
     input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in tasks]
     input_task_clip_tensor = torch.vstack(input_task_clip_embs) # (num_input_classes, 512)
+    input_task_clip_tensor.div_(input_task_clip_tensor.norm(dim=-1,keepdim=True))
     print("\nCollected region tasks:", tasks)
 
     alpha_values = np.linspace(0.2, 0.35, 16)

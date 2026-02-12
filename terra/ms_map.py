@@ -143,6 +143,7 @@ class MSMap:
             yolo_classes = self.yolo_model.names
             for cls_idx, cls_str in yolo_classes.items():
                 clip_emb = self.clip_model.encode_text(clip.tokenize([cls_str]).to(self.device)).float()
+                clip_emb.div_(clip_emb.norm(dim=-1, keepdim=True))
                 yolo_clip_embs.append(clip_emb)
 
             #Initialize data structures
@@ -274,7 +275,10 @@ class MSMap:
                     self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
             ).unsqueeze(0).to(self.device) # TODO: Changed for undistorting
             with torch.no_grad():
-                self.clip_imgs.append(self.clip_model.encode_image(prep))
+                img_emb = self.clip_model.encode_image(prep).float()
+                img_emb.div_(img_emb.norm(dim=-1, keepdim=True))
+                self.clip_imgs.append(img_emb)
+
                 
             # self.saved_img_names.append(camera_image_files[cam_idx])
             img_path = Path(camera_image_files[cam_idx])
@@ -596,6 +600,9 @@ class MSMap:
         with torch.no_grad():
             fastsam_clip_embs_tensor = self.clip_model.encode_image(clip_input_batch)
 
+        fastsam_clip_embs_tensor.div_(
+            fastsam_clip_embs_tensor.norm(dim=-1, keepdim=True)
+        )
         return fastsam_clip_embs_tensor, valid_masks_global_idxs
 
     def update_clip_and_gidx2clipcounts_dict(self, clip_embs_tensor, global_idxs):

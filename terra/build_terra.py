@@ -117,7 +117,11 @@ class TerraBuilder:
 
     def gen_terrain_clip_embeddings(self):   
         # Embed user input with CLIP
-        self.input_terrain_clip_embs = [self.clip_model.encode_text(clip.tokenize([terrain]).to(self.device)).float() for terrain in self.terrain_classes]
+        self.input_terrain_clip_embs = []
+        for terrain in self.terrain_classes:
+            emb = self.clip_model.encode_text(clip.tokenize([terrain]).to(self.device)).float()
+            self.input_terrain_clip_embs.append(emb.div_(emb.norm(dim=-1, keepdim=True)))
+            
         self.input_terrain_clip_tensor = torch.vstack(self.input_terrain_clip_embs) # (num_input_terrain, 512)
 
     def avg_clip_embeddings(self, batch_size=4096):
@@ -147,6 +151,8 @@ class TerraBuilder:
                 clip_emb_vec.add_(self.clip_segs[clip_id,:], alpha=count)
                 num_detections += count
             clip_emb_vec.div_(num_detections)
+            # L2 normalize to unit hypersphere
+            clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True))
             
             batch_clip.append(clip_emb_vec)
             batch_indices.append(global_idx)
@@ -449,7 +455,8 @@ class TerraBuilder:
             
             clip_emb_vec = torch.mean(self.clip_imgs[img_indices,:], dim=0, keepdim=True)
                     
-            self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec    
+            self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True))
+               
         # print(f"20m image matches {local_img_cntr}, other image matches {other_img_cntr}")
         t1_associate_clip_emb = time.time()
         print("Runtime to associate CLIP Embeddings to GVD nodes",t1_associate_clip_emb - t0_associate_clip_emb,"seconds")
@@ -576,6 +583,7 @@ class TerraBuilder:
                 avg_pos = np.mean(pos,axis=0) # [2,]
                 embs = torch.vstack([self.terra_graph.nodes[map_idx2nodeidx[idx]]['embedding'] for idx in curr_label_indices])
                 avg_emb = torch.mean(embs,dim=0).unsqueeze(0) # [1,512]
+                avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True))
                 
                 # Add region node
                 self.terra_graph.add_node(
@@ -638,6 +646,7 @@ class TerraBuilder:
 
         embs = torch.vstack([self.terra_graph.nodes[n]["embedding"] for n in top_level_nodes])
         avg_emb = torch.mean(embs, dim=0).unsqueeze(0)
+        avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True))
 
         self.terra_graph.add_node(
             root_node_id,
@@ -797,6 +806,7 @@ class TerraBuilder:
                 
                 embs = torch.vstack([g.nodes[n]['embedding'] for n in g.nodes])
                 avg_emb = torch.mean(embs,dim=0).unsqueeze(0) # [1,512]
+                avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True))
                 
                 # Add region node
                 self.terra_graph.add_node(

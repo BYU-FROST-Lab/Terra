@@ -558,6 +558,7 @@ if __name__ == '__main__':
     tasks[:0] = terra.terrain_names
     input_task_embs = [clip_model.encode_text(clip.tokenize([t]).to(device)).float() for t in tasks]
     input_task_tensor = torch.vstack(input_task_embs)
+    input_task_tensor.div_(input_task_tensor.norm(dim=-1, keepdim=True))
 
     # Predict objects
     terra.predict_objects(input_task_tensor, tasks[terra.num_terrain:], cfg['prediction_method'])

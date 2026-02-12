@@ -149,6 +149,7 @@ if __name__ == '__main__':
 
         config.input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in config.tasks]
         config.input_task_clip_tensor = torch.vstack(config.input_task_clip_embs) # (num_input_classes, 512)
+        config.input_task_clip_tensor.div_(config.input_task_clip_tensor.norm(dim=-1,keepdim=True))
         print(f"\nCollected region tasks for {config.name}:", config.tasks)
 
     
