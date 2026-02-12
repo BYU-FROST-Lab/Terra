@@ -831,7 +831,7 @@ class TerraBuilder:
             pc = self.global_pc[:,:3],
             nodeid_2_imgidx = self.map_nodeid2imgidx,
             image_names = self.img_names,
-            pcidx_2_clipcounts = self.gidx2clipcounts_dict,
+            gidx_2_clipcounts = self.gidx2clipcounts_dict,
             clip_segs = self.clip_segs,
             semantic_gidx_avgclip = self.semantic_gidx_avgclip,
             semantic_gidxs = self.semantic_gidxs,

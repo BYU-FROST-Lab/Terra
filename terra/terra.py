@@ -18,7 +18,7 @@ class Terra():
                  pc: np.array, # global point cloud (num_pts, 3)
                  nodeid_2_imgidx: dict, # {node_id: [img_idx0, img_idx1, ...], }
                  image_names: list,
-                 pcidx_2_clipcounts: dict, # {global_pt_idx: {clip_id: count, ...}, ...}
+                 gidx_2_clipcounts: dict, # {global_pt_idx: {clip_id: count, ...}, ...}
                  clip_segs: torch.Tensor, # (num_clip_ids, 512)
                  semantic_gidx_avgclip: torch.Tensor, # (num_semantic_pts, 512)
                  semantic_gidxs: list,
@@ -32,7 +32,7 @@ class Terra():
         self.pc = pc
         self.nodeid_2_img_idx = nodeid_2_imgidx
         self.img_names = image_names
-        self.pcidx_2_clipcounts = pcidx_2_clipcounts
+        self.gidx_2_clipcounts = gidx_2_clipcounts
         self.clip_segs = clip_segs
         self.semantic_gidx_avgclip = semantic_gidx_avgclip
         self.semantic_gidxs = semantic_gidxs
