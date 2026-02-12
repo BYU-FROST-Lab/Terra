@@ -506,8 +506,8 @@ class TerraVisualizer():
         count_threshold = 1
         global_pts = {}    
         for idx in range(terra.pc.shape[0]):
-            if idx in terra.pcidx_2_clipid.keys():
-                max_class, max_count = max(terra.pcidx_2_clipid[idx].items(), key=lambda x: x[1])
+            if idx in terra.gidx_2_clipcounts.keys():
+                max_class, max_count = max(terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
                 # Make sure max_count is more than some threshold
                 if max_count < count_threshold:
                     if -1 in global_pts.keys():
