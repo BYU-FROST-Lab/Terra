@@ -1,5 +1,5 @@
-data_folder: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p1_11_6_25
-output_folder: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p1_11_6_25/output/1_cam
+data_folder: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25
+output_folder: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25/output/1_cam
 save_average_embeddings: true
 debug: false
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
@@ -24,7 +24,7 @@ dbscan_params:
 search_radius: 2.5
 alpha: 0.23
 ## Region params
-region_method: "agglomerative" # options: ["agglomerative", "spectral"]
+region_method: "spectral" # options: ["agglomerative", "spectral"]
 ## Agglomerative params
 agg_hierarchical_distances: [50, 100, 200, 400] # [m]
 ## Hierarchical Spectral params

@@ -139,19 +139,18 @@ class ObjectEvaluator():
             
             # ####
             # # DEBUGGING
-            
             # ## DISPLAY PCD + Place Nodes
-            # # place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
-            # # place_subgraph = self.terra.terra_3dsg.subgraph(place_nodes)
-            # # colors = {}
-            # # for n in place_nodes:
-            # #     if n == closest_place_node:
-            # #         colors[n] = (0,0,1.0)
-            # #     else:
-            # #         colors[n] = (0.75,0.75,0.75)    
-            # # self.terra.visualizer.level_offset = 0.0 
-            # # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True)
-            # # self.terra.visualizer.level_offset = 50.0
+            # place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
+            # place_subgraph = self.terra.terra_3dsg.subgraph(place_nodes)
+            # colors = {}
+            # for n in place_nodes:
+            #     if n == closest_place_node:
+            #         colors[n] = (0,0,1.0)
+            #     else:
+            #         colors[n] = (0.75,0.75,0.75)    
+            # self.terra.visualizer.level_offset = 0.0 
+            # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True)
+            # self.terra.visualizer.level_offset = 50.0
             
             # ## OR just DISPLAY PCD
             # pcd = o3d.geometry.PointCloud()
@@ -166,9 +165,9 @@ class ObjectEvaluator():
             # sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([obb.center[0],obb.center[1],obb.center[2]])
             # sphere.paint_uniform_color([0.0, 1.0, 0.0])
             # spheres.append(sphere)
-            # # o3d.visualization.draw_geometries(geo + spheres)
-            # o3d.visualization.draw_geometries([pcd] + spheres)
-            # ####
+            # o3d.visualization.draw_geometries(geo + spheres)
+            # # o3d.visualization.draw_geometries([pcd] + spheres)
+            # # ####
 
             # Images that see this node
             img_indices = self.terra.nodeid_2_img_idx[closest_place_node]
@@ -287,7 +286,7 @@ class ObjectEvaluator():
                 
                 # # o3d.visualization.draw_geometries(geo + spheres)
                 # o3d.visualization.draw_geometries([pcd] + spheres)
-                # ###########################################################
+                # # ###########################################################
 
                 # Project 3D bbox
                 bbox_2d, valid = self.project_box_3dto2d(

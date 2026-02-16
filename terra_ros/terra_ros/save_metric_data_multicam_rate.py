@@ -139,9 +139,9 @@ class SaveMetricDataMultiCam(Node):
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
         
         self.timer = self.create_timer(self.save_period, self.save_callback)
-        self.cam_tstamps = [[] for _ in range(self.num_cameras)]
-        self.lidar_tstamps = []
-        self.lidar_camera_pairs = []
+        # self.cam_tstamps = [[] for _ in range(self.num_cameras)]
+        # self.lidar_tstamps = []
+        # self.lidar_camera_pairs = []
 
     
     def cam_img_callback(self, msg, cam_id):
@@ -150,14 +150,12 @@ class SaveMetricDataMultiCam(Node):
         img = img_data.reshape(msg.height, msg.width, -1)
 
         self.cam_buffer[cam_id].append((t, img))
-        self.cam_tstamps[cam_id].append(t)
+        # self.cam_tstamps[cam_id].append(t)
         
     def lidar_pc_callback(self, msg):
         t = self.header_to_seconds(msg.header)
         self.lidar_buffer.append((t, msg))
-        self.lidar_tstamps.append(t)
-
-        # self.save_callback()
+        # self.lidar_tstamps.append(t)
         
     def save_callback(self):
         if not self.lidar_buffer:
@@ -207,7 +205,7 @@ class SaveMetricDataMultiCam(Node):
             return
 
         # === SAVE ===
-        self.lidar_camera_pairs.append((lidar_time, cam_matches[0][1], cam_matches[1][1], cam_matches[2][1]))
+        # self.lidar_camera_pairs.append((lidar_time, cam_matches[0][1], cam_matches[1][1], cam_matches[2][1]))
         self.save_lidar(lidar_msg, tf_l2g, lidar_time)
         self.save_images(cam_matches)
 
@@ -216,25 +214,25 @@ class SaveMetricDataMultiCam(Node):
         )
 
         # ---- RESET BUFFERS (consume everything up to this time) ----
-        if len(self.lidar_tstamps) > 500:
-            # Save
-            np.save(
-                os.path.join(self.base_dir, f'lidar_tstamps_{lidar_time:.6f}.npy'),
-                np.array(self.lidar_tstamps)
-            )
-            for nc in range(self.num_cameras):
-                np.save(
-                    os.path.join(self.base_dir, f'cam{nc+1}_tstamps_{cam_matches[nc][1]:.6f}.npy'),
-                    np.array(self.cam_tstamps[nc])
-                )
-            np.save(
-                os.path.join(self.base_dir, f'lidarcam_pair_tstamps_{lidar_time:.6f}.npy'),
-                np.array(self.lidar_camera_pairs)
-            )
+        # if len(self.lidar_tstamps) > 500:
+        #     # Save
+        #     np.save(
+        #         os.path.join(self.base_dir, f'lidar_tstamps_{lidar_time:.6f}.npy'),
+        #         np.array(self.lidar_tstamps)
+        #     )
+        #     for nc in range(self.num_cameras):
+        #         np.save(
+        #             os.path.join(self.base_dir, f'cam{nc+1}_tstamps_{cam_matches[nc][1]:.6f}.npy'),
+        #             np.array(self.cam_tstamps[nc])
+        #         )
+        #     np.save(
+        #         os.path.join(self.base_dir, f'lidarcam_pair_tstamps_{lidar_time:.6f}.npy'),
+        #         np.array(self.lidar_camera_pairs)
+        #     )
             
-            self.cam_tstamps = [[] for _ in range(self.num_cameras)]
-            self.lidar_tstamps = []
-            self.lidar_camera_pairs = []
+        #     self.cam_tstamps = [[] for _ in range(self.num_cameras)]
+        #     self.lidar_tstamps = []
+        #     self.lidar_camera_pairs = []
             
         self.lidar_buffer = []
         for cam_id in range(self.num_cameras):
