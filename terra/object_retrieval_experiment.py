@@ -104,7 +104,7 @@ class ObjectEvaluator():
         for t in range(self.num_tasks):
             for obj in pred_task_objs[t]:
                 score = obj.get_top_score()
-                if score >= (0.9 * max_task_scores[t]):
+                if score > (0.9 * max_task_scores[t]):
                     top90perc_objs[t].append(obj)
         
         return top90perc_objs
@@ -339,8 +339,8 @@ class ObjectEvaluator():
                     num_matches += 1
                 else:
                     print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match or GT already detected (n)")
-            # else:
-            #     assert False, "No images see bounding box!"
+            else:
+                print(f"\n[Object {obj_idx}] for task {self.task_names[task_idx]}. No images see bounding box!\n")
         return num_matches
     
     
@@ -564,7 +564,7 @@ if __name__ == '__main__':
     print(f"Predicted {len(terra.objects)} objects")
     
     # Display Terra
-    terra.display_terra()
+    # terra.display_terra()
 
     # Evaluate object detections
     cfg_eval = dict(cfg)

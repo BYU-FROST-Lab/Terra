@@ -26,12 +26,14 @@ class ObjectPredictor:
             self._predict_ms(tasks_tensor, use_avg_clipids=True)
         elif method == "ms_max":
             self._predict_ms(tasks_tensor, use_avg_clipids=False)
-        elif method == "3dsg":
-            self._predict_3dsg(tasks_tensor)
+        elif method == "3dsg_avg":
+            self._predict_3dsg(tasks_tensor, use_avg_clipids=True)
+        elif method == "3dsg_max":
+            self._predict_3dsg(tasks_tensor, use_avg_clipids=False)
         elif method == "aib":
             print("Not implemented. Should I?")
         else:
-            print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg, aib]")
+            print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg_avg, 3dsg_max, aib]")
             exit()
         return self.objects
             
@@ -178,10 +180,10 @@ class ObjectPredictor:
         else:
             return False
     
-    def _predict_3dsg(self, tasks_tensor):
+    def _predict_3dsg(self, tasks_tensor, use_avg_clipids=True):
         chosen_region_nodes = self._predict_object_regions(tasks_tensor)
         chosen_place_nodes = self._predict_object_places(tasks_tensor, region_nodes_dict=chosen_region_nodes)
-        self._predict_ms(tasks_tensor, use_avg_clipids=True, place_nodes_dict=chosen_place_nodes)
+        self._predict_ms(tasks_tensor, use_avg_clipids=use_avg_clipids, place_nodes_dict=chosen_place_nodes)
     
     def _predict_object_regions(self, tasks_tensor):
         region_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] > 1]
