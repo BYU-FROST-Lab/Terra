@@ -94,7 +94,7 @@ class ObjectPredictor:
                 self.terra.semantic_gidx_avgclip,
                 tasks_tensor,
                 chunk_size=8192
-            ):
+            ): # (chunk_size, num_terrain+num_tasks)
                 for task_idx in range(self.terra.num_terrain, scores.shape[1]):
                     local_idxs = (scores[:, task_idx] > self.terra.alpha).nonzero(as_tuple=True)[0]
                     for local_idx in local_idxs:
@@ -141,7 +141,7 @@ class ObjectPredictor:
                 
                 task_match = False
                 for task_idx in task_pts.keys():
-                    if idx in task_pts[task_idx - self.terra.num_terrain]:
+                    if idx in task_pts[task_idx]:
                         task_match = True
                         break
                 if not task_match:
