@@ -82,7 +82,7 @@ class ObjectPredictor:
                 idx_scores[idx] = clipid_scores[curr_clipid]
                 matched_idxs.append(idx)
                 
-        else:
+        elif use_avg_clipids: # use average clipids with place node filtering
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
                 place_pos = np.stack([self.terra.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
@@ -110,6 +110,44 @@ class ObjectPredictor:
                             idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
                             matched_idxs.add(idx)
                 del scores
+            
+        else: # use max_clipids with place node filtering
+            task_pts = {}
+            for task_idx, place_nodes in place_nodes_dict.items():
+                place_pos = np.stack([self.terra.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
+                idxs_list = self.kdt_2d.query_ball_point(place_pos, r=10)
+                task_pts[task_idx] = set(np.concatenate(idxs_list))
+            clipid_scores = {}
+            for start, scores in chunked_tensor_cosine_similarity(
+                self.terra.clip_segs,
+                tasks_tensor,
+                chunk_size=8192
+            ):
+                max_scores, max_tasks = scores.max(dim=1)
+                for local_clip_idx in range(scores.shape[0]):
+                    clip_id = start + local_clip_idx
+                    if clip_id not in self.terra.gidx_2_clipcounts:
+                        continue
+                    if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
+                        clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
+                del scores
+                
+            idx_scores = {}
+            matched_idxs = []
+            for idx, clip_ids in self.terra.gidx_2_clipcounts.items():
+                curr_clipid, curr_count = max(self.terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
+                if curr_clipid not in clipid_scores:
+                    continue
+                
+                task_match = False
+                for task_idx in task_pts.keys():
+                    if idx in task_pts[task_idx - self.terra.num_terrain]:
+                        task_match = True
+                        break
+                if not task_match:
+                    continue
+                idx_scores[idx] = clipid_scores[curr_clipid]
+                matched_idxs.append(idx)
         
         # Cluster object points & extract bounding boxes from clusters
         if len(matched_idxs) == 0:
@@ -180,7 +218,7 @@ class ObjectPredictor:
         else:
             return False
     
-    def _predict_3dsg(self, tasks_tensor, use_avg_clipids=True):
+    def _predict_3dsg(self, tasks_tensor, use_avg_clipids):
         chosen_region_nodes = self._predict_object_regions(tasks_tensor)
         chosen_place_nodes = self._predict_object_places(tasks_tensor, region_nodes_dict=chosen_region_nodes)
         self._predict_ms(tasks_tensor, use_avg_clipids=use_avg_clipids, place_nodes_dict=chosen_place_nodes)
