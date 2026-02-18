@@ -124,9 +124,9 @@ class RegionPredictor:
                 node = queue.pop()
                 node_level = self.terra.terra_3dsg.nodes[node]["level"]
                 if node_level == 1:
-                        p_idx = self.place_nodeid_to_idx[node]
-                        if place_scores[p_idx,task_idx] > self.terra.alpha:
-                            selected.add(node)
+                    p_idx = self.place_nodeid_to_idx[node]
+                    if place_scores[p_idx,task_idx] > self.terra.alpha:
+                        selected.add(node)
                 # Explore children until reaching level 1
                 for nbr in self.terra.terra_3dsg.neighbors(node):
                     nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]

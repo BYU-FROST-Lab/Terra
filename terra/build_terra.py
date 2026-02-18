@@ -402,8 +402,6 @@ class TerraBuilder:
         global_kdtree = KDTree(self.global_pc[:, :3])  # Using the x, y columns
         self.map_gvdnodes2clipembs = {}
         self.map_nodeid2imgidx = {}
-        local_img_cntr = 0
-        other_img_cntr = 0
         already_displayed=False
         for node_idx, sphere in enumerate(self.terrain_nodes):
             chosen_g_idx = -1
@@ -417,16 +415,13 @@ class TerraBuilder:
             for g_idx in g_idxs:        
                 if g_idx in self.map_globalidx2imgidx:        
                     img_indices = list(self.map_globalidx2imgidx[g_idx])
-                    local_img_cntr += 1
                     chosen_g_idx = g_idx
                     found = True
                     break
                 elif g_idx in self.map_globalidx2imgidx_nodist:
                     img_indices = list(self.map_globalidx2imgidx_nodist[g_idx])
-                    other_img_cntr += 1
                     chosen_g_idx = g_idx
                     found = True
-                    break
             if not found:
                 assert False, f"Image association not found"
             
@@ -457,7 +452,6 @@ class TerraBuilder:
                     
             self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True))
                
-        # print(f"20m image matches {local_img_cntr}, other image matches {other_img_cntr}")
         t1_associate_clip_emb = time.time()
         print("Runtime to associate CLIP Embeddings to GVD nodes",t1_associate_clip_emb - t0_associate_clip_emb,"seconds")
 

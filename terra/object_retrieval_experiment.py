@@ -137,8 +137,8 @@ class ObjectEvaluator():
             _, idx = self.kdt_places.query(obb_center_xy)
             closest_place_node = self.place_nodes[idx]
             
-            # ####
-            # # DEBUGGING
+            # # ####
+            # # # DEBUGGING
             # ## DISPLAY PCD + Place Nodes
             # place_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
             # place_subgraph = self.terra.terra_3dsg.subgraph(place_nodes)
@@ -149,7 +149,7 @@ class ObjectEvaluator():
             #     else:
             #         colors[n] = (0.75,0.75,0.75)    
             # self.terra.visualizer.level_offset = 0.0 
-            # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True)
+            # geo = self.terra.visualizer.display_3dsg(place_subgraph, node_colors=colors, pc=self.terra.pc, return_geo=True, plot_ids=True)
             # self.terra.visualizer.level_offset = 50.0
             
             # ## OR just DISPLAY PCD
@@ -166,8 +166,8 @@ class ObjectEvaluator():
             # sphere.paint_uniform_color([0.0, 1.0, 0.0])
             # spheres.append(sphere)
             # o3d.visualization.draw_geometries(geo + spheres)
-            # # o3d.visualization.draw_geometries([pcd] + spheres)
-            # # ####
+            # # # o3d.visualization.draw_geometries([pcd] + spheres)
+            # # # ####
 
             # Images that see this node
             img_indices = self.terra.nodeid_2_img_idx[closest_place_node]
@@ -331,7 +331,7 @@ class ObjectEvaluator():
 
             if shown > 0:
                 decision = self._wait_for_yn()
-
+                
                 if decision is None:
                     assert False, f"[Object {obj_idx}] for task {self.task_names[task_idx]}. No decision made!"
                 elif decision:
