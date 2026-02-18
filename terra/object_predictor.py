@@ -85,6 +85,9 @@ class ObjectPredictor:
         elif use_avg_clipids: # use average clipids with place node filtering
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
+                if len(place_nodes) == 0:
+                    task_pts[task_idx] = set()
+                    continue    
                 place_pos = np.stack([self.terra.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
                 idxs_list = self.kdt_2d.query_ball_point(place_pos, r=10)
                 task_pts[task_idx] = set(np.concatenate(idxs_list))
@@ -114,6 +117,9 @@ class ObjectPredictor:
         else: # use max_clipids with place node filtering
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
+                if len(place_nodes) == 0:
+                    task_pts[task_idx] = set()
+                    continue  
                 place_pos = np.stack([self.terra.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
                 idxs_list = self.kdt_2d.query_ball_point(place_pos, r=10)
                 task_pts[task_idx] = set(np.concatenate(idxs_list))
@@ -255,8 +261,17 @@ class ObjectPredictor:
                 while queue:
                     node = queue.pop()
                     node_level = self.terra.terra_3dsg.nodes[node]["level"]
-                    if node_level == 2:
+                    
+                    bottom_region_node = False
+                    for nbr in self.terra.terra_3dsg.neighbors(node):
+                        nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]
+                        if nbr_level == 1: # children are places, stop descent
+                            bottom_region_node = True
+                            break            
+                    if bottom_region_node:
                         selected.add(node)
+                        continue
+                    
                     # Explore children until reaching level 2
                     for nbr in self.terra.terra_3dsg.neighbors(node):
                         nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]

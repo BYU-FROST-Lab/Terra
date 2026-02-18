@@ -33,11 +33,11 @@ class TerraVisualizer():
         else:
             self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids)
    
-    def display_regions(self, G, pc=None):
+    def display_regions(self, G, pc=None, plot_ids=False):
         regions_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] > 1]
         )
-        self.display_3dsg(regions_subgraph, pc=pc)
+        self.display_3dsg(regions_subgraph, pc=pc, plot_ids=plot_ids)
     
     def display_3dsg(self, 
                      G, 
@@ -593,7 +593,7 @@ if __name__ == '__main__':
     tv = TerraVisualizer(level_offset=50, num_terrains=args.num_terrains)
     
     # Display Regions 
-    tv.display_regions(terra_3dsg)
+    tv.display_regions(terra_3dsg, plot_ids=True)
     
     # Display Places
     tv.display_places(terra_3dsg)
