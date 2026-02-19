@@ -340,7 +340,7 @@ class ObjectEvaluator():
                 else:
                     print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match or GT already detected (n)")
             else:
-                print(f"\n[Object {obj_idx}] for task {self.task_names[task_idx]}. No images see bounding box!\n")
+                print(f"\n[Object {obj_idx}] for task {self.task_names[task_idx]}. No images see bounding box centroid!\n")
         return num_matches
     
     
