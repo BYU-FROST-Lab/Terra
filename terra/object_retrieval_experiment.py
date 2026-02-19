@@ -543,10 +543,12 @@ if __name__ == '__main__':
 
     with open(args.params, 'r') as f:
         cfg = yaml.safe_load(f)
-
+    print("Number of cameras:", cfg['num_cams'])
+    
     # Load Terra
     terra = load_terra(cfg['terra'])
     terra.alpha = cfg['alpha']
+    print("Alpha parameter for object prediction:", terra.alpha)
 
     # Setup CLIP
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -564,7 +566,7 @@ if __name__ == '__main__':
     print(f"Predicted {len(terra.objects)} objects")
     
     # Display Terra
-    # terra.display_terra()
+    terra.display_terra(display_pc=True, plot_objects_on_ground=True, color_pc_clip=False)
 
     # Evaluate object detections
     cfg_eval = dict(cfg)

@@ -18,6 +18,7 @@ class TerraVisualizer():
             self.num_terrains = len(terrain_colors)
             self.terrain_colors = terrain_colors
         elif num_terrains:
+            self.num_terrains = num_terrains
             self.terrain_colors = [cmap(i % 10)[:3] for i in range(num_terrains)]
         else:
             self.num_terrains = 3
