@@ -9,6 +9,32 @@ import open3d as o3d
 
 from utils import numeric_key
 from terra_utils import copy_obb
+import heapq
+
+def generate_grays(n, avoid=0.5, eps=1e-9):
+    result = []
+    
+    # Start with two intervals split around the avoided value
+    heap = [
+        (-(avoid - 0.0), 0.0, avoid),
+        (-(1.0 - avoid), avoid, 1.0)
+    ]
+    
+    while len(result) < n:
+        length, a, b = heapq.heappop(heap)
+        mid = (a + b) / 2
+        
+        # Skip if too close to avoided value
+        if abs(mid - avoid) < eps:
+            continue
+            
+        result.append([mid, mid, mid])
+        
+        heapq.heappush(heap, (-(mid - a), a, mid))
+        heapq.heappush(heap, (-(b - mid), mid, b))
+        
+    return result
+
 
 class TerraVisualizer():
     def __init__(self, level_offset, terrain_colors=None, num_terrains=None):
@@ -23,7 +49,7 @@ class TerraVisualizer():
         else:
             self.num_terrains = 3
             self.terrain_colors = [cmap(i % 10)[:3] for i in range(self.num_terrains)]
-        self.grays = [[0.3,0.3,0.3],[0.7,0.7,0.7],[0.1,0.1,0.1],[0.9,0.9,0.9]]
+        self.grays = generate_grays(self.num_terrains)
            
     def display_places(self, G, pc=None, plot_ids=False, no_spheres=False):
         places_subgraph = G.subgraph(
@@ -393,7 +419,7 @@ class TerraVisualizer():
         geo_3dsg = self.display_3dsg(terra.terra_3dsg, plot_objects_on_ground=plot_objects_on_ground, return_geo=True, plot_ids=plot_ids)
         
         # add in bounding boxes for nodes
-        num_tasks = len(set(t.get_task_idx() for t in terra.objects))
+        num_tasks = max(set(t.get_task_idx() for t in terra.objects)) + 1
         if num_tasks <= 10:
             cmap = plt.get_cmap("tab10")
         else:
@@ -508,6 +534,7 @@ class TerraVisualizer():
 
     def _get_colored_pcd(self, terra, color_clip=True, color_terrain=False):
         count_threshold = 1
+        self.grays = generate_grays(len(self.terrain_colors))
         global_pts = {}    
         for idx in range(terra.pc.shape[0]):
             if idx in terra.gidx_2_clipcounts.keys():
@@ -531,7 +558,7 @@ class TerraVisualizer():
         for class_id in global_pts.keys():
             pcd = o3d.geometry.PointCloud()
             if class_id != -1:
-                if class_id < self.num_terrains:
+                if class_id < len(self.terrain_colors):#self.num_terrains:
                     pcd.points = o3d.utility.Vector3dVector(
                         terra.pc[global_pts[class_id], :])# - np.array([0,0,125]))
                     if color_terrain:
@@ -550,7 +577,7 @@ class TerraVisualizer():
         if not color_clip:
             color = [0.5,0.5,0.5]
             points = np.concatenate(
-                [terra.pc[v,:] for k, v in global_pts.items() if k >= self.num_terrains],
+                [terra.pc[v,:] for k, v in global_pts.items() if k >= len(self.terrain_colors)],#self.num_terrains],
                 axis=0
             )
             pcd.points = o3d.utility.Vector3dVector(points)# - np.array([0,0,125]))
