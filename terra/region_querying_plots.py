@@ -59,11 +59,11 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     
-    # with open(args.params_1cam, 'rb') as f:
-    #     region_task_params_1cam = yaml.safe_load(f)
+    with open(args.params_1cam, 'rb') as f:
+        configs_1cam= list(yaml.safe_load_all(f))
     
     with open(args.params_3cam, 'rb') as f:
-        region_task_params_3cam = yaml.safe_load(f)
+        configs_3cam = list(yaml.safe_load_all(f))
 
     # Load CLIP
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -88,51 +88,48 @@ if __name__ == '__main__':
             self.input_task_clip_tensor = None
             self.task_metrics = []
 
+    configs = []
+    for config_1cam, config_3cam in zip(configs_1cam, configs_3cam):
+        #Take the name after synced/ and before output in the terra path to be the config name
+        name_1cam = config_1cam["terra"].split("/synced/")[1].split("/output")[0]
+        name_3cam = config_3cam["terra"].split("/synced/")[1].split("/output")[0]
+        print(f"\nProcessing configs: {name_1cam} and {name_3cam}")
 
-    # agg_3cam_config = RegionQueryingConfig(
-    #     name = "Agglomerative 3 Cam",
-    #     terra_path=region_task_params_3cam["terra"],
-    #     region_tasks=region_task_params_3cam["region_tasks"],
-    #     prediction_method=region_task_params_3cam["prediction_method"]
-    # )
+        agg_1cam_config = RegionQueryingConfig(
+            name = name_1cam + " Agglomerative 1 Cam",
+            terra_path=config_1cam["terra"],
+            region_tasks=config_1cam["region_tasks"],
+            prediction_method=config_1cam["prediction_method"]
+        )
 
-    # agg_1cam_config = RegionQueryingConfig(
-    #     name = "Agglomerative 1 Cam",
-    #     terra_path=region_task_params_1cam["terra"],
-    #     region_tasks=region_task_params_1cam["region_tasks"],
-    #     prediction_method=region_task_params_1cam["prediction_method"]
-    # )
+        spec_1cam_terra_path = config_1cam["terra"].replace("agglomerative", "spectral")
+        spec_1cam_config = RegionQueryingConfig(
+            name = name_1cam + " Spectral 1 Cam",
+            terra_path=spec_1cam_terra_path,
+            region_tasks=config_1cam["region_tasks"],
+            prediction_method=config_1cam["prediction_method"]
+        )
 
-    # spec_3cam_terra_path = region_task_params_3cam["terra"].replace("agglomerative", "spectral")
-    # spec_3cam_config = RegionQueryingConfig(
-    #     name = "Spectral 3 Cam",
-    #     terra_path=spec_3cam_terra_path,
-    #     region_tasks=region_task_params_3cam["region_tasks"],
-    #     prediction_method=region_task_params_3cam["prediction_method"]
-    # )
+        agg_3cam_config = RegionQueryingConfig(
+            name = name_3cam + " Agglomerative 3 Cam",
+            terra_path=config_3cam["terra"],
+            region_tasks=config_3cam["region_tasks"],
+            prediction_method=config_3cam["prediction_method"]
+        )
 
-    # spec_1cam_terra_path = region_task_params_1cam["terra"].replace("agglomerative", "spectral")
-    # spec_1cam_config = RegionQueryingConfig(
-    #     name = "Spectral 1 Cam",
-    #     terra_path=spec_1cam_terra_path,
-    #     region_tasks=region_task_params_1cam["region_tasks"],
-    #     prediction_method=region_task_params_1cam["prediction_method"]
-    # )
 
-    syncThresh025_config = RegionQueryingConfig(
-        name = "SyncThresh025",
-        terra_path=region_task_params_3cam["terra"],
-        region_tasks=region_task_params_3cam["region_tasks"],
-        prediction_method=region_task_params_3cam["prediction_method"]
-    )
+        spec_3cam_terra_path = config_3cam["terra"].replace("agglomerative", "spectral")
+        spec_3cam_config = RegionQueryingConfig(
+            name = name_3cam + " Spectral 3 Cam",
+            terra_path=spec_3cam_terra_path,
+            region_tasks=config_3cam["region_tasks"],
+            prediction_method=config_3cam["prediction_method"]
+        )
 
-    configs = [
-        # agg_3cam_config,
-        # agg_1cam_config,
-        # spec_3cam_config,
-        # spec_1cam_config,
-        syncThresh025_config
-    ]
+        configs.append(agg_1cam_config)
+        configs.append(spec_1cam_config)
+        configs.append(agg_3cam_config)
+        configs.append(spec_3cam_config)
 
     for config in configs:
         for task_index, task in enumerate(config.region_tasks):
@@ -155,7 +152,7 @@ if __name__ == '__main__':
     
 
     alpha_values = np.linspace(0.2, 0.35, 16)
-    k_values = np.linspace(1, 11, 11)
+    k_values = np.linspace(1, 12, 12)
 
 
     # Find the best alpha and k based on evaluation metrics
@@ -164,7 +161,7 @@ if __name__ == '__main__':
         for alpha in alpha_values:
             config.terra.alpha = alpha
             for k in k_values:
-                print(f"Predicting regions with alpha: {alpha}, k: {k}")
+                print(f"Predicting regions with alpha: {alpha:0.2f}, k: {k}")
                 config.terra.reset_region_tasks()
                 # Prediction regions given prompts
                 config.terra.predict_regions(
@@ -181,7 +178,7 @@ if __name__ == '__main__':
                 config.alphas.append(alpha)
                 config.ks.append(k)
                 config.task_metrics.append(task_metrics)
-                print(f"Alpha: {alpha}, K: {k} => Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
+                print(f"Alpha: {alpha:0.2f}, K: {k} => Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
                 
                 # Update best parameters
                 if f1 > config.best_f1:
@@ -191,13 +188,13 @@ if __name__ == '__main__':
                     config.best_precision = precision
                     config.best_recall = recall
 
-        print(f"\nBest parameters found - Alpha: {config.best_alpha}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
+        print(f"\nBest parameters found - Alpha: {config.best_alpha:0.2f}, K: {config.best_k} with Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}")
 
 
 
     # Find the best parameters for each task and print them out
     for config in configs:
-        print(f"\nBest parameters for each task in {config.name}:")
+        print(f"\n\n{config.name.upper()}:")
         tps, fps, fns = 0,0,0
         for task_idx, task in enumerate(config.region_tasks):
             best_task_tps, best_task_fps, best_task_fns = 0,0,0
@@ -218,14 +215,28 @@ if __name__ == '__main__':
                     best_task_fps = fp
                     best_task_fns = fn
             print(f"  Task: {task['task']}")
-            print(f"    Best Alpha: {best_task_alpha}, Best K: {best_task_k} with Precision: {best_task_prec:.4f}, Recall: {best_task_rec:.4f}, F1: {best_task_f1:.4f}")
+            print(f"    Best Alpha: {best_task_alpha:0.2f}, Best K: {best_task_k} with Precision: {best_task_prec:.4f}, Recall: {best_task_rec:.4f}, F1: {best_task_f1:.4f}")
 
             tps += best_task_tps
             fps += best_task_fps
             fns += best_task_fns
         
         overall_prec, overall_rec, overall_f1 = compute_precision_recall_f1(tps, fps, fns)
-        print(f"\nOverall Metrics for {config.name} with best per-task parameters => Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}")
+
+        #Get ms for best config
+        config.terra.reset_region_tasks()
+        config.terra.alpha = config.best_alpha
+        start_time = time.time()
+        config.terra.predict_regions(
+            config.input_task_clip_tensor,
+            config.tasks,
+            config.prediction_method,
+            K = int(config.best_k)
+        )
+        end_time = time.time()
+        runtime_ms = (end_time - start_time)*1000
+
+        print(f"---Overall Best Metrics of alpha {config.best_alpha:0.2f} and K {int(config.best_k)} => Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}, Runtime: {runtime_ms:.2f} ms---")
 
 
     # #Plot grid of 4 plots of F1 vs Alpha with best K for each configuration
@@ -245,6 +256,7 @@ if __name__ == '__main__':
     
     # plt.show()
 
+
     # #Plot grid of 4 plots of F1 vs K with best Alpha for each configuration
     # fig, axs = plt.subplots(2, 2, figsize=(12, 10))
     # for i, config in enumerate(configs):
@@ -255,7 +267,7 @@ if __name__ == '__main__':
     #     f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if a == config.best_alpha]
 
     #     ax.plot(k_values, f1s_for_k, marker='o')
-    #     ax.set_title(f'F1 vs K - {config.name}(Alpha={config.best_alpha})')
+    #     ax.set_title(f'F1 vs K - {config.name}(Alpha={config.best_alpha:0.2f})')
     #     ax.set_xlabel('K')
     #     ax.set_ylabel('F1 Score')
     #     ax.grid(True)
