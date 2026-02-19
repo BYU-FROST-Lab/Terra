@@ -34,6 +34,16 @@ if __name__ == '__main__':
     input_task_clip_tensor.div_(input_task_clip_tensor.norm(dim=-1,keepdim=True))
     print("\nCollected region tasks:", tasks)
 
+    #Show place nodes relevant to each task based on human annotation
+    for task_idx, task in enumerate(region_tasks):
+        print(f"\nDisplaying human annotated relevant place nodes for task: {task['task']}")
+        terra.visualizer.display_selected_nodes(
+            terra.terra_3dsg,
+            task["place_nodes"],
+            pc=terra.pc
+        )
+
+
     # Prediction regions given prompts
     terra.predict_regions(
         input_task_clip_tensor, 

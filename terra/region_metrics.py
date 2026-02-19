@@ -84,7 +84,7 @@ if __name__ == '__main__':
     print("\nCollected region tasks:", tasks)
 
     alpha_values = np.linspace(0.2, 0.35, 16)
-    k_values = np.linspace(1, 10, 10)
+    k_values = np.linspace(1, 11, 11)
     # alpha_values = np.linspace(0.26, 0.26, 1)
     # k_values = np.linspace(1, 1, 1)
     best_alpha = None

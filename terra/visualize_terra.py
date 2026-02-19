@@ -250,9 +250,11 @@ class TerraVisualizer():
         selected_ids = []
         for n_id in G.nodes:
             x, y = G.nodes[n_id]["pos"][:2]
+            level = G.nodes[n_id]["level"]
 
-            if min_x <= x <= max_x and min_y <= y <= max_y:
+            if min_x <= x <= max_x and min_y <= y <= max_y and level == 1:  # Only consider place nodes
                 selected_ids.append(n_id)
+
 
         return selected_ids
 
@@ -283,8 +285,9 @@ class TerraVisualizer():
         selected_ids = []
         for n_id in G.nodes:
             x, y = G.nodes[n_id]["pos"][:2]
+            level = G.nodes[n_id]["level"]
 
-            if min_x <= x <= max_x and min_y <= y <= max_y:
+            if min_x <= x <= max_x and min_y <= y <= max_y and level == 1:  # Only consider place nodes
                 selected_ids.append(n_id)
 
         return selected_ids

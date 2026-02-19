@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # Display Place nodes with pc
     terra.display_places(
         display_pc=True,
-        plot_ids=True
+        plot_ids=False
     )
 
     # Display just place nodes to read ids
@@ -44,21 +44,84 @@ if __name__ == '__main__':
         no_spheres=True
     )
 
-    # red_indeces = [1689, 331, 1547, 1416]
-    # included_nodes = terra.visualizer.get_nodes_in_rectangle_from_refs(
-    #     terra.terra_3dsg,
-    #     red_indeces
-    # )
-    # print(f"Red Nodes: {included_nodes}")
 
-    # included_nodes = [119, 120, 121, 122, 123, 124, 125, 129, 130, 132, 131, 133, 134, 137, 138, 140, 141, 34, 35, 32, 33, 22, 23, 21, 24, 16, 17, 19, 14, 15, 13, 20, 18, 439, 443, 479, 489, 495, 505, 506, 512, 514, 526, 515, 508, 539, 540, 545, 563, 566, 565, 566, 578, 590, 591, 592, 619, 627, 609, 604, 637, 610, 592, 631, 638, 640, 644, 661, 672, 571, 581, 587, 600, 456, 465, 483, 499, 527, 523, 528, 529, 536, 547, 541, 516, 509, 497, 203, 204, 172, 173, 184, 186, 187]
+    # # Green Nodes
+    # green_indeces = [(272, 699), (265, 209), (204, 205), (215, 680)]
+    # green_nodes = terra.visualizer.get_nodes_in_polygon_from_sides(
+    #     terra.terra_3dsg,
+    #     green_indeces
+    # )
+
+    # green_nodes += [624, 195, 198, 10, 267]
+    # print(f"Green Nodes: {green_nodes}")
     # terra.visualizer.display_selected_nodes(
     #     terra.terra_3dsg,
-    #     included_nodes,
+    #     green_nodes
+    # )
+
+    # # Red Nodes
+
+    # red_nodes = [122, 123, 124, 637, 638, 511, 592, 593, 594, 1037, 1038, 639] + list(range(329, 427))
+    # nodes_to_remove = [412, 411, 416, 417, 419, 330]
+    # for rm_node in nodes_to_remove:
+    #     if rm_node in red_nodes:
+    #         red_nodes.remove(rm_node)
+    # red_nodes = list(set(red_nodes))  # Get unique nodes
+    # print(f"Red Nodes: {red_nodes}")
+    # terra.visualizer.display_selected_nodes(
+    #     terra.terra_3dsg,
+    #     red_nodes,
     #     pc=terra.pc
     # )
 
-    # purple_indeces = [(287, 136), (245, 289), (315, 289), (314, 352)]
+
+    # # Blue Nodes
+    # blue_nodes = [946, 943, 945, 965, 98, 99]
+    # blue_nodes = blue_nodes + list(range(287, 304)) + list(range(560, 589))
+    # nodes_to_remove = [301, 304]
+    # for rm_node in nodes_to_remove:
+    #     if rm_node in blue_nodes:
+    #         blue_nodes.remove(rm_node)
+    # print(f"Blue Nodes: {blue_nodes}")
+    # terra.visualizer.display_selected_nodes(
+    #     terra.terra_3dsg,
+    #     blue_nodes,
+    #     pc=terra.pc
+    # )
+
+
+    # # Purple Nodes
+    # purple_indeces_1 = [(153, 536), (716, 726), (849, 864), (213, 741)]
+    # purple_indeces_2 = [(652, 643), (144, 22),(153, 536), (662, 153)]
+    # purple_nodes = terra.visualizer.get_nodes_in_polygon_from_sides(
+    #     terra.terra_3dsg,
+    #     purple_indeces_1
+    # )
+    # purple_nodes += terra.visualizer.get_nodes_in_polygon_from_sides(
+    #     terra.terra_3dsg,
+    #     purple_indeces_2
+    # )
+    # purple_nodes = list(set(purple_nodes))  # Get unique nodes
+    # print(f"Purple Nodes: {purple_nodes}")
+    # terra.visualizer.display_selected_nodes(
+    #     terra.terra_3dsg,
+    #     purple_nodes
+    # )
+
+
+    # #### Two point on each side ####
+    # blue_indeces = [(948, 792), (714, 746), (746, 1247), (1267, 2823)]
+    # blue_nodes= terra.visualizer.get_nodes_in_polygon_from_sides(
+    #     terra.terra_3dsg,
+    #     blue_indeces
+    # )
+    # print(f"Blue Nodes: {blue_nodes}")
+    # terra.visualizer.display_selected_nodes(
+    #     terra.terra_3dsg,
+    #     blue_nodes
+    # )
+
+    # purple_indeces = [(2592, 578), (579, 1448), (1460, 1471), (699, 2660)]
     # purple_nodes= terra.visualizer.get_nodes_in_polygon_from_sides(
     #     terra.terra_3dsg,
     #     purple_indeces
@@ -69,16 +132,7 @@ if __name__ == '__main__':
     #     purple_nodes
     # )
 
-    # green_indeces = [(416, 139), (146, 483), (125, 607), (679, 125)]
-    # green_nodes= terra.visualizer.get_nodes_in_polygon_from_sides(
-    #     terra.terra_3dsg,
-    #     green_indeces
-    # )
-    # print(f"Green Nodes: {green_nodes}")
-    # terra.visualizer.display_selected_nodes(
-    #     terra.terra_3dsg,
-    #     green_nodes
-    # )
+
 
 
     # red_indeces = [(28, 35), (940, 953), (964, 1043), (27, 906)]
@@ -100,8 +154,10 @@ if __name__ == '__main__':
     #     red_nodes
     # )
 
-    # big_box_corners = [50, 765]
-    # small_box_corners = [765, 997]
+
+    # #### Two points on diagonal corners ####
+    # big_box_corners = [25, 949]
+    # small_box_corners = [949, 353]
     # big_box_nodes = terra.visualizer.get_nodes_in_diagonal_rectangle(
     #     terra.terra_3dsg,
     #     big_box_corners
@@ -111,8 +167,8 @@ if __name__ == '__main__':
     #     small_box_corners
     # )
 
-    # nodes_to_add = [1001, 743]
-    # nodes_to_remove = [782, 783, 784, 785, 786, 787, 788, 789, 972, 975, 690, 696]
+    # nodes_to_add = [820, 348]
+    # nodes_to_remove = [835, 836, 837, 838, 839, 840, 841, 842, 843, 844, 845, 846, 847, 848, 849, 850, 851, 852, 353, 925, 930]
     # combined_nodes = big_box_nodes + small_box_nodes + nodes_to_add
     # for rm_node in nodes_to_remove:
     #     if rm_node in combined_nodes:
