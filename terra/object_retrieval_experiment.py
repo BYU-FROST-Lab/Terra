@@ -566,7 +566,7 @@ if __name__ == '__main__':
     print(f"Predicted {len(terra.objects)} objects")
     
     # Display Terra
-    terra.display_terra(display_pc=True, plot_objects_on_ground=True, color_pc_clip=False)
+    # terra.display_terra(display_pc=True, plot_objects_on_ground=True, color_pc_clip=False)
 
     # Evaluate object detections
     cfg_eval = dict(cfg)
