@@ -51,20 +51,20 @@ class TerraVisualizer():
             self.terrain_colors = [cmap(i % 10)[:3] for i in range(self.num_terrains)]
         self.grays = generate_grays(self.num_terrains)
            
-    def display_places(self, G, pc=None, plot_ids=False, no_spheres=False):
+    def display_places(self, G, pc=None, plot_ids=False, no_spheres=False, return_geo=False):
         places_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] == 1]
         )
         if no_spheres:
-            self.display_3dsg_points(places_subgraph, pc=pc, plot_ids=plot_ids)
+            return self.display_3dsg_points(places_subgraph, pc=pc, plot_ids=plot_ids, return_geo=return_geo)
         else:
-            self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids)
+            return self.display_3dsg(places_subgraph, pc=pc, plot_ids=plot_ids, return_geo=return_geo)
    
-    def display_regions(self, G, pc=None, plot_ids=False):
+    def display_regions(self, G, pc=None, plot_ids=False, return_geo=False):
         regions_subgraph = G.subgraph(
             [n_id for n_id in list(G.nodes) if G.nodes[n_id]["level"] > 1]
         )
-        self.display_3dsg(regions_subgraph, pc=pc, plot_ids=plot_ids)
+        return self.display_3dsg(regions_subgraph, pc=pc, plot_ids=plot_ids, return_geo=return_geo)
     
     def display_3dsg(self, 
                      G, 
