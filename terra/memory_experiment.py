@@ -225,7 +225,11 @@ def main(yaml_file):
             "memory_mb": terra_size_mb(terra),
             "nodes": terra.terra_3dsg.number_of_nodes(),
         })
-
+    
+    # Print records
+    for r in records:
+        print(r)
+    
     # -----------------------------
     # Build legend once
     # -----------------------------
