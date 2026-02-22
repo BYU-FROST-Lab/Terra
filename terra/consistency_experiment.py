@@ -153,9 +153,73 @@ def associate_place_nodes_1_to_2(terra_1, terra_2):
         closest_idx = np.argmin(distances)
         associations[place_nodes_1[i]] = place_nodes_2[closest_idx]
 
-    return associations    
+    return associations  
 
-def graph_consistency_eval(terras, associations):
+def associate_region_nodes_1_to_2(terra_1, terra_2):
+    """Given two Terra graphs, find the place node associations."""
+    max_level_1 = 0
+    region_nodes_1 = {}
+    for n, d in terra_1.nodes(data=True):
+        if max_level_1 < d["level"]:
+            max_level_1 = d["level"]
+        if d["level"] > 1:
+            if d["level"] not in region_nodes_1:
+                region_nodes_1[d["level"]] = []
+            region_nodes_1[d["level"]].append(n)
+    # print("Max level in terra 1:", max_level_1)
+        
+    max_level_2 = 0
+    region_nodes_2 = {}
+    for n, d in terra_2.nodes(data=True):
+        if max_level_2 < d["level"]:
+            max_level_2 = d["level"]
+        if d["level"] > 1:
+            if d["level"] not in region_nodes_2:
+                region_nodes_2[d["level"]] = []
+            region_nodes_2[d["level"]].append(n)
+    # print("Max level in terra 2:", max_level_2)
+    
+    if max_level_1 != max_level_2:
+        print("WARNING: Graphs have different max levels, associations may not be reliable.")
+    
+    # Now we can find associations based on proximity and matching level (e.g., using a nearest neighbor search)
+    associations = {}
+    for lvl1, n1_list in region_nodes_1.items():
+        for lvl2, n2_list in region_nodes_2.items():
+            if lvl1 == lvl2:
+                pos_xy_1 = np.array([terra_1.nodes[n]["pos"] for n in n1_list])
+                pos_xy_2 = np.array([terra_2.nodes[n]["pos"] for n in n2_list])
+                
+                for i, pos_1 in enumerate(pos_xy_1):                    
+                    distances = np.linalg.norm(pos_xy_2 - pos_1, axis=1)
+                    closest_idx = np.argmin(distances)
+                    associations[n1_list[i]] = n2_list[closest_idx]
+    
+    return associations
+
+def select_place_nodes_by_region(terra, region_node):
+    selected_place_nodes = set()
+    queue = [region_node]
+    while queue:
+        node = queue.pop()
+        node_level = terra.nodes[node]["level"]
+        for nbr in terra.neighbors(node):
+            nbr_level = terra.nodes[nbr]["level"]
+            if nbr_level == 1: # children are places, stop descent
+                selected_place_nodes.add(nbr)
+            elif nbr_level < node_level: # children are still regions, keep descending
+                queue.append(nbr)            
+    return selected_place_nodes
+
+def count_associated_place_nodes(place_nodes_1, place_nodes_2, place_associations):
+    count = 0
+    for k, v in place_associations.items():
+        if k in place_nodes_1 and v in place_nodes_2:
+            count += 1
+    return count
+
+
+def graph_consistency_eval(terras, place_associations, region_associations):
     """Check consistency of graph structures across terrains."""
     # Check if the number of place nodes is consistent
     num_place_nodes = [len([n for n, d in t.nodes(data=True) if d["level"] == 1]) for t in terras]
@@ -167,9 +231,37 @@ def graph_consistency_eval(terras, associations):
             ratio_matrix[i, j] = num_place_nodes[i] / num_place_nodes[j]
     plot_heatmap(ratio_matrix, title="Place Node Count Ratios", labels=[f"v{i+1}" for i in range(n)])
     
-    # TODO: connectivity
+    # Check degree consistency
+    distances = []
+    for i in range(len(place_associations)):
+        d_i = []
+        for j in range(len(place_associations[i])):
+            d_i2j = []
+            for k, v in place_associations[i][j].items():
+                deg_k = terras[i].degree(k)
+                deg_v = terras[j].degree(v)
+                # print(f"Graph {i+1} node {k} degree: {deg_k}, Graph {j+1} node {v} degree: {deg_v}, DIFF: {np.abs(deg_k - deg_v)}")
+                d_i2j.append(np.abs(deg_k - deg_v))
+            d_i.append(np.mean(d_i2j))
+        distances.append(d_i)
+    plot_heatmap(distances, title="Mean Degree Difference", labels=[f"v{i+1}" for i in range(len(place_associations))])
     
-    # TODO: region nodes and their associated place nodes
+    # Check ratio of children place nodes of associated region nodes
+    num_region_nodes = [len([n for n, d in t.nodes(data=True) if d["level"] > 1]) for t in terras]
+    print("Number of region nodes in each graph:", num_region_nodes)
+    n = len(terras)
+    region_ratio_matrix = np.zeros((n, n), dtype=float)
+    for i in range(n):
+        for j in range(n):
+            ratios = []
+            for k, v in region_associations[i][j].items():
+                place_nodes_1 = select_place_nodes_by_region(terras[i], k)
+                place_nodes_2 = select_place_nodes_by_region(terras[j], v)
+                matching_associations = count_associated_place_nodes(place_nodes_1, place_nodes_2, place_associations[i][j])
+                ratio = matching_associations / len(place_nodes_1) if len(place_nodes_1) > 0 else 0
+                ratios.append(ratio)
+            region_ratio_matrix[i, j] = np.mean(ratios)
+    plot_heatmap(region_ratio_matrix, title="Mean Ratio of Place Nodes by Region", labels=[f"v{i+1}" for i in range(n)])
 
 
 def geometric_consistency_eval(terras, associations):
@@ -187,8 +279,8 @@ def geometric_consistency_eval(terras, associations):
                 d_i2j.append(distance)
             d_i.append(np.mean(d_i2j))
         distances.append(d_i)
-    plot_heatmap(distances, title="Average Distance [m]", labels=[f"v{i+1}" for i in range(len(associations))])  
-           
+    plot_heatmap(distances, title="Mean Distance [m]", labels=[f"v{i+1}" for i in range(len(associations))])  
+
 
 def semantic_consistency_eval(terras, associations):
     # Mean cosine_similarity scores across all associations
@@ -231,16 +323,21 @@ def main(yaml_file):
     terras = [tv1, tv2, tv3, tv4]
     
     # Define place node associations
-    associations = []
+    place_associations = []
+    region_associations = []
     for i in range(4):
-        row = []
+        place_row = []
+        region_row = []
         for j in range(4):
-            row.append(associate_place_nodes_1_to_2(terras[i], terras[j]))
-        associations.append(row)
+            print("Associating graphs v{} and v{}".format(i+1, j+1))
+            place_row.append(associate_place_nodes_1_to_2(terras[i], terras[j]))
+            region_row.append(associate_region_nodes_1_to_2(terras[i], terras[j]))
+        place_associations.append(place_row)
+        region_associations.append(region_row)
     
-    graph_consistency_eval(terras, associations)
-    geometric_consistency_eval(terras, associations)
-    semantic_consistency_eval(terras, associations)
+    graph_consistency_eval(terras, place_associations, region_associations)
+    geometric_consistency_eval(terras, place_associations)
+    semantic_consistency_eval(terras, place_associations)
 
 
 if __name__ == "__main__":
