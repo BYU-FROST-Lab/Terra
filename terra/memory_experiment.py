@@ -3,6 +3,7 @@
 import yaml
 import pickle as pkl
 import argparse
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
@@ -15,41 +16,6 @@ def terra_size_mb(terra_obj):
     """Approximate in-memory size of a Terra object in MB."""
     return len(pkl.dumps(terra_obj, protocol=pkl.HIGHEST_PROTOCOL)) / (1024 ** 2)
 
-
-# def make_combined_legend(color_by_dataset):
-#     """Create a single combined legend explaining visual semantics."""
-
-#     legend_handles = []
-
-#     # -----------------------------
-#     # Cameras (shape)
-#     # -----------------------------
-#     legend_handles.append(
-#         Line2D([], [], linestyle="None", label="Cameras")
-#     )
-#     legend_handles.extend([
-#         Line2D([0], [0], marker='o', color='k', linestyle='None',
-#                markersize=8, label='1 camera'),
-#         Line2D([0], [0], marker='^', color='k', linestyle='None',
-#                markersize=8, label='3 cameras'),
-#     ])
-
-#     # Spacer
-#     legend_handles.append(Line2D([], [], linestyle="None", label=""))
-
-#     # -----------------------------
-#     # Dataset (color)
-#     # -----------------------------
-#     legend_handles.append(
-#         Line2D([], [], linestyle="None", label="Dataset")
-#     )
-#     legend_handles.extend([
-#         Line2D([0], [0], marker='o', color=color, linestyle='None',
-#                markersize=8, label=dataset)
-#         for dataset, color in color_by_dataset.items()
-#     ])
-
-#     return legend_handles
 
 # def make_combined_legend(color_by_dataset):
     # """Create a compact legend with a divider between camera shapes and dataset colors."""
@@ -174,7 +140,7 @@ def two_panel_traj_plot_vertical(records, color_by_dataset, marker_by_dataset,
             linewidths=1.8,
         )
 
-    ax.set_ylabel("Terra Size (MB)", fontsize=17)
+    ax.set_ylabel("Memory Size (MB)", fontsize=17)
     ax.set_title("Terra Memory vs Trajectory Length", fontsize=18)
     ax.grid(True)
     ax.tick_params(axis='both', labelsize=15)
@@ -183,7 +149,7 @@ def two_panel_traj_plot_vertical(records, color_by_dataset, marker_by_dataset,
     ax.legend(
         handles=legend_handles,
         loc="lower right",
-        fontsize=15,
+        fontsize=13,
         frameon=True,
     )
 
@@ -249,7 +215,7 @@ def two_panel_area_plot_vertical(records, color_by_dataset, marker_by_dataset,
             linewidths=1.8,
         )
 
-    ax.set_ylabel("Terra Size (MB)", fontsize=17)
+    ax.set_ylabel("Memory Size (MB)", fontsize=17)
     ax.set_title("Terra Memory vs Area", fontsize=18)
     ax.grid(True)
     ax.tick_params(axis='both', labelsize=15)
@@ -258,7 +224,7 @@ def two_panel_area_plot_vertical(records, color_by_dataset, marker_by_dataset,
     ax.legend(
         handles=legend_handles,
         loc="lower right",
-        fontsize=15,
+        fontsize=13,
         frameon=True,
     )
 
@@ -304,6 +270,15 @@ def compute_square_area(G):
     # width_km = width / 1000
     # height_km = height / 1000
     # return width_km * height_km
+    
+def compute_pc_area(pc, resolution=0.4):
+    xy = pc[:,:2]
+    grid_indices = np.floor(xy / resolution).astype(int)
+    unique_cells = np.unique(grid_indices, axis=0)
+    num_voxels = unique_cells.shape[0]
+    area = num_voxels * (resolution ** 2) # [m^2]
+    return area
+    
 
 def main(yaml_file):
     with open(yaml_file, "r") as f:
@@ -313,9 +288,8 @@ def main(yaml_file):
     # Visual encodings
     # -----------------------------
     marker_by_cameras = {
-        # 1: "o",
-        # 3: "^",
-        3: "o",
+        1: "o",
+        3: "^",
     }
     marker_cycle = ["o", "s", "^", "D", "P", "X", "*", "v", "<", ">"]
 
@@ -337,7 +311,8 @@ def main(yaml_file):
         print(f"Loading {ds['dataset']} | {ds['cameras']} cam")
 
         terra = load_terra(ds["terra_path"])
-        area = compute_square_area(terra.terra_3dsg)
+        # area = compute_square_area(terra.terra_3dsg)
+        area = compute_pc_area(terra.pc, resolution=0.4)
         
         records.append({
             "dataset": ds["dataset"],
@@ -369,7 +344,7 @@ def main(yaml_file):
         x_key="traj_len",
         y_key="memory_mb",
         xlabel="Trajectory Length (m)",
-        ylabel="Terra Size (MB)",
+        ylabel="Memory Size (MB)",
         title="Terra Memory vs Trajectory Length",
     )
 
@@ -394,7 +369,7 @@ def main(yaml_file):
         legend_handles,
         x_key="memory_mb",
         y_key="nodes",
-        xlabel="Terra Size (MB)",
+        xlabel="Memory Size (MB)",
         ylabel="Number of 3DSG Nodes",
         title="3DSG Nodes vs Terra Memory",
     )
@@ -416,7 +391,7 @@ def main(yaml_file):
         x_key="area_m2",
         y_key="memory_mb",
         xlabel="Area (m²)",
-        ylabel="Terra Size (MB)",
+        ylabel="Memory Size (MB)",
         title="Terra Memory vs Area",
     )
 

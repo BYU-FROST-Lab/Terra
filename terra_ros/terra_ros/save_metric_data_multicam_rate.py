@@ -106,6 +106,14 @@ class SaveMetricDataMultiCam(Node):
             self.global_pc_callback,
             10
         )
+        self.path_sub = self.create_subscription(
+            Path,
+            '/lio_sam/mapping/path',
+            self.path_callback,
+            10
+        )
+        self.total_path_length = 0.0
+        self.prev_position = None
         
         if self.publish_extrinsics:
             self.trans_l2c = []
@@ -143,6 +151,25 @@ class SaveMetricDataMultiCam(Node):
         # self.lidar_tstamps = []
         # self.lidar_camera_pairs = []
 
+    def path_callback(self, msg):
+        if not msg.poses:
+            return
+
+        # Get latest pose (LIO-SAM appends to the end)
+        pose = msg.poses[-1].pose.position
+        current_position = np.array([pose.x, pose.y, pose.z])
+
+        if self.prev_position is not None:
+            step_dist = np.linalg.norm(current_position - self.prev_position)
+            self.total_path_length += step_dist
+
+            if step_dist > 0.0:
+                self.get_logger().info(
+                    f"\nTrajectory length: {self.total_path_length:.3f} m "
+                    f"(+{step_dist:.3f} m)\n"
+                )
+
+        self.prev_position = current_position
     
     def cam_img_callback(self, msg, cam_id):
         t = self.header_to_seconds(msg.header)
