@@ -4,6 +4,8 @@ import yaml
 import pickle as pkl
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib import cm
 
 import open3d as o3d
 import networkx as nx
@@ -50,7 +52,26 @@ def display_aligned_place_nodes(terra_1, terra_2, terra_3, terra_4):
     geo.extend(vis.display_places(terra_3, return_geo=True))
     geo.extend(vis.display_places(terra_4, return_geo=True))
     o3d.visualization.draw_geometries(geo)
-    
+
+def get_viridis_divergent_cmap():
+    # Get viridis colormap
+    viridis = cm.get_cmap('viridis')
+
+    # Sample it
+    colors = viridis(np.linspace(0, 1, 128))
+
+    # Create symmetric version around yellow (center)
+    left = colors
+    right = colors[::-1]
+
+    new_colors = np.vstack((left, right))
+
+    viridis_div = mcolors.LinearSegmentedColormap.from_list(
+        'viridis_diverging',
+        new_colors
+    )
+    return viridis_div
+ 
 def plot_heatmap(matrix, title="Confusion Matrix", labels=None, cmap_min=None, cmap_max=None):
     """
     Plot a heatmap of a distance matrix with values shown in each cell.
@@ -72,11 +93,28 @@ def plot_heatmap(matrix, title="Confusion Matrix", labels=None, cmap_min=None, c
         im = ax.imshow(matrix, cmap='viridis_r', interpolation="nearest", vmin=cmap_min, vmax=cmap_max)
         # Add colorbar
         cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label("Distance", fontsize=15)
+        cbar.ax.tick_params(labelsize=15)
+        # cbar.set_label("Distance", fontsize=15)
+    elif matrix.max() > 1.0 or matrix.min() < 0.0:
+        max_dev = max(abs(matrix.min() - 1), abs(matrix.max() - 1))
+        norm = mcolors.TwoSlopeNorm(
+            vmin=0.0, #1 - max_dev,
+            vcenter=1.0,
+            vmax=2.0, #1 + max_dev
+        )
+        im = ax.imshow(matrix, cmap=get_viridis_divergent_cmap(), interpolation="nearest", norm=norm)
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_ticks(np.arange(0.0, 2.0 + 0.4, 0.4))
+        cbar.ax.tick_params(labelsize=15)
+        # cbar.set_label("Distance", fontsize=15)
     else:
         cmap_min = 0.0
         cmap_max = 1.0
         im = ax.imshow(matrix, interpolation="nearest", vmin=0, vmax=1)
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.ax.tick_params(labelsize=15)
+        # cbar.set_label("Distance", fontsize=15)
 
     # Set ticks
     ax.set_xticks(np.arange(n))
@@ -102,6 +140,15 @@ def plot_heatmap(matrix, title="Confusion Matrix", labels=None, cmap_min=None, c
                     fontsize=15,
                     # color="black" if value > (np.nanmin(matrix) + (np.nanmax(matrix) - np.nanmin(matrix))/2) else "white"
                     color="black" if value <= (cmap_min + (cmap_max - cmap_min)/2) else "white"
+                )
+            elif matrix.max() > 1.0 or matrix.min() < 0.0:
+                text = ax.text(
+                    j, i,
+                    f"{value:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=15,
+                    color="black"
                 )
             else:
                 text = ax.text(
@@ -246,12 +293,12 @@ def graph_consistency_eval(terras, place_associations, region_associations):
     ratio_matrix = np.zeros((n, n), dtype=float)
     for i in range(n):
         for j in range(n):
-            # ratio_matrix[i, j] = num_place_nodes[i] / num_place_nodes[j]
-            ratio = num_place_nodes[i] / num_place_nodes[j]
-            if ratio <= 1:
-                ratio_matrix[i, j] = ratio
-            elif ratio > 1:
-                ratio_matrix[i, j] = 2 - ratio
+            ratio_matrix[i, j] = num_place_nodes[i] / num_place_nodes[j]
+            # ratio = num_place_nodes[i] / num_place_nodes[j]
+            # if ratio <= 1:
+            #     ratio_matrix[i, j] = ratio
+            # elif ratio > 1:
+            #     ratio_matrix[i, j] = 2 - ratio
     plot_heatmap(
         ratio_matrix, 
         title="Place Node Count Ratios", 
@@ -315,7 +362,7 @@ def geometric_consistency_eval(terras, associations):
         title="Mean Place Node Distance [m]", 
         labels=[f"v{i+1}" for i in range(len(associations))],
         cmap_min=np.nanmin(distances),
-        cmap_max=np.nanmax(distances)
+        cmap_max=5.0 # max distance between nodes
     )
 
 
