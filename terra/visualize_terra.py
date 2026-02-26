@@ -598,6 +598,9 @@ if __name__ == '__main__':
                         type=int,
                         default=3,
                         help="Number of terrain classes YOLO model used")
+    parser.add_argument('--view_json',
+                        type=str,
+                        help="Filepath to view.json file saved")
     args = parser.parse_args()
     
     global_pc_files = sorted(Path(args.global_pc).glob("*.npy"),key=numeric_key)        
@@ -627,8 +630,17 @@ if __name__ == '__main__':
     tv.display_regions(terra_3dsg, plot_ids=True)
     
     # Display Places
-    tv.display_places(terra_3dsg)
+    # tv.display_places(terra_3dsg)
     
     # Display full 3DSG with point cloud
-    tv.display_3dsg(terra_3dsg)
-    tv.display_3dsg(terra_3dsg,pc=global_pc[:,:3])
+    geo = tv.display_3dsg(terra_3dsg, return_geo=True)
+    # tv.display_3dsg(terra_3dsg,pc=global_pc[:,:3])
+    
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    for g in geo:
+        vis.add_geometry(g)
+    params = o3d.io.read_pinhole_camera_parameters(args.view_json)
+    ctr = vis.get_view_control()
+    ctr.convert_from_pinhole_camera_parameters(params)
+    vis.run()

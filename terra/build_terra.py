@@ -16,7 +16,7 @@ from scipy.ndimage import binary_dilation, binary_erosion
 import networkx as nx
 import clip
 import open3d as o3d
-from scipy.cluster.hierarchy import fcluster
+from scipy.cluster.hierarchy import dendrogram, fcluster
 
 from utils import tensor_cosine_similarity, numeric_key, find_latest_itr, int_defaultdict
 from gvd import DistanceMap
@@ -189,8 +189,15 @@ class TerraBuilder:
                 batch_indices = []
                 del batch_tensor, scores, max_scores, max_score_idxs
                 torch.cuda.empty_cache()
+        if len(batch_clip) > 0:
+            clip_emb_list.extend([emb.detach() for emb in batch_clip])
+            batch_clip = []
+            batch_indices = []
         
         self.semantic_gidx_avgclip = torch.stack(clip_emb_list, dim=0).to(self.device)
+        
+        assert len(self.semantic_gidxs) == self.semantic_gidx_avgclip.shape[0], \
+            "Mismatch between semantic indices and averaged CLIP embeddings!"
         
         t1_clipavg = time.time()    
         print(f"Finished averaging CLIP embedings for each global point in {t1_clipavg-t0_clipavg} seconds")
@@ -518,7 +525,29 @@ class TerraBuilder:
             print(f"Time for spectral clustering: {t1_cluster - t0_cluster} seconds")
         else:
             assert False, "Unidentified region method specified"
-        
+    
+    def plot_dendrogram(self, model, **kwargs):
+        # Create linkage matrix and then plot the dendrogram
+
+        # create the counts of samples under each node
+        counts = np.zeros(model.children_.shape[0])
+        n_samples = len(model.labels_)
+        for i, merge in enumerate(model.children_):
+            current_count = 0
+            for child_idx in merge:
+                if child_idx < n_samples:
+                    current_count += 1  # leaf node
+                else:
+                    current_count += counts[child_idx - n_samples]
+            counts[i] = current_count
+
+        linkage_matrix = np.column_stack(
+            [model.children_, model.distances_, counts]
+        ).astype(float)
+
+        # Plot the corresponding dendrogram
+        dendrogram(linkage_matrix, **kwargs)
+    
     def build_agglomerative_regions(self):
         ac = AgglomerativeClustering(n_clusters=None, distance_threshold=50, metric='precomputed', linkage='average')
         
@@ -541,6 +570,13 @@ class TerraBuilder:
         
         dist_matrix = nx.to_numpy_array(terra_graph_dense, weight='weight')
         agg_model = ac.fit(dist_matrix)
+        
+        if self.DEBUG_MODE:
+            plt.title("Dendrogram for Agglomerative Clustering of GVD Nodes")
+            self.plot_dendrogram(agg_model)
+            plt.xlabel("Node Index")
+            plt.ylabel("Distance")
+            plt.show()
         
         counts = np.zeros(agg_model.children_.shape[0])
         n_samples = len(agg_model.labels_)
@@ -621,6 +657,12 @@ class TerraBuilder:
                                 break
         # Finally, add a global root node if multiple top-level regions exist
         self.add_root_region_node(prev_id+1)
+        
+        # plt.title("Dendrogram for Agglomerative Clustering of GVD Nodes")
+        # self.plot_dendrogram(agg_model)
+        # plt.xlabel("Node Index")
+        # plt.ylabel("Distance")
+        # plt.show()
     
     def add_root_region_node(self, root_node_id):
         root_node_level = len(self.hierarchical_distances) + 2
@@ -825,9 +867,9 @@ class TerraBuilder:
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_terra(self):
-        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1800{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
-        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_beta1gamma1800{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
         
         terra = Terra(
@@ -847,7 +889,7 @@ class TerraBuilder:
         )
         save_terra(
             terra, 
-            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl"
+            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1800{self.region_method}cluster.pkl"
         )
         print("Finished! Terra Saved!")
         if self.DEBUG_MODE:
@@ -863,7 +905,9 @@ class TerraBuilder:
         
         euclidean_dist = np.linalg.norm(G.nodes[n1_id]["pos"] - G.nodes[n2_id]["pos"]) 
 
-        weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
+        # weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
+        
+        weight = 1.0 * euclidean_dist + 1800.0 * (1 - min(cos_sim_places,1))
         
         return weight
 

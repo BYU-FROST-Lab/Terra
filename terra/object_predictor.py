@@ -7,6 +7,46 @@ import open3d as o3d
 from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
 from terra_utils import TerraObject
 
+from tqdm import tqdm
+def compute_weighted_medoid(X, w):
+    D = tensor_cosine_similarity(X, X)
+    total_similarity_score = (D * w.unsqueeze(0)).sum(dim=1)
+    medoid_idx = torch.argmax(total_similarity_score)
+    return X[medoid_idx,:]
+
+def build_medoid_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs):
+    medoid_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device=clip_segs.device)
+    for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building medoid tensor")):
+        gidx2clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
+        X = torch.stack([clip_segs[clip_id,:] for clip_id in gidx2clipcounts_dict_entry.keys()])
+        w = torch.tensor(list(gidx2clipcounts_dict_entry.values()), device=X.device, dtype=torch.float)
+        medoid = compute_weighted_medoid(X, w)
+        medoid_tensor[idx,:] = medoid
+    return medoid_tensor
+
+def compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.2):
+    sorted_indices = torch.argsort(dist,dim=0) # smallest to largest dist from weighted mean
+    num_keep = int(len(sorted_indices) * (1 - trim_percent))
+    keep_idxs = sorted_indices[:num_keep]
+    X_trimmed = X[keep_idxs]
+    w_trimmed = w[keep_idxs]
+    weighted_sum = (X_trimmed * w_trimmed.unsqueeze(1)).sum(dim=0)
+    total_weight = w_trimmed.sum()
+    return (weighted_sum / total_weight).squeeze()
+
+def build_trimmed_mean_tensor(gidx_2_clipcounts, clip_segs, semantic_avg, semantic_gidxs, trim_percent=0.2):
+    trimmed_mean_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device=clip_segs.device)
+    for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building trimmed mean tensor")):
+        gidx2clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
+        X = torch.stack([clip_segs[clip_id,:] for clip_id in gidx2clipcounts_dict_entry.keys()])
+        w = torch.tensor(list(gidx2clipcounts_dict_entry.values()), device=X.device, dtype=torch.float)
+        diff = tensor_cosine_similarity(X, semantic_avg[idx,:]) # [num_clip_ids,]
+        dist = 1 - diff # convert cosine similarity to distance
+        trimmed_mean = compute_weighted_trimmed_mean(X, w, dist, trim_percent)
+        trimmed_mean_tensor[idx,:] = trimmed_mean
+    return trimmed_mean_tensor
+
+
 class ObjectPredictor:
     """
     Responsible for predicting Terra Objects according to task
@@ -39,10 +79,38 @@ class ObjectPredictor:
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
+            ## CLIP AVG
+            # idx_scores = {}
+            # matched_idxs = []
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     self.terra.semantic_gidx_avgclip,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         # Move small data to CPU immediately
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
+            
+            ## CLIP MEDOID
+            print("Running MEDOID Method")
             idx_scores = {}
             matched_idxs = []
+            med_tensor = build_medoid_tensor(
+                self.terra.gidx_2_clipcounts, 
+                self.terra.clip_segs,
+                self.terra.semantic_gidxs
+            )
+            print("Finished building medoid tensor")
             for start, scores in chunked_tensor_cosine_similarity(
-                self.terra.semantic_gidx_avgclip,
+                med_tensor,
                 tasks_tensor,
                 chunk_size=8192
             ):
@@ -52,11 +120,36 @@ class ObjectPredictor:
                 for local_idx in valid_idxs:
                     idx_filt = start + local_idx.item()
                     idx = self.terra.semantic_gidxs[idx_filt]
-                    # Move small data to CPU immediately
                     idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
                     matched_idxs.append(idx)
                 # free GPU memory
                 del scores
+            
+            # ## CLIP AVG-TRIMMED
+            # print("Running AVG-TRIMMED Method")
+            # idx_scores = {}
+            # matched_idxs = []
+            # avg_trimmed_tensor = build_trimmed_mean_tensor(
+            #     self.terra.gidx_2_clipcounts, 
+            #     self.terra.clip_segs,
+            #     self.terra.semantic_gidx_avgclip,
+            #     self.terra.semantic_gidxs
+            # )
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     avg_trimmed_tensor,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
             
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
             clipid_scores = {}

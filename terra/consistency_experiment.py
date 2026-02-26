@@ -294,11 +294,6 @@ def graph_consistency_eval(terras, place_associations, region_associations):
     for i in range(n):
         for j in range(n):
             ratio_matrix[i, j] = num_place_nodes[i] / num_place_nodes[j]
-            # ratio = num_place_nodes[i] / num_place_nodes[j]
-            # if ratio <= 1:
-            #     ratio_matrix[i, j] = ratio
-            # elif ratio > 1:
-            #     ratio_matrix[i, j] = 2 - ratio
     plot_heatmap(
         ratio_matrix, 
         title="Place Node Count Ratios", 
