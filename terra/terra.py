@@ -78,7 +78,9 @@ class Terra():
             tasks_tensor,
             method
         )
+        print(f"Now adding {len(self.objects)} objects to 3DSG")
         self.add_objects_to_3dsg()
+        print(f"Finished adding {len(self.objects)} objects to 3DSG")
     
     def add_objects_to_3dsg(self):
         place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]

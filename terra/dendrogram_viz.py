@@ -38,28 +38,30 @@ def plot_merge_diagnostics(model, num_cuts = 4):
     plt.ylabel("Distance")
     plt.show()
 
-    # ---- Plot 2: First derivative ----
-    plt.figure()
-    plt.plot(delta)
-    plt.title("First Difference of Merge Distances")
-    plt.xlabel("Merge Index")
-    plt.ylabel("Δ Distance")
-    plt.show()
+    # # ---- Plot 2: First derivative ----
+    # plt.figure()
+    # plt.plot(delta)
+    # plt.title("First Difference of Merge Distances")
+    # plt.xlabel("Merge Index")
+    # plt.ylabel("Δ Distance")
+    # plt.show()
 
-    # ---- Plot 3: Second derivative ----
-    plt.figure()
-    plt.plot(delta2)
-    plt.title("Second Difference of Merge Distances")
-    plt.xlabel("Merge Index")
-    plt.ylabel("Δ² Distance")
-    plt.show()
+    # # ---- Plot 3: Second derivative ----
+    # plt.figure()
+    # plt.plot(delta2)
+    # plt.title("Second Difference of Merge Distances")
+    # plt.xlabel("Merge Index")
+    # plt.ylabel("Δ² Distance")
+    # plt.show()
 
     # ---- Print suggested cut points ----
     topN = np.argsort(delta)[-num_cuts:]  # largest num_cuts jumps
+    # topN = np.argsort(delta2)[-num_cuts:]
     topN = np.sort(topN)
 
     print(f"\nSuggested cut indices (largest {num_cuts} jumps):", topN)
-    print("Suggested cut distances:", distances[topN])
+    print("Suggested cut distances based on Delta:", distances[topN])
+    # print("Suggested cut distances based on Delta2:", distances[topN])
     return distances[topN]
 
 def plot_dendrogram(model, cut_heights=None, **kwargs):
@@ -82,7 +84,6 @@ def plot_dendrogram(model, cut_heights=None, **kwargs):
     ).astype(float)
 
     # Plot the corresponding dendrogram
-    plt.figure()
     dendrogram(linkage_matrix, **kwargs)
     if cut_heights is not None:
         for h in cut_heights:
@@ -126,7 +127,7 @@ if __name__ == '__main__':
     dist_matrix = nx.to_numpy_array(terra_graph_dense, weight='weight')
     agg_model = ac.fit(dist_matrix)
     
-    cut_heights = plot_merge_diagnostics(agg_model, num_cuts=4)
+    cut_heights = plot_merge_diagnostics(agg_model, num_cuts=5)#4)
     
     plt.title("Dendrogram for Agglomerative Clustering of GVD Nodes")
     plot_dendrogram(agg_model, cut_heights=cut_heights)

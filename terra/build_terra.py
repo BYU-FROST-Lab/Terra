@@ -189,6 +189,7 @@ class TerraBuilder:
                 batch_indices = []
                 del batch_tensor, scores, max_scores, max_score_idxs
                 torch.cuda.empty_cache()
+        
         if len(batch_clip) > 0:
             batch_tensor = torch.stack(batch_clip)  # (B, 512)
             
@@ -678,12 +679,6 @@ class TerraBuilder:
                                 break
         # Finally, add a global root node if multiple top-level regions exist
         self.add_root_region_node(prev_id+1)
-        
-        # plt.title("Dendrogram for Agglomerative Clustering of GVD Nodes")
-        # self.plot_dendrogram(agg_model)
-        # plt.xlabel("Node Index")
-        # plt.ylabel("Distance")
-        # plt.show()
     
     def add_root_region_node(self, root_node_id):
         root_node_level = len(self.hierarchical_distances) + 2
@@ -888,9 +883,9 @@ class TerraBuilder:
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_terra(self):
-        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1800{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
-        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_beta1gamma1800{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
         
         terra = Terra(
@@ -910,7 +905,7 @@ class TerraBuilder:
         )
         save_terra(
             terra, 
-            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1800{self.region_method}cluster.pkl"
+            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl"
         )
         print("Finished! Terra Saved!")
         if self.DEBUG_MODE:
@@ -926,9 +921,9 @@ class TerraBuilder:
         
         euclidean_dist = np.linalg.norm(G.nodes[n1_id]["pos"] - G.nodes[n2_id]["pos"]) 
 
-        # weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
+        weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
         
-        weight = 1.0 * euclidean_dist + 1800.0 * (1 - min(cos_sim_places,1))
+        # weight = 1.0 * euclidean_dist + 1800.0 * (1 - min(cos_sim_places,1))
         
         return weight
 

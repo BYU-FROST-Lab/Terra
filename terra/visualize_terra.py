@@ -640,7 +640,8 @@ if __name__ == '__main__':
     vis.create_window()
     for g in geo:
         vis.add_geometry(g)
-    params = o3d.io.read_pinhole_camera_parameters(args.view_json)
-    ctr = vis.get_view_control()
-    ctr.convert_from_pinhole_camera_parameters(params)
+    if args.view_json:
+        params = o3d.io.read_pinhole_camera_parameters(args.view_json)
+        ctr = vis.get_view_control()
+        ctr.convert_from_pinhole_camera_parameters(params)
     vis.run()

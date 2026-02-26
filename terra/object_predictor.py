@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from scipy.spatial import KDTree
 # from sklearn.cluster import DBSCAN
 import numpy as np
@@ -8,21 +9,41 @@ from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
 from terra_utils import TerraObject
 
 from tqdm import tqdm
-def compute_weighted_medoid(X, w):
-    D = tensor_cosine_similarity(X, X)
-    total_similarity_score = (D * w.unsqueeze(0)).sum(dim=1)
-    medoid_idx = torch.argmax(total_similarity_score)
-    return X[medoid_idx,:]
+
+@torch.no_grad()
+def compute_weighted_medoid(X, w, chunk_size=1024):
+    best_score = float("-inf")
+    best_idx = -1
+    for start, scores in chunked_tensor_cosine_similarity(
+        X,
+        X,
+        chunk_size=chunk_size
+    ):
+        sim = (scores * w.unsqueeze(0)).sum(dim=1)
+        max_val, max_idx = torch.max(sim, dim=0)
+        max_val = max_val.item()
+        max_idx = max_idx.item()
+        if max_val > best_score:
+            best_score = max_val
+            best_idx = start + max_idx
+    return X[best_idx, :]
+    # D = tensor_cosine_similarity(X, X)
+    # total_similarity_score = (D * w.unsqueeze(0)).sum(dim=1)
+    # medoid_idx = torch.argmax(total_similarity_score)
+    # return X[medoid_idx,:]
 
 def build_medoid_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs):
-    medoid_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device=clip_segs.device)
+    # medoid_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device=clip_segs.device)
+    medoid_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device='cpu', dtype=torch.float32)
     for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building medoid tensor")):
-        gidx2clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
-        X = torch.stack([clip_segs[clip_id,:] for clip_id in gidx2clipcounts_dict_entry.keys()])
-        w = torch.tensor(list(gidx2clipcounts_dict_entry.values()), device=X.device, dtype=torch.float)
+        clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
+        
+        clip_ids = list(clipcounts_dict_entry.keys())
+        X = torch.stack([clip_segs[clip_id,:] for clip_id in clip_ids]).to(clip_segs.device)
+        w = torch.tensor(list(clipcounts_dict_entry.values()), device=clip_segs.device, dtype=torch.float32)
         medoid = compute_weighted_medoid(X, w)
-        medoid_tensor[idx,:] = medoid
-    return medoid_tensor
+        medoid_tensor[idx,:] = medoid.cpu()
+    return medoid_tensor.to(clip_segs.device)
 
 def compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.2):
     sorted_indices = torch.argsort(dist,dim=0) # smallest to largest dist from weighted mean
@@ -35,16 +56,17 @@ def compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.2):
     return (weighted_sum / total_weight).squeeze()
 
 def build_trimmed_mean_tensor(gidx_2_clipcounts, clip_segs, semantic_avg, semantic_gidxs, trim_percent=0.2):
-    trimmed_mean_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device=clip_segs.device)
+    # trimmed_mean_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device=clip_segs.device)
+    trimmed_mean_tensor = torch.zeros((len(semantic_gidxs), clip_segs.shape[1]), device='cpu', dtype=torch.float32)
     for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building trimmed mean tensor")):
         gidx2clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
-        X = torch.stack([clip_segs[clip_id,:] for clip_id in gidx2clipcounts_dict_entry.keys()])
-        w = torch.tensor(list(gidx2clipcounts_dict_entry.values()), device=X.device, dtype=torch.float)
+        X = torch.stack([clip_segs[clip_id,:] for clip_id in gidx2clipcounts_dict_entry.keys()]).to(clip_segs.device)
+        w = torch.tensor(list(gidx2clipcounts_dict_entry.values()), device=clip_segs.device, dtype=torch.float32)
         diff = tensor_cosine_similarity(X, semantic_avg[idx,:]) # [num_clip_ids,]
         dist = 1 - diff # convert cosine similarity to distance
         trimmed_mean = compute_weighted_trimmed_mean(X, w, dist, trim_percent)
-        trimmed_mean_tensor[idx,:] = trimmed_mean
-    return trimmed_mean_tensor
+        trimmed_mean_tensor[idx,:] = trimmed_mean.cpu()
+    return trimmed_mean_tensor.to(clip_segs.device)
 
 
 class ObjectPredictor:
@@ -75,42 +97,16 @@ class ObjectPredictor:
         else:
             print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg_avg, 3dsg_max, aib]")
             exit()
+        print("Returning objects to Terra class")
         return self.objects
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
             ## CLIP AVG
-            # idx_scores = {}
-            # matched_idxs = []
-            # for start, scores in chunked_tensor_cosine_similarity(
-            #     self.terra.semantic_gidx_avgclip,
-            #     tasks_tensor,
-            #     chunk_size=8192
-            # ):
-            #     max_scores, max_tasks = scores.max(dim=1)
-            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
-            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
-            #     for local_idx in valid_idxs:
-            #         idx_filt = start + local_idx.item()
-            #         idx = self.terra.semantic_gidxs[idx_filt]
-            #         # Move small data to CPU immediately
-            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
-            #         matched_idxs.append(idx)
-            #     # free GPU memory
-            #     del scores
-            
-            ## CLIP MEDOID
-            print("Running MEDOID Method")
             idx_scores = {}
             matched_idxs = []
-            med_tensor = build_medoid_tensor(
-                self.terra.gidx_2_clipcounts, 
-                self.terra.clip_segs,
-                self.terra.semantic_gidxs
-            )
-            print("Finished building medoid tensor")
             for start, scores in chunked_tensor_cosine_similarity(
-                med_tensor,
+                self.terra.semantic_gidx_avgclip,
                 tasks_tensor,
                 chunk_size=8192
             ):
@@ -120,10 +116,37 @@ class ObjectPredictor:
                 for local_idx in valid_idxs:
                     idx_filt = start + local_idx.item()
                     idx = self.terra.semantic_gidxs[idx_filt]
+                    # Move small data to CPU immediately
                     idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
                     matched_idxs.append(idx)
                 # free GPU memory
                 del scores
+            
+            # ## CLIP MEDOID
+            # print("Running MEDOID Method")
+            # idx_scores = {}
+            # matched_idxs = []
+            # med_tensor = build_medoid_tensor(
+            #     self.terra.gidx_2_clipcounts, 
+            #     self.terra.clip_segs,
+            #     self.terra.semantic_gidxs
+            # )
+            # print("Finished building medoid tensor")
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     med_tensor,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
             
             # ## CLIP AVG-TRIMMED
             # print("Running AVG-TRIMMED Method")
@@ -133,7 +156,8 @@ class ObjectPredictor:
             #     self.terra.gidx_2_clipcounts, 
             #     self.terra.clip_segs,
             #     self.terra.semantic_gidx_avgclip,
-            #     self.terra.semantic_gidxs
+            #     self.terra.semantic_gidxs,
+            #     trim_percent=0.2
             # )
             # for start, scores in chunked_tensor_cosine_similarity(
             #     avg_trimmed_tensor,
@@ -252,7 +276,9 @@ class ObjectPredictor:
         if len(matched_idxs) == 0:
             print("No similar MS-Map indices detected")
             exit()
+        print("Made it to start clustering points into bboxes")
         self._cluster_into_bboxes(list(matched_idxs), idx_scores)
+        print("Finished clustering points into bboxes")
         
     def _cluster_into_bboxes(self, matched_idxs, idx_scores):
         surrounding_point_indices = self.terra.kdt.query_ball_point(
