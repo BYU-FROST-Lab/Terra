@@ -190,6 +190,27 @@ class TerraBuilder:
                 del batch_tensor, scores, max_scores, max_score_idxs
                 torch.cuda.empty_cache()
         if len(batch_clip) > 0:
+            batch_tensor = torch.stack(batch_clip)  # (B, 512)
+            
+            # Score how close the avg clip embedding is to each terrain class
+            scores = tensor_cosine_similarity(
+                batch_tensor, 
+                self.input_terrain_clip_tensor
+            ) # (batch_size, num_terrains)
+        
+            max_scores, max_score_idxs = scores.max(dim=1) # each global point's best terrain match
+        
+            for i, g_idx in enumerate(batch_indices):
+                max_score = max_scores[i].item()
+                max_idx = max_score_idxs[i].item()
+                max_prompt_scores.append(max_score)
+
+                if max_score > self.terrain_threshold:
+                    self.terrain_gidx.append(g_idx)
+                    self.terrainid2gidxs_dict.setdefault(max_idx, []).append(g_idx)
+                else:
+                    self.nonterrain_gidx.append(g_idx)
+                    
             clip_emb_list.extend([emb.detach() for emb in batch_clip])
             batch_clip = []
             batch_indices = []
