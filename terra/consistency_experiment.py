@@ -95,7 +95,7 @@ def plot_heatmap(matrix, title="Confusion Matrix", labels=None, cmap_min=None, c
         cbar = plt.colorbar(im, ax=ax)
         cbar.ax.tick_params(labelsize=15)
         # cbar.set_label("Distance", fontsize=15)
-    elif matrix.max() > 1.0 or matrix.min() < 0.0:
+    elif matrix.max() > 1.01 or matrix.min() < 0.0:
         max_dev = max(abs(matrix.min() - 1), abs(matrix.max() - 1))
         norm = mcolors.TwoSlopeNorm(
             vmin=0.0, #1 - max_dev,
@@ -105,7 +105,7 @@ def plot_heatmap(matrix, title="Confusion Matrix", labels=None, cmap_min=None, c
         im = ax.imshow(matrix, cmap=get_viridis_divergent_cmap(), interpolation="nearest", norm=norm)
         # Add colorbar
         cbar = plt.colorbar(im, ax=ax)
-        cbar.set_ticks(np.arange(0.0, 2.0 + 0.4, 0.4))
+        cbar.set_ticks(np.arange(0.0, 2.0 + 0.25, 0.25))
         cbar.ax.tick_params(labelsize=15)
         # cbar.set_label("Distance", fontsize=15)
     else:
@@ -297,7 +297,7 @@ def graph_consistency_eval(terras, place_associations, region_associations):
     plot_heatmap(
         ratio_matrix, 
         title="Place Node Count Ratios", 
-        labels=[f"v{i+1}" for i in range(n)],
+        labels=[f"V{i+1}" for i in range(n)],
     )
     
     # # Check degree consistency
@@ -313,7 +313,7 @@ def graph_consistency_eval(terras, place_associations, region_associations):
     #             d_i2j.append(np.abs(deg_k - deg_v))
     #         d_i.append(np.mean(d_i2j))
     #     distances.append(d_i)
-    # plot_heatmap(distances, title="Mean Degree Difference", labels=[f"v{i+1}" for i in range(len(place_associations))])
+    # plot_heatmap(distances, title="Mean Degree Difference", labels=[f"V{i+1}" for i in range(len(place_associations))])
     
     # Check ratio of children place nodes of associated region nodes
     num_region_nodes = [len([n for n, d in t.nodes(data=True) if d["level"] > 1]) for t in terras]
@@ -333,7 +333,7 @@ def graph_consistency_eval(terras, place_associations, region_associations):
     plot_heatmap(
         region_ratio_matrix, 
         title="Place Node Clustering Consistency", 
-        labels=[f"v{i+1}" for i in range(n)],
+        labels=[f"V{i+1}" for i in range(n)],
     )
 
 
@@ -355,7 +355,7 @@ def geometric_consistency_eval(terras, associations):
     plot_heatmap(
         distances, 
         title="Mean Place Node Distance [m]", 
-        labels=[f"v{i+1}" for i in range(len(associations))],
+        labels=[f"V{i+1}" for i in range(len(associations))],
         cmap_min=np.nanmin(distances),
         cmap_max=5.0 # max distance between nodes
     )
@@ -378,7 +378,7 @@ def semantic_consistency_eval(terras, associations):
     plot_heatmap(
         scores, 
         title="Mean Place Node Cosine Similarity", 
-        labels=[f"v{i+1}" for i in range(len(associations))],
+        labels=[f"V{i+1}" for i in range(len(associations))],
     )
     
     # Number of matching terrain IDs
@@ -397,7 +397,7 @@ def semantic_consistency_eval(terras, associations):
     plot_heatmap(
         matches, 
         title="Terrain Match Consistency", 
-        labels=[f"v{i+1}" for i in range(len(associations))]
+        labels=[f"V{i+1}" for i in range(len(associations))]
     )
 
 

@@ -16,6 +16,7 @@ def compute_weighted_medoid(X, w):
 def compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.2):
     sorted_indices = torch.argsort(dist,dim=0) # smallest to largest dist from weighted mean
     num_keep = int(len(sorted_indices) * (1 - trim_percent))
+    print(num_keep)
     keep_idxs = sorted_indices[:num_keep]
     X_trimmed = X[keep_idxs]
     w_trimmed = w[keep_idxs]
@@ -66,9 +67,14 @@ if __name__ == '__main__':
     chosen_gidx = -1
     clipid_2_counts = None
     
+    skip_count = 5000
+    count = 0
     for g_idx, cid_2_cnt in gidx_2_clipcounts.items():
         if g_idx not in terrain_gidxs:
         # if g_idx in terrain_gidxs:
+            continue
+        if count < skip_count:
+            count += 1
             continue
         chosen_gidx = g_idx
         clipid_2_counts = cid_2_cnt
@@ -101,13 +107,21 @@ if __name__ == '__main__':
     dist = 1 - diff # convert cosine similarity to distance
     
     medoid_w = compute_weighted_medoid(X, w)
-    trimmed_mean_w = compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.2)
+    trimmed_mean_w_02 = compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.2)
+    trimmed_mean_w_04 = compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.4)
+    trimmed_mean_w_06 = compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.6)
+    trimmed_mean_w_09 = compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.9)
+    trimmed_mean_w_095 = compute_weighted_trimmed_mean(X, w, dist, trim_percent=0.95)
     geometric_median_w = compute_weighted_geometric_median(X, w, max_iter=100, tol=1e-5)
     max_w = X[w.argmax(),:]
     
     mean_xy = np.array([mu_w[92].item(), mu_w[133].item()])
     medoid_xy = np.array([medoid_w[92].item(), medoid_w[133].item()])
-    trimmed_mean_xy = np.array([trimmed_mean_w[92].item(), trimmed_mean_w[133].item()])
+    trimmed_mean_02_xy = np.array([trimmed_mean_w_02[92].item(), trimmed_mean_w_02[133].item()])
+    trimmed_mean_04_xy = np.array([trimmed_mean_w_04[92].item(), trimmed_mean_w_04[133].item()])
+    trimmed_mean_06_xy = np.array([trimmed_mean_w_06[92].item(), trimmed_mean_w_06[133].item()])
+    trimmed_mean_09_xy = np.array([trimmed_mean_w_09[92].item(), trimmed_mean_w_09[133].item()])
+    trimmed_mean_095_xy = np.array([trimmed_mean_w_095[92].item(), trimmed_mean_w_095[133].item()])
     geometric_median_xy = np.array([geometric_median_w[92].item(), geometric_median_w[133].item()])
     max_xy = np.array([max_w[92].item(), max_w[133].item()])
     
@@ -128,9 +142,13 @@ if __name__ == '__main__':
     plt.scatter(xys[:,0], xys[:,1], alpha=0.5, label="Clip Embeddings", s=sizes)
     plt.scatter(mean_xy[0], mean_xy[1], color='red', label='Weighted Mean', marker='X', s=200)
     plt.scatter(medoid_xy[0], medoid_xy[1], color='green', label='Weighted Medoid', marker='^', s=200)
-    plt.scatter(trimmed_mean_xy[0], trimmed_mean_xy[1], color='orange', label='Weighted Trimmed Mean', marker='*', s=200)
     # plt.scatter(geometric_median_xy[0], geometric_median_xy[1], color='purple', label='Weighted Geometric Median', marker='>', s=200)
     plt.scatter(max_xy[0], max_xy[1], color='brown', label='Max Embedding', marker='P', s=200)
+    plt.scatter(trimmed_mean_02_xy[0], trimmed_mean_02_xy[1], color='orange', label='Weighted Trimmed Mean t=0.2', marker='*', s=200)
+    plt.scatter(trimmed_mean_04_xy[0], trimmed_mean_04_xy[1], color='magenta', label='Weighted Trimmed Mean t=0.4', marker='*', s=200)
+    plt.scatter(trimmed_mean_06_xy[0], trimmed_mean_06_xy[1], color='green', label='Weighted Trimmed Mean t=0.6', marker='*', s=200)
+    plt.scatter(trimmed_mean_09_xy[0], trimmed_mean_09_xy[1], color='blue', label='Weighted Trimmed Mean t=0.9', marker='*', s=200)
+    plt.scatter(trimmed_mean_095_xy[0], trimmed_mean_095_xy[1], color='black', label='Weighted Trimmed Mean t=0.95', marker='*', s=200)
     plt.xlabel("Embedding Dimension 92")
     plt.ylabel("Embedding Dimension 133")
     if is_terrain:
@@ -140,12 +158,14 @@ if __name__ == '__main__':
     plt.legend()
     plt.show()
       
-    # # Display distribution of distances from mean (do outliers exist?)
-    # plt.hist(dist.cpu().detach().numpy(), bins=50)
-    # plt.xlabel("Distance from Weighted Mean")
-    # plt.ylabel("Frequency")
-    # plt.title(f"Distance Distribution from Mean for Global Index {chosen_gidx}")
-    # plt.show()
+    # Display distribution of distances from mean (do outliers exist?)
+    plt.figure()
+    plt.hist(dist.cpu().detach().numpy(), bins=50)
+    plt.xlabel("Distance from Weighted Mean", fontsize=17)
+    plt.ylabel("Frequency", fontsize=17)
+    plt.title(f"Distance Distribution from Mean", fontsize=18)# for Global Index {chosen_gidx}")
+    plt.tick_params(axis='both', labelsize=15)
+    plt.show()
     
     # # Display distribution of distances from medoid, trimmed mean, geometric median
     # diff_medoid = X - medoid_w.unsqueeze(0)

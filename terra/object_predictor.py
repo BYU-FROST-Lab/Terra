@@ -152,12 +152,14 @@ class ObjectPredictor:
             # print("Running AVG-TRIMMED Method")
             # idx_scores = {}
             # matched_idxs = []
+            # trim_percent = 0.6
+            # print("Trim percent:",trim_percent)
             # avg_trimmed_tensor = build_trimmed_mean_tensor(
             #     self.terra.gidx_2_clipcounts, 
             #     self.terra.clip_segs,
             #     self.terra.semantic_gidx_avgclip,
             #     self.terra.semantic_gidxs,
-            #     trim_percent=0.2
+            #     trim_percent=trim_percent
             # )
             # for start, scores in chunked_tensor_cosine_similarity(
             #     avg_trimmed_tensor,

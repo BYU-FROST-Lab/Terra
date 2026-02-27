@@ -54,7 +54,7 @@ class ObjectEvaluator():
         
         ## Metrics
         self.gt_obj_count = [self.obj_tasks[i]["ground_truth"] for i in range(self.num_tasks)] # N_t
-        self.gt_matches = [0 for _ in range(self.num_tasks)] # M_t
+        self.pred_matches = [0 for _ in range(self.num_tasks)] # M_t
         self.task_rel_count = [0 for _ in range(self.num_tasks)] # \bar{N}_t
         self.task_rel_matches = [0 for _ in range(self.num_tasks)] # \bar{M}_t
     
@@ -63,7 +63,7 @@ class ObjectEvaluator():
         self.record_precision_metrics()
         
         # Print out metrics
-        recall = sum(self.gt_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
+        recall = sum(self.pred_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
         precision = sum(self.task_rel_matches) / sum(self.task_rel_count) if sum(self.task_rel_count) > 0 else 0.0
         F1 = 0.0 if (recall + precision) == 0 else 2 * (precision * recall) / (precision + recall)
         
@@ -86,7 +86,7 @@ class ObjectEvaluator():
             Nt = self.gt_obj_count[t]
             topk_objs = self.get_topk_objs_for_task(t, Nt)
             Mt = self.count_matches(topk_objs, task_idx=t)
-            self.gt_matches[t] = Mt
+            self.pred_matches[t] = Mt
             print(f"Task {self.task_names[t]}: GT Count = {Nt}, GT Matches = {Mt}")
     
     def get_top90percent_objs(self):
