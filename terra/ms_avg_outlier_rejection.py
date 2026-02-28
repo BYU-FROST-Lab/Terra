@@ -3,6 +3,7 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
+from tqdm import tqdm
 
 from terra_utils import load_terra
 from utils import tensor_cosine_similarity
@@ -46,6 +47,21 @@ def compute_weighted_geometric_median(X, w, max_iter=100, tol=1e-6):
         best_x = new_x
     return best_x
 
+def count_outliers(X, w, threshold=0.3):
+    # Normalize embeddings
+    X = X / X.norm(dim=1, keepdim=True)
+
+    # Weighted mean
+    mu = (X * w.unsqueeze(1)).sum(dim=0) / w.sum()
+    mu = mu / mu.norm()
+
+    # Cosine distance
+    sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    dist = 1 - sim
+
+    # Count outliers
+    return (dist > threshold).sum().item()
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--Terra', type=str, help="Terra class object filepath")
@@ -64,21 +80,42 @@ if __name__ == '__main__':
     with open(args.terrain_gidx, "rb") as f:
         terrain_gidxs = pkl.load(f)
     
-    chosen_gidx = -1
+    max_outliers = -1
+    chosen_gidx = None
     clipid_2_counts = None
     
-    skip_count = 5000
-    count = 0
-    for g_idx, cid_2_cnt in gidx_2_clipcounts.items():
+    # skip_count = 5000
+    # count = 0
+    for g_idx, cid_2_cnt in tqdm(gidx_2_clipcounts.items(),desc="Selecting point with most outliers"):
         if g_idx not in terrain_gidxs:
         # if g_idx in terrain_gidxs:
             continue
-        if count < skip_count:
-            count += 1
-            continue
-        chosen_gidx = g_idx
-        clipid_2_counts = cid_2_cnt
-        break
+        # if count < skip_count:
+        #     count += 1
+        #     continue
+        # chosen_gidx = g_idx
+        # clipid_2_counts = cid_2_cnt
+        # break
+        
+        # Build X and w
+        X = torch.zeros((len(cid_2_cnt), 512), device=device)
+        w = torch.zeros((len(cid_2_cnt),), device=device)
+
+        for i, (clip_id, count) in enumerate(cid_2_cnt.items()):
+            X[i,:] = clip_ids[clip_id,:]
+            w[i] = count
+
+        num_outliers = count_outliers(X, w, threshold=0.3)
+
+        if num_outliers > max_outliers:
+            max_outliers = num_outliers
+            chosen_gidx = g_idx
+            clipid_2_counts = cid_2_cnt
+            print("New max number of outliers",max_outliers)
+
+    print(f"Chosen gidx: {chosen_gidx}")
+    print(f"Number of outliers: {max_outliers}")
+        
     
     is_terrain = False
     if chosen_gidx in terrain_gidxs:
