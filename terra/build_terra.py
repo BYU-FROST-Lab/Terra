@@ -21,7 +21,7 @@ from scipy.cluster.hierarchy import dendrogram, fcluster
 from utils import tensor_cosine_similarity, numeric_key, find_latest_itr, int_defaultdict
 from gvd import DistanceMap
 from terra import Terra
-from terra_utils import save_terra
+from utils import save_terra
 from visualize_terra import TerraVisualizer
 
 class TerraBuilder:

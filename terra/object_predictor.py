@@ -6,7 +6,7 @@ import numpy as np
 import open3d as o3d
 
 from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
-from terra_utils import TerraObject
+from utils import TerraObject
 
 from tqdm import tqdm
 

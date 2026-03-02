@@ -4,7 +4,7 @@ import torch
 
 import clip
 
-from terra_utils import load_terra
+from utils import load_terra
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="Path Planning Test")

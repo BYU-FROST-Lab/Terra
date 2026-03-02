@@ -9,7 +9,7 @@ import networkx as nx
 from visualize_terra import TerraVisualizer
 from object_predictor import ObjectPredictor
 from region_predictor import RegionPredictor
-from terra_utils import TerraObject, TerraOBB, load_terra
+from utils import TerraObject, TerraOBB, load_terra
 
 
 class Terra():

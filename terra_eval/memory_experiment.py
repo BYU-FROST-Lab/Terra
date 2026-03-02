@@ -9,7 +9,7 @@ from matplotlib.lines import Line2D
 
 import networkx as nx
 
-from terra_utils import load_terra
+from terra.utils import load_terra
 
 
 def terra_size_mb(terra_obj):

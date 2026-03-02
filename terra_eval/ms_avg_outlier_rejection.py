@@ -5,8 +5,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from terra_utils import load_terra
-from utils import tensor_cosine_similarity
+from terra.utils import tensor_cosine_similarity, load_terra
 
 def compute_weighted_medoid(X, w):
     D = tensor_cosine_similarity(X, X)

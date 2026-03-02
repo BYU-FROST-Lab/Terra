@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 import clip
 
-from terra_utils import load_terra
+from terra.utils import load_terra
 
 class ObjectEvaluator():
     def __init__(self, num_imgs, terra, **kwargs):

@@ -6,7 +6,7 @@ import clip
 import matplotlib.pyplot as plt
 import open3d as o3d
 import pickle as pkl
-from terra.terra_utils import load_terra
+from terra.utils import load_terra
 from terra.utils import numeric_key, random_color, find_latest_itr, find_latest_file
 
 def map_clipid_to_globalpts(global_pc, pc_clip_dict):

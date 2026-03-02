@@ -8,7 +8,7 @@ from matplotlib.path import Path as mp_Path
 import open3d as o3d
 
 from utils import numeric_key
-from terra_utils import copy_obb
+from utils import copy_obb
 import heapq
 
 def generate_grays(n, avoid=0.5, eps=1e-9):

@@ -8,8 +8,8 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import dendrogram, fcluster
 import networkx as nx
 
-from utils import tensor_cosine_similarity
-from terra_utils import load_terra
+from terra.utils import tensor_cosine_similarity
+from terra.utils import load_terra
 
 def plot_merge_diagnostics(model, num_cuts = 4):
     """

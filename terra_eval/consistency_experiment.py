@@ -10,8 +10,8 @@ from matplotlib import cm
 import open3d as o3d
 import networkx as nx
 
-from visualize_terra import TerraVisualizer
-from utils import tensor_cosine_similarity
+from terra.visualize_terra import TerraVisualizer
+from terra.utils import tensor_cosine_similarity
 
 def invert_transform(T):
     """Invert a 4x4 homogeneous transformation matrix."""
