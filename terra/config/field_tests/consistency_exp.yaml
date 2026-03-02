@@ -1,0 +1,22 @@
+terra_v1: /ros2_bags/metric_data_0.5s/synced/rvpark_v1_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+terra_v2: /ros2_bags/metric_data_0.5s/synced/rvpark_v2_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+terra_v3: /ros2_bags/metric_data_0.5s/synced/rvpark_v3_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+terra_v4: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra_v1: /ros2_bags/metric_data_0.5s/synced/rvpark_v1_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra_v2: /ros2_bags/metric_data_0.5s/synced/rvpark_v2_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra_v3: /ros2_bags/metric_data_0.5s/synced/rvpark_v3_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra_v4: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26/output/3_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+
+# terra_v1: /ros2_bags/metric_data_0.5s/synced/rvpark_v1_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra_v2: /ros2_bags/metric_data_0.5s/synced/rvpark_v2_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra_v3: /ros2_bags/metric_data_0.5s/synced/rvpark_v3_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra_v4: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra_v1: /ros2_bags/metric_data_0.5s/synced/rvpark_v1_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra_v2: /ros2_bags/metric_data_0.5s/synced/rvpark_v2_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra_v3: /ros2_bags/metric_data_0.5s/synced/rvpark_v3_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+# terra_v4: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26/output/1_cam/terra_nxgraph_20.0mimgembs_nodist1img_spectralcluster.pkl
+
+
+transform_v2_to_v1: /ros2_bags/metric_data_0.5s/synced/experiments/consistency/rvpark_v2_1_23_26_to_rvpark_v1_1_23_26_final_transform.npy
+transform_v3_to_v1: /ros2_bags/metric_data_0.5s/synced/experiments/consistency/rvpark_v3_1_23_26_to_rvpark_v1_1_23_26_final_transform.npy
+transform_v4_to_v1: /ros2_bags/metric_data_0.5s/synced/experiments/consistency/rvpark_v4_1_23_26_to_rvpark_v1_1_23_26_final_transform.npy

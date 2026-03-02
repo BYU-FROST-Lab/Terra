@@ -1,0 +1,190 @@
+datasets:
+  # =====================================================
+  # Provo River Park
+  # =====================================================
+  # - dataset: Provo River Park
+  - dataset: River Park
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 951.56
+
+  # - dataset: Provo River Park
+  #   cameras: 3
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 951.56
+
+  # - dataset: Provo River Park
+  #   cameras: 1
+  #   clustering: agglomerative
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_cleaned/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+  #   trajectory_length_m: 951.56
+
+  # - dataset: Provo River Park
+  #   cameras: 1
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_cleaned/output/1_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 951.56
+
+  # =====================================================
+  # Nunns Park
+  # =====================================================
+  - dataset: Nunns Park
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 1238.27
+
+  # - dataset: Nunns Park
+  #   cameras: 3
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1238.27
+
+  # - dataset: Nunns Park
+  #   cameras: 1
+  #   clustering: agglomerative
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/nunns_park_p2_10_15_25/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+  #   trajectory_length_m: 1238.27
+
+  # - dataset: Nunns Park
+  #   cameras: 1
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/nunns_park_p2_10_15_25/output/1_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1238.27
+
+  # =====================================================
+  # Marina p1
+  # =====================================================
+  - dataset: Marina Part 1
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p1_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 3004.28
+
+  # - dataset: Marina p1
+  #   cameras: 3
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p1_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 3004.28
+
+  # - dataset: Marina p1
+  #   cameras: 1
+  #   clustering: agglomerative
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p1_11_6_25/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+  #   trajectory_length_m: 3004.28
+
+  # - dataset: Marina p1
+  #   cameras: 1
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p1_11_6_25/output/1_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 3004.28
+
+  # =====================================================
+  # Marina p2
+  # =====================================================
+  - dataset: Marina Part 2
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 1269.63
+
+  # - dataset: Marina p2
+  #   cameras: 3
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1269.63
+
+  # - dataset: Marina p2
+  #   cameras: 1
+  #   clustering: agglomerative
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+  #   trajectory_length_m: 1269.63
+
+  # - dataset: Marina p2
+  #   cameras: 1
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/utah_lake_park_p2_11_6_25/output/1_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1269.63
+
+  # =====================================================
+  # Hope Campground
+  # =====================================================
+  - dataset: Hope Campground
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/hope_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 1232.91
+
+  # - dataset: Hope Campground
+  #   cameras: 3
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/hope_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1232.91
+
+  # - dataset: Hope Campground
+  #   cameras: 1
+  #   clustering: agglomerative
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/hope_campground_11_3_25/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+  #   trajectory_length_m: 1232.91
+
+  # - dataset: Hope Campground
+  #   cameras: 1
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/hope_campground_11_3_25/output/1_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1232.91
+
+  # =====================================================
+  # Rock Canyon Campground
+  # =====================================================
+  - dataset: Rock Canyon Campground
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/rock_canyon_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 1151.43
+
+  # - dataset: Rock Canyon Campground
+  #   cameras: 3
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/rock_canyon_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1151.43
+
+  # - dataset: Rock Canyon Campground
+  #   cameras: 1
+  #   clustering: agglomerative
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/rock_canyon_campground_11_3_25/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+  #   trajectory_length_m: 1151.43
+
+  # - dataset: Rock Canyon Campground
+  #   cameras: 1
+  #   clustering: spectral
+  #   terra_path: /ros2_bags/metric_data_0.5s/synced/rock_canyon_campground_11_3_25/output/1_cam/Terra_20.0mimgembs_nodist1img_spectralcluster.pkl
+  #   trajectory_length_m: 1151.43
+
+  # =====================================================
+  # RV Park Datasets
+  # =====================================================
+  - dataset: RV Park V1
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/rvpark_v1_1_23_26/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 724.30
+
+  - dataset: RV Park V2
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/rvpark_v2_1_23_26/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 776.66
+  
+  - dataset: RV Park V3
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/rvpark_v3_1_23_26/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 902.18
+
+  - dataset: RV Park V4
+    cameras: 3
+    clustering: agglomerative
+    terra_path: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+    trajectory_length_m: 998.96

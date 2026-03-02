@@ -1,0 +1,43 @@
+---
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25
+output_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam
+num_cams: 3
+IMG_W: 768
+IMG_H: 480
+## Nunns Park
+cam1_K: [453.9425964355469, 0.0, 388.0409851074219, 
+        0.0, 453.8470764160156, 247.8123321533203, 
+        0.0, 0.0, 1.0]  # 768 x 480
+cam1_dist: [4.479070663452148, 0.39237383008003235, -4.801498289452866e-05, 
+        0.0002160959702450782, 2.7756459712982178, 4.403016090393066, 
+        0.37853071093559265, 2.9023659229278564, 0.0, 
+        0.0, 0.0, 0.0, -0.003902334487065673, 0.0001621022674953565] # forward (cam1) - nunns park
+
+cam2_K:  [454.3408203125, 0.0, 380.1490173339844, 
+        0.0, 454.3426818847656, 250.3977813720703, 
+        0.0, 0.0, 1.0] # 768 x 480
+cam2_dist: [3.7520368099212646, -0.33402150869369507, 0.00011741014895960689, 
+        0.00026635383255779743, 1.911475419998169, 3.676846504211426, 
+        -0.29829320311546326, 1.9814714193344116, 0.0, 
+        0.0, 0.0, 0.0, -0.0008460935787297785, 0.004733051639050245] # left (cam2) - nunns park
+
+cam3_K:  [457.978759765625, 0.0, 387.35205078125, 
+        0.0, 457.719482421875, 240.11021423339844, 
+        0.0, 0.0, 1.0] # 768 x 480
+cam3_dist: [16.120267868041992, 31.638051986694336, 0.00022723490837961435, 
+        0.0006202104850672185, 0.887903094291687, 16.1851806640625, 
+        30.912010192871094, 2.398867130279541, 0.0, 
+        0.0, 0.0, 0.0, 0.0006207168917171657, 0.003685013158246875] # right (cam3) - nunns park
+
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.26
+prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+object_tasks:
+  - {task: "parked car", ground_truth: 16} # 3_cam=16, 1_cam=14
+  - {task: "honey bucket", ground_truth: 4} # 3_cam=4, 1_cam=4
+  - {task: "building", ground_truth: 3} # 3_cam=3, 1_cam=3
+  - {task: "garbage", ground_truth: 3} # 3_cam=3, 1_cam=3
+  - {task: "pavilion", ground_truth: 2} # 3_cam=2, 1_cam=2 
+  - {task: "stop sign", ground_truth: 2} # 3_cam=2, 1_cam=2
+
+#  - task: "get bike from the bicycle rack" # method=3dsg, alpha=0.25 # blue
