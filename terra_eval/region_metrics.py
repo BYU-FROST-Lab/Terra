@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import clip
 
-from terra_utils import load_terra
+from terra.terra_utils import load_terra
 
 
 def compute_region_metrics(pred_places, gt_places):
