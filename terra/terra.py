@@ -236,6 +236,9 @@ class Terra():
         else:
             self.visualizer.display_3dsg(self.terra_3dsg)
     
+    def display_point_cloud(self, ms_map=False, point_size=2.0, color=[0.5, 0.5, 0.5]):
+        self.visualizer.display_point_cloud(self, self.pc, ms_map=ms_map, point_size=point_size, color=color)
+
     def display_terra(self, 
                       display_pc=False, 
                       plot_objects_on_ground=False,

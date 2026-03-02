@@ -61,7 +61,15 @@ if __name__ == '__main__':
     terra = load_terra(region_task_params["terra"])
     terra.alpha = region_task_params["alpha"]
     region_tasks = region_task_params["region_tasks"]
-    
+
+    # place_nodes = [n for n, d in terra.terra_3dsg.nodes(data=True) if d["level"] == 1]
+    # print("Number of nodes in the dataset:", len(place_nodes))
+
+    # print("Number of ground truth place nodes for each query:")
+    # for idx, task in enumerate(region_tasks):
+    #     gt_place_nodes = task["place_nodes"]
+    #     print(f"Query {idx} - {task['task']}: {len(gt_place_nodes)} place nodes")
+
     # Encode prompts with CLIP
     tasks = []
     place_nodes_dict = {}
@@ -84,9 +92,7 @@ if __name__ == '__main__':
     print("\nCollected region tasks:", tasks)
 
     alpha_values = np.linspace(0.2, 0.35, 16)
-    k_values = np.linspace(1, 11, 11)
-    # alpha_values = np.linspace(0.26, 0.26, 1)
-    # k_values = np.linspace(1, 1, 1)
+    k_values = np.linspace(1, 10, 10)
     best_alpha = None
     best_k = None
     best_f1 = 0.0
@@ -121,7 +127,6 @@ if __name__ == '__main__':
                 best_recall = recall
 
     print(f"\nBest parameters found - Alpha: {best_alpha}, K: {best_k} with Precision: {best_precision:.4f}, Recall: {best_recall:.4f}, F1: {best_f1:.4f}")
-            
     
     #Predict and Display Best Results
     terra.reset_region_tasks()
@@ -137,8 +142,18 @@ if __name__ == '__main__':
     end_time = time.time()
     print(f"\nRuntime (ms): {(end_time - start_time)*1000:.2f}")
 
-    # terra.display_terra()
-    pred_places = terra.task_relevant_place_nodes
+    # Display ground truth place nodes for each query
+    # print("Ground Truth Place Nodes:")
+
+    # for task_idx, place_nodes in place_nodes_dict.items():
+    #     print(f"Task: {tasks[task_idx]}, Place Nodes: {place_nodes}")
+
+    #     terra.visualizer.display_selected_nodes(
+    #         terra.terra_3dsg,
+    #         place_nodes,
+    #         pc=terra.pc
+    #     )
+
     for task_idx in range(len(region_tasks)):
         terra.display_task_relevant_places(task_idx, heatmap_mode=True)
     terra.display_task_relevant_places()

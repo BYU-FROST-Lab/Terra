@@ -81,6 +81,8 @@ if __name__ == '__main__':
             self.ks = []
             self.best_f1 = 0.0
             self.best_alpha = 0.0
+            self.best_precision = 0.0
+            self.best_recall = 0.0
             self.best_k = 0
             self.tasks = []
             self.place_nodes_dict = {}
@@ -110,6 +112,13 @@ if __name__ == '__main__':
             prediction_method=config_1cam["prediction_method"]
         )
 
+        aib_1cam_config = RegionQueryingConfig(
+            name = name_1cam + " AIB 1 Cam",
+            terra_path=config_1cam["terra"],
+            region_tasks=config_1cam["region_tasks"],
+            prediction_method="aib"
+        )
+
         agg_3cam_config = RegionQueryingConfig(
             name = name_3cam + " Agglomerative 3 Cam",
             terra_path=config_3cam["terra"],
@@ -126,10 +135,19 @@ if __name__ == '__main__':
             prediction_method=config_3cam["prediction_method"]
         )
 
+        aib_3cam_config = RegionQueryingConfig(
+            name = name_3cam + " AIB 3 Cam",
+            terra_path=config_3cam["terra"],
+            region_tasks=config_3cam["region_tasks"],
+            prediction_method="aib"
+        )
+
         configs.append(agg_1cam_config)
         configs.append(spec_1cam_config)
+        configs.append(aib_1cam_config)
         configs.append(agg_3cam_config)
         configs.append(spec_3cam_config)
+        configs.append(aib_3cam_config)
 
     for config in configs:
         for task_index, task in enumerate(config.region_tasks):
@@ -161,13 +179,17 @@ if __name__ == '__main__':
         for alpha in alpha_values:
             config.terra.alpha = alpha
             for k in k_values:
+                if config.prediction_method == "aib": # and k != len(config.region_tasks):
+                    k = len(config.region_tasks)  # Override k to be number of tasks for AIB since it doesn't vary with K
+                    # continue  # Skip k values that don't match the number of tasks for AIB
+
                 print(f"Predicting regions with alpha: {alpha:0.2f}, k: {k}")
                 config.terra.reset_region_tasks()
                 # Prediction regions given prompts
                 config.terra.predict_regions(
                     config.input_task_clip_tensor, 
                     config.tasks, 
-                    config.prediction_method, 
+                    config.prediction_method,
                     K = int(k)
                 )
 
@@ -236,12 +258,34 @@ if __name__ == '__main__':
         end_time = time.time()
         runtime_ms = (end_time - start_time)*1000
 
-        print(f"---Overall Best Metrics of alpha {config.best_alpha:0.2f} and K {int(config.best_k)} => Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}, Runtime: {runtime_ms:.2f} ms---")
+        print(f"---Overall Best Metrics of alpha {config.best_alpha:0.2f} and K {int(config.best_k)} => Precision: {config.best_precision:.4f}, Recall: {config.best_recall:.4f}, F1: {config.best_f1:.4f}, Runtime: {runtime_ms:.2f} ms---")
 
 
-    # #Plot grid of 4 plots of F1 vs Alpha with best K for each configuration
+    
+    # #Display ground truth place nodes for each task in the first config
+    # first_config = configs[0]
+    # print(f"\n\nDisplaying Ground Truth Place Nodes for {first_config.name.upper()}:")
+    # for task_idx, place_nodes in first_config.place_nodes_dict.items():
+    #     print(f"Task: {first_config.tasks[task_idx]}, Place Nodes: {place_nodes}")
+
+    #     first_config.terra.visualizer.display_selected_nodes(
+    #         first_config.terra.terra_3dsg,
+    #         place_nodes,
+    #         pc=first_config.terra.pc
+    #     )
+
+
+    # for config in configs:
+    #     #Display 3dsg
+    #     print(f"\n\nDisplaying results for {config.name.upper()}:")
+    #     terra.display_3dsg()
+
+    # #Plot grid of each 4 plots of F1 vs Alpha with best K for each configuration
     # fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-    # for i, config in enumerate(configs):
+    # i = 0
+    # for config in configs:
+    #     if config.prediction_method == "aib":
+    #         continue  # Skip AIB for alpha plots since it doesn't vary with K
     #     ax = axs[i//2, i%2]
     #     best_ks = []
     #     best_f1s = []
@@ -253,18 +297,27 @@ if __name__ == '__main__':
     #     ax.set_xlabel('Alpha')
     #     ax.set_ylabel('F1 Score')
     #     ax.grid(True)
+
+    #     i += 1
     
     # plt.show()
 
 
     # #Plot grid of 4 plots of F1 vs K with best Alpha for each configuration
-    # fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-    # for i, config in enumerate(configs):
+    # fig, axs = plt.subplots(2, 1, figsize=(12, 10))
+    # i = 0
+    # sums_f1s_for_k = [0.0 for _ in k_values]
+    # for config in configs:
+    #     if config.prediction_method == "aib":
+    #         continue  # Skip AIB for K plots since it doesn't vary with alpha
     #     ax = axs[i//2, i%2]
     #     best_ks = []
     #     best_f1s = []
     
     #     f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if a == config.best_alpha]
+    #     for k, f1 in zip(config.ks, config.f1_scores):
+    #         idx = np.where(k_values == k)[0][0]
+    #         sums_f1s_for_k[idx] += f1
 
     #     ax.plot(k_values, f1s_for_k, marker='o')
     #     ax.set_title(f'F1 vs K - {config.name}(Alpha={config.best_alpha:0.2f})')
@@ -272,5 +325,16 @@ if __name__ == '__main__':
     #     ax.set_ylabel('F1 Score')
     #     ax.grid(True)
 
+    #     i += 1
+
+    # plt.show()
+
+    # average_f1s_for_k = [s / 2 for s in sums_f1s_for_k]
+    # plt.figure(figsize=(8, 6))
+    # plt.plot(k_values, average_f1s_for_k, marker='o')
+    # plt.title('Average F1 vs K across Configurations')
+    # plt.xlabel('K')
+    # plt.ylabel('Average F1 Score')
+    # plt.grid(True)
     # plt.show()
 

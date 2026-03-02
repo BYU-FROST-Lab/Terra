@@ -246,6 +246,51 @@ class TerraVisualizer():
             vis.run()
             vis.destroy_window()
 
+    def display_point_cloud(self, terra, pc, ms_map=False,point_size=2.0, color=[0.5, 0.5, 0.5]):
+        """
+        Display only a point cloud.
+
+        Args:
+            pc (np.ndarray): Nx3 or Nx4 array of points.
+            point_size (float): Size of rendered points.
+            color (list): RGB color for the point cloud (ignored if pc has per-point colors).
+        """
+        if pc is None:
+            raise ValueError("Point cloud (pc) cannot be None.")
+
+        # If pc has more than 3 columns (e.g., XYZ + intensity), keep only XYZ
+        if pc.shape[1] > 3:
+            pc = pc[:, :3]
+
+        if ms_map:
+            colored_pcds = self._get_colored_pcd(terra, color_clip=True, color_terrain=True)
+            all_geoms = colored_pcds
+            vis = o3d.visualization.Visualizer()
+            vis.create_window()
+            for g in all_geoms:
+                vis.add_geometry(g)
+            render_opt = vis.get_render_option()
+            render_opt.point_size = 2.0  # smaller points
+            vis.run()
+            vis.destroy_window()
+
+        else:
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(pc)
+
+            # If no per-point colors exist, paint uniformly
+            pcd.paint_uniform_color(color)
+
+            vis = o3d.visualization.Visualizer()
+            vis.create_window()
+            vis.add_geometry(pcd)
+
+            render_opt = vis.get_render_option()
+            render_opt.point_size = point_size
+
+            vis.run()
+            vis.destroy_window()     
+
     def display_selected_nodes(self, G, selected_node_ids, pc=None):
         selected_subgraph = G.subgraph(selected_node_ids)
         self.display_3dsg(selected_subgraph, pc=pc)
@@ -452,7 +497,7 @@ class TerraVisualizer():
             vis.destroy_window()
         else:
             o3d.visualization.draw_geometries(geo_3dsg)
-
+    
     def display_task_relevant_places(self, 
                                      terra_3dsg, 
                                      region_tasks, 
