@@ -167,9 +167,9 @@ python3 object_retrieval_experiment.py --params=config/field_tests/object_retrie
 
 <details open>
 
-<summary><b>Region Monitoring Tasks</b></summary>
+<summary><b>Region Queryring Tasks</b></summary>
 
-To perform region monitoring tasks with the Terra 3DSG saved from [Building Terra](#building-terra), is done as follows:
+To perform region querying tasks with the Terra 3DSG saved from [Building Terra](#building-terra), is done as follows:
 - Modify the `region_monitoring.yaml` file for as many region monitoring tasks of interest as well as other parameters described below.
 - Run the region monitoring task as follows:
 ```bash
@@ -177,10 +177,15 @@ python3 region_monitoring_task.py --params=/path/to/region_monitoring.yaml
 ```
 - YAML parameters are defined as:
     - `terra`: Path to the saved Terra 3DSG. 
-        - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the latter.*
+        - *Note: `build_terra.py` saves a terra_3dsg.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This parameter is asking for the latter.*
     - `region_tasks`: YAML list of region monitoring tasks
     - `prediction_method`: Pass a string of the method to use from the following [max, thresh, mix, aib]. These methods are explained in detail in the paper. (Default: `max`)
     - `alpha`: Threshold to determine whether a region is task relevant (i.e. if its cosine-similarity score is above `alpha` then it is task-relevant). Only used for methods [thresh, mix, aib]. (Default: `0.23`) 
     - `k`: Parameter for selecting the top-K task relevant regions. Only used for methods [max, mix]. (Default: `1`)
+
+- Other helpful files to assist in this region querying task include:
+    - `region_metrics.py`: iterates through different ranges of alpha and k to find the parameters that produce the best overall F1 score for all the regions, and the best for each task seperately
+    - `region_querying_plots.py`: iterates through several configurations of terra (for example different methods of clustering, or different graphs) and potential to iterate throught different ranges of k and alpha, calculting the metrics for each config.
+    - `region_vis_script`: has different functions for displaying the ids of terra nodes, and functionality for calculating all the nodes in a polygon given list of ids. Used to find the ground truth nodes of regions.
 
 </details>
