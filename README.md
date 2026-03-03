@@ -161,12 +161,14 @@ python3 -m terra.build_terra --params=/path/to/build_terra.yaml
 
 To visualize the resulting 3D Scene Graph, run: 
 ```bash
-python3 -m terra.visualize_terra --terra_3dsg=/path/to/saved/terra_nxgraph.pkl --global_pc=/folder/path/to/global_pc/
+python3 -m terra.visualize_terra --terra_3dsg=/path/to/saved/terra_nxgraph.pkl --global_pc=/folder/path/to/global_pc/ --num_terrains=num_terrains --view_json=view.json
 ```
 - The arguments are defined as:
     - `terra_3dsg`: Path to the saved 3DSG. 
         - *Note: `build_terra.py` saves a terra_nxgraph.pkl and a Terra.pkl file. The first is just the nx.Graph 3DSG object and the latter is our Terra 3DSG class. This is asking for the first one.* 
     - `global_pc`: Path to the folder that contains all of the global point clouds saved from the metric mapping step.
+    - `num_terrains`: Integer of the number of terrains used by the YOLO model
+    - `view_json`: (Optional) Saved json file to tell Open3D to display the 3DSG at a certain angle and distance.
 
 </details>
 
