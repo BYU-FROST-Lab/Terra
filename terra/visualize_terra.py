@@ -5,11 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as mp_Path
 
+import heapq
+
 import open3d as o3d
 
-from utils import numeric_key
-from utils import copy_obb
-import heapq
+from terra.utils import numeric_key
+from terra.utils import copy_obb
+
 
 def generate_grays(n, avoid=0.5, eps=1e-9):
     result = []

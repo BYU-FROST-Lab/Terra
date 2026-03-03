@@ -18,11 +18,11 @@ import clip
 import open3d as o3d
 from scipy.cluster.hierarchy import dendrogram, fcluster
 
-from utils import tensor_cosine_similarity, numeric_key, find_latest_itr, int_defaultdict
-from gvd import DistanceMap
-from terra import Terra
-from utils import save_terra
-from visualize_terra import TerraVisualizer
+from terra.utils import tensor_cosine_similarity, numeric_key, find_latest_itr, int_defaultdict
+from terra.gvd import DistanceMap
+from terra.terra import Terra
+from terra.utils import save_terra
+from terra.visualize_terra import TerraVisualizer
 
 class TerraBuilder:
     def __init__(self, args):
@@ -50,7 +50,14 @@ class TerraBuilder:
         self.z_offset_lidar = args['z_offset_lidar']
         self.region_method = args['region_method']
         if self.region_method == "agglomerative":
-            self.hierarchical_distances = args['agg_hierarchical_distances']
+            agg_params = args['agg_params']
+            if isinstance(agg_params, int):
+                print(f"Choosing automatic level division and dividing into {agg_params} levels")
+                self.num_levels = agg_params
+                self.use_auto_levels = True
+            else:
+                self.hierarchical_distances = agg_params
+                self.use_auto_levels = False
         elif self.region_method == "spectral":
             self.min_graph_area = args['spec_min_graph_area']
             self.max_sem_diff = args['spec_max_semantic_diff']            
@@ -617,26 +624,28 @@ class TerraBuilder:
         
         # Now extract the three hierarchical levels:
         hierarchical_clusters = []
-        # for dist in self.hierarchical_distances:
-        #     hierarchical_clusters.append(
-        #         fcluster(linkage_matrix, t=dist, criterion='distance')
-        #     )
-        # Auto-select 4 'best' cut distances
-        distances = agg_model.distances_
-        distances = np.sort(distances) # smallest to largest
-        delta = np.diff(distances)
-        topN_idxs = np.argsort(delta)[-4:]
-        topN_idxs = np.sort(topN_idxs)
-        for dist in distances[topN_idxs]:
-            if (dist // 1) == 0.0:
-                print("Distance",dist,"rounded",np.floor(dist*1000)/1000)
+        if self.use_auto_levels:
+            # Auto-select X 'best' cut distances
+            distances = agg_model.distances_
+            distances = np.sort(distances) # smallest to largest
+            delta = np.diff(distances)
+            topN_idxs = np.argsort(delta)[-self.num_levels:]
+            topN_idxs = np.sort(topN_idxs)
+            for dist in distances[topN_idxs]:
+                if (dist // 1) == 0.0:
+                    print("Distance",dist,"rounded",np.floor(dist*1000)/1000)
+                    hierarchical_clusters.append(
+                        fcluster(linkage_matrix, t=np.floor(dist*1000)/1000, criterion='distance')
+                    )
+                else:
+                    print("Distance",np.floor(dist))
+                    hierarchical_clusters.append(
+                        fcluster(linkage_matrix, t=np.floor(dist), criterion='distance')
+                    )
+        else:
+            for dist in self.hierarchical_distances:
                 hierarchical_clusters.append(
-                    fcluster(linkage_matrix, t=np.floor(dist*1000)/1000, criterion='distance')
-                )
-            else:
-                print("Distance",np.floor(dist))
-                hierarchical_clusters.append(
-                    fcluster(linkage_matrix, t=np.floor(dist), criterion='distance')
+                    fcluster(linkage_matrix, t=dist, criterion='distance')
                 )
         
         for layer_idx, labels in enumerate(hierarchical_clusters):

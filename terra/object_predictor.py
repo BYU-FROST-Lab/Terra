@@ -5,8 +5,8 @@ from scipy.spatial import KDTree
 import numpy as np
 import open3d as o3d
 
-from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
-from utils import TerraObject
+from terra.utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
+from terra.utils import TerraObject
 
 from tqdm import tqdm
 
@@ -81,27 +81,30 @@ class ObjectPredictor:
         
         self.objects = []
     
-    def predict(self, tasks_tensor, method="ms_avg"):        
+    def predict(self, tasks_tensor, method="ms_avg", trim=0.2):        
         self.objects = []
         print("Method for object retrieval:",method)
         if method == "ms_avg":
-            self._predict_ms(tasks_tensor, use_avg_clipids=True)
+            self._predict_ms_avg(tasks_tensor)
         elif method == "ms_max":
-            self._predict_ms(tasks_tensor, use_avg_clipids=False)
+            self._predict_ms_max(tasks_tensor)
         elif method == "3dsg_avg":
-            self._predict_3dsg(tasks_tensor, use_avg_clipids=True)
+            self._predict_3dsg_avg(tasks_tensor)
         elif method == "3dsg_max":
-            self._predict_3dsg(tasks_tensor, use_avg_clipids=False)
+            self._predict_3dsg_max(tasks_tensor)
+        elif method == "ms_medoid":
+            self._predict_ms_medoid(tasks_tensor)
+        elif method == "ms_trim":
+            self._predict_ms_trim(tasks_tensor, trim)
         elif method == "aib":
             print("Not implemented. Should I?")
         else:
             print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg_avg, 3dsg_max, aib]")
             exit()
-        print("Returning objects to Terra class")
         return self.objects
-            
-    def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
-        if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
+    
+    def _predict_ms_avg(self, tasks_tensor, place_nodes_dict=None):
+        if place_nodes_dict is None:
             ## CLIP AVG
             idx_scores = {}
             matched_idxs = []
@@ -121,87 +124,7 @@ class ObjectPredictor:
                     matched_idxs.append(idx)
                 # free GPU memory
                 del scores
-            
-            # ## CLIP MEDOID
-            # print("Running MEDOID Method")
-            # idx_scores = {}
-            # matched_idxs = []
-            # med_tensor = build_medoid_tensor(
-            #     self.terra.gidx_2_clipcounts, 
-            #     self.terra.clip_segs,
-            #     self.terra.semantic_gidxs
-            # )
-            # print("Finished building medoid tensor")
-            # for start, scores in chunked_tensor_cosine_similarity(
-            #     med_tensor,
-            #     tasks_tensor,
-            #     chunk_size=8192
-            # ):
-            #     max_scores, max_tasks = scores.max(dim=1)
-            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
-            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
-            #     for local_idx in valid_idxs:
-            #         idx_filt = start + local_idx.item()
-            #         idx = self.terra.semantic_gidxs[idx_filt]
-            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
-            #         matched_idxs.append(idx)
-            #     # free GPU memory
-            #     del scores
-            
-            # ## CLIP AVG-TRIMMED
-            # print("Running AVG-TRIMMED Method")
-            # idx_scores = {}
-            # matched_idxs = []
-            # trim_percent = 0.6
-            # print("Trim percent:",trim_percent)
-            # avg_trimmed_tensor = build_trimmed_mean_tensor(
-            #     self.terra.gidx_2_clipcounts, 
-            #     self.terra.clip_segs,
-            #     self.terra.semantic_gidx_avgclip,
-            #     self.terra.semantic_gidxs,
-            #     trim_percent=trim_percent
-            # )
-            # for start, scores in chunked_tensor_cosine_similarity(
-            #     avg_trimmed_tensor,
-            #     tasks_tensor,
-            #     chunk_size=8192
-            # ):
-            #     max_scores, max_tasks = scores.max(dim=1)
-            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
-            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
-            #     for local_idx in valid_idxs:
-            #         idx_filt = start + local_idx.item()
-            #         idx = self.terra.semantic_gidxs[idx_filt]
-            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
-            #         matched_idxs.append(idx)
-            #     # free GPU memory
-            #     del scores
-            
-        elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
-            clipid_scores = {}
-            for start, scores in chunked_tensor_cosine_similarity(
-                self.terra.clip_segs,
-                tasks_tensor,
-                chunk_size=8192
-            ):
-                max_scores, max_tasks = scores.max(dim=1)
-                for local_clip_idx in range(scores.shape[0]):
-                    clip_id = start + local_clip_idx
-                    if clip_id not in self.terra.gidx_2_clipcounts:
-                        continue
-                    if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
-                        clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
-                del scores
-            idx_scores = {}
-            matched_idxs = []
-            for idx, clip_ids in self.terra.gidx_2_clipcounts.items():
-                curr_clipid, curr_count = max(self.terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
-                if curr_clipid not in clipid_scores:
-                    continue
-                idx_scores[idx] = clipid_scores[curr_clipid]
-                matched_idxs.append(idx)
-                
-        elif use_avg_clipids: # use average clipids with place node filtering
+        else:
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
                 if len(place_nodes) == 0:
@@ -231,9 +154,39 @@ class ObjectPredictor:
                         ):
                             idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
                             matched_idxs.add(idx)
+                del scores   
+        
+        # Cluster object points & extract bounding boxes from clusters
+        if len(matched_idxs) == 0:
+            print("No similar MS-Map indices detected")
+            exit()
+        self._cluster_into_bboxes(list(matched_idxs), idx_scores)
+    
+    def _predict_ms_max(self, tasks_tensor, place_nodes_dict=None):
+        if place_nodes_dict is None:
+            clipid_scores = {}
+            for start, scores in chunked_tensor_cosine_similarity(
+                self.terra.clip_segs,
+                tasks_tensor,
+                chunk_size=8192
+            ):
+                max_scores, max_tasks = scores.max(dim=1)
+                for local_clip_idx in range(scores.shape[0]):
+                    clip_id = start + local_clip_idx
+                    if clip_id not in self.terra.gidx_2_clipcounts:
+                        continue
+                    if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
+                        clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
                 del scores
-            
-        else: # use max_clipids with place node filtering
+            idx_scores = {}
+            matched_idxs = []
+            for idx, clip_ids in self.terra.gidx_2_clipcounts.items():
+                curr_clipid, curr_count = max(self.terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
+                if curr_clipid not in clipid_scores:
+                    continue
+                idx_scores[idx] = clipid_scores[curr_clipid]
+                matched_idxs.append(idx)
+        else:
             task_pts = {}
             for task_idx, place_nodes in place_nodes_dict.items():
                 if len(place_nodes) == 0:
@@ -278,9 +231,70 @@ class ObjectPredictor:
         if len(matched_idxs) == 0:
             print("No similar MS-Map indices detected")
             exit()
-        print("Made it to start clustering points into bboxes")
         self._cluster_into_bboxes(list(matched_idxs), idx_scores)
-        print("Finished clustering points into bboxes")
+    
+    def _predict_ms_medoid(self, tasks_tensor):
+        idx_scores = {}
+        matched_idxs = []
+        med_tensor = build_medoid_tensor(
+            self.terra.gidx_2_clipcounts, 
+            self.terra.clip_segs,
+            self.terra.semantic_gidxs
+        )
+        for start, scores in chunked_tensor_cosine_similarity(
+            med_tensor,
+            tasks_tensor,
+            chunk_size=8192
+        ):
+            max_scores, max_tasks = scores.max(dim=1)
+            mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            valid_idxs = mask.nonzero(as_tuple=True)[0]
+            for local_idx in valid_idxs:
+                idx_filt = start + local_idx.item()
+                idx = self.terra.semantic_gidxs[idx_filt]
+                idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+                matched_idxs.append(idx)
+            # free GPU memory
+            del scores
+        
+        # Cluster object points & extract bounding boxes from clusters
+        if len(matched_idxs) == 0:
+            print("No similar MS-Map indices detected")
+            exit()
+        self._cluster_into_bboxes(list(matched_idxs), idx_scores)
+        
+    def _predict_ms_trim(self, tasks_tensor, trim=0.2):
+        idx_scores = {}
+        matched_idxs = []
+        # print("Trim percent:",trim)
+        avg_trimmed_tensor = build_trimmed_mean_tensor(
+            self.terra.gidx_2_clipcounts, 
+            self.terra.clip_segs,
+            self.terra.semantic_gidx_avgclip,
+            self.terra.semantic_gidxs,
+            trim_percent=trim
+        )
+        for start, scores in chunked_tensor_cosine_similarity(
+            avg_trimmed_tensor,
+            tasks_tensor,
+            chunk_size=8192
+        ):
+            max_scores, max_tasks = scores.max(dim=1)
+            mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            valid_idxs = mask.nonzero(as_tuple=True)[0]
+            for local_idx in valid_idxs:
+                idx_filt = start + local_idx.item()
+                idx = self.terra.semantic_gidxs[idx_filt]
+                idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+                matched_idxs.append(idx)
+            # free GPU memory
+            del scores
+            
+        # Cluster object points & extract bounding boxes from clusters
+        if len(matched_idxs) == 0:
+            print("No similar MS-Map indices detected")
+            exit()
+        self._cluster_into_bboxes(list(matched_idxs), idx_scores)
         
     def _cluster_into_bboxes(self, matched_idxs, idx_scores):
         surrounding_point_indices = self.terra.kdt.query_ball_point(
@@ -345,10 +359,15 @@ class ObjectPredictor:
         else:
             return False
     
-    def _predict_3dsg(self, tasks_tensor, use_avg_clipids):
+    def _predict_3dsg_avg(self, tasks_tensor):
         chosen_region_nodes = self._predict_object_regions(tasks_tensor)
         chosen_place_nodes = self._predict_object_places(tasks_tensor, region_nodes_dict=chosen_region_nodes)
-        self._predict_ms(tasks_tensor, use_avg_clipids=use_avg_clipids, place_nodes_dict=chosen_place_nodes)
+        self._predict_ms_avg(tasks_tensor, place_nodes_dict=chosen_place_nodes)
+        
+    def _predict_3dsg_max(self, tasks_tensor):
+        chosen_region_nodes = self._predict_object_regions(tasks_tensor)
+        chosen_place_nodes = self._predict_object_places(tasks_tensor, region_nodes_dict=chosen_region_nodes)
+        self._predict_ms_max(tasks_tensor, place_nodes_dict=chosen_place_nodes)
     
     def _predict_object_regions(self, tasks_tensor):
         region_nodes = [n for n, d in self.terra.terra_3dsg.nodes(data=True) if d["level"] > 1]
@@ -371,7 +390,7 @@ class ObjectPredictor:
                 if scores[nodeid_to_idx[n], task_idx] > self.terra.alpha
             ]
             if len(start_regions[task_idx]) == 0:
-                # print("No regions above cos-sim thresh")
+                print("No regions above cos-sim thresh")
                 start_regions[task_idx] = [n for n in nodes_in_layer]
         
             # Descend through the tree to collect all child nodes

@@ -6,10 +6,10 @@ from scipy.spatial import KDTree
 from sklearn.cluster import DBSCAN
 import networkx as nx
 
-from visualize_terra import TerraVisualizer
-from object_predictor import ObjectPredictor
-from region_predictor import RegionPredictor
-from utils import TerraObject, TerraOBB, load_terra
+from terra.visualize_terra import TerraVisualizer
+from terra.object_predictor import ObjectPredictor
+from terra.region_predictor import RegionPredictor
+from terra.utils import TerraObject, TerraOBB, load_terra
 
 
 class Terra():
@@ -70,17 +70,16 @@ class Terra():
         self.start_node = 0
         self.dest_node = -1
     
-    def predict_objects(self, tasks_tensor, task_names, method="ms_avg"):
+    def predict_objects(self, tasks_tensor, task_names, method="ms_avg", trim=0.2):
         self.tasks.extend(task_names)
         self.prev_task_idx = len(self.tasks) - len(task_names)
         
         self.objects = self.object_predictor.predict(
             tasks_tensor,
-            method
+            method,
+            trim
         )
-        print(f"Now adding {len(self.objects)} objects to 3DSG")
         self.add_objects_to_3dsg()
-        print(f"Finished adding {len(self.objects)} objects to 3DSG")
     
     def add_objects_to_3dsg(self):
         place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
