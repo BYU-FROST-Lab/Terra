@@ -1,20 +1,25 @@
 ---
-terra: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
-alpha: 0.23
-prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg]
+terra: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_new_org/output/3_cam/Terra_20.0mimgembs_nodist1img_beta1gamma1205autoagglomerativecluster.pkl
+alpha: 0.26
+prediction_method: "ms_max" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
+# trim: 0.2 # TODO: Implement trim functionality
 
+#  terrain list: 0: leaves, 1: road, 2: sidewalk, 3: gravel, 4: dirt, 5: grass, 6: water
 #        preferred : set of terrain_ids that should have no penalty (default: None)
 #        forbidden : set of terrain_ids that should not be used (default: None)
 #        penalties : dict mapping terrain_id -> penalty cost (default: None)'
 terrain_preferences:
   preferred:
-    - 0
-  forbidden:
+    - 1
     - 2
+    - 3
+    - 4
+  forbidden:
+    - 6
   penalties:
-    0: 1.0
-    1: 5.0
+    0: 10.0
+    5: 5.0
 
 queries:
-  start: "I am by the boats"
-  destination: "go to my truck in the parking lot"
+  start: "I am by my truck and trailer"
+  destination: "go to my bicycle"

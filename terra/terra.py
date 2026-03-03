@@ -121,6 +121,7 @@ class Terra():
                             task_tensor, 
                             terrain_preferences, 
                             method="ms_avg",
+                            trim=0.2,
                             start_node=None):
         self.path_node_list = []
         
@@ -130,20 +131,23 @@ class Terra():
         if task_tensor.shape[0] == self.num_terrain + 2:
             self.start_node = self._select_best_place_node(
                 task_tensor[:-1,:], # skip destination query embedding
-                method
+                method,
+                trim
             )
             mask = torch.ones(task_tensor.size(0), dtype=torch.bool, device=task_tensor.device)
             mask[-2] = False # remove source query embedding
             task_tensor_excluded = task_tensor[mask]   # shape: (N-1, 512)
             self.dest_node = self._select_best_place_node(
                 task_tensor_excluded,
-                method
+                method,
+                trim
             )
         else:
             self.start_node = place_nodes[0] if start_node is None else start_node
             self.dest_node = self._select_best_place_node(
                 task_tensor,
-                method
+                method,
+                trim
             )
         
         terrain_weight = self._make_terrain_weight(
@@ -158,10 +162,11 @@ class Terra():
             weight=terrain_weight
         )
     
-    def _select_best_place_node(self, task_tensor, method="ms_avg"):
+    def _select_best_place_node(self, task_tensor, method="ms_avg", trim=0.2):
         pos_destination_objects = self.object_predictor.predict(
             task_tensor,
-            method
+            method,
+            trim
         )
         max_dest_score = 0.0
         max_dest_obj_idx = -1
