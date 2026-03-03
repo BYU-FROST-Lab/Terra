@@ -1,8 +1,0 @@
----
-terra: /docker_ros2_ws/src/oasis2/data/utah_lake_park_p1_11_6_2025/output/yolo_goose_ground/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
-alpha: 0.23
-prediction_method: "max" # [max, thresh, mix, aib]
-k: 1
-region_tasks:
-  - task: "monitor the parking lot"
-  - task: "monitor the boats in the marina"

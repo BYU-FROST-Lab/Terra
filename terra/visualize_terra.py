@@ -466,25 +466,26 @@ class TerraVisualizer():
         geo_3dsg = self.display_3dsg(terra.terra_3dsg, plot_objects_on_ground=plot_objects_on_ground, return_geo=True, plot_ids=plot_ids)
         
         # add in bounding boxes for nodes
-        num_tasks = max(set(t.get_task_idx() for t in terra.objects)) + 1
-        if num_tasks <= 10:
-            cmap = plt.get_cmap("tab10")
-        else:
-            cmap = plt.get_cmap("tab20")
-        task_colors = {task_idx: cmap(i % 20)[:3] for i, task_idx in enumerate(range(num_tasks))}
-        for tobj in terra.objects:
-            bbox = copy_obb(tobj.get_bbox())
-            z_init = bbox.center[2]
-            if plot_objects_on_ground:
-                bbox.translate([0, 0, 0], relative=True)
+        if len(terra.objects) > 0:
+            num_tasks = max(set(t.get_task_idx() for t in terra.objects)) + 1
+            if num_tasks <= 10:
+                cmap = plt.get_cmap("tab10")
             else:
-                bbox.translate([0, 0, self.level_offset-z_init], relative=True)
-            task_idx = tobj.get_task_idx()
-            color = task_colors[task_idx]
-            bbox.color = (0,0,0)#color  # OrientedBoundingBox supports setting a uniform color
-            colored_obb = self._create_color_oriented_bbox(bbox,color)
-            geo_3dsg.append(colored_obb)
-            geo_3dsg.append(bbox)
+                cmap = plt.get_cmap("tab20")
+            task_colors = {task_idx: cmap(i % 20)[:3] for i, task_idx in enumerate(range(num_tasks))}
+            for tobj in terra.objects:
+                bbox = copy_obb(tobj.get_bbox())
+                z_init = bbox.center[2]
+                if plot_objects_on_ground:
+                    bbox.translate([0, 0, 0], relative=True)
+                else:
+                    bbox.translate([0, 0, self.level_offset-z_init], relative=True)
+                task_idx = tobj.get_task_idx()
+                color = task_colors[task_idx]
+                bbox.color = (0,0,0)#color  # OrientedBoundingBox supports setting a uniform color
+                colored_obb = self._create_color_oriented_bbox(bbox,color)
+                geo_3dsg.append(colored_obb)
+                geo_3dsg.append(bbox)
         
         if display_pc:
             colored_pcds = self._get_colored_pcd(terra, color_pc_clip, color_terrain)

@@ -36,6 +36,8 @@ if __name__ == '__main__':
 
     #Show place nodes relevant to each task based on human annotation
     for task_idx, task in enumerate(region_tasks):
+        if len(task["place_nodes"]) == 0:
+            continue
         print(f"\nDisplaying human annotated relevant place nodes for task: {task['task']}")
         terra.visualizer.display_selected_nodes(
             terra.terra_3dsg,
@@ -51,6 +53,8 @@ if __name__ == '__main__':
         region_task_params["prediction_method"], 
         K = region_task_params["k"]
     )
+    for task_idx in range(len(region_tasks)):
+        print(len(terra.task_relevant_place_nodes[task_idx]))
     
     # Display Results
     terra.display_terra()

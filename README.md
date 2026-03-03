@@ -200,10 +200,10 @@ python3 -m terra.object_retrieval_task --params=/path/to/object_retrieval.yaml
 <summary><b>Region Monitoring Tasks</b></summary>
 
 To perform region monitoring tasks with the Terra 3DSG saved from [Building Terra](#building-terra), is done as follows:
-- Modify the `region_monitoring.yaml` file for as many region monitoring tasks of interest as well as other parameters described below.
+- Modify the `region_querying.yaml` file for as many region monitoring tasks of interest as well as other parameters described below.
 - Run the region monitoring task as follows:
 ```bash
-python3 -m terra.region_monitoring_task --params=/path/to/region_monitoring.yaml
+python3 -m terra.region_querying_task --params=/path/to/region_querying.yaml
 ```
 - YAML parameters are defined as:
     - `terra`: Path to the saved Terra 3DSG. 
