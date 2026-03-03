@@ -54,6 +54,7 @@ class TerraBuilder:
             if isinstance(agg_params, int):
                 print(f"Choosing automatic level division and dividing into {agg_params} levels")
                 self.num_levels = agg_params
+                self.hierarchical_distances = []
                 self.use_auto_levels = True
             else:
                 self.hierarchical_distances = agg_params
@@ -637,11 +638,13 @@ class TerraBuilder:
                     hierarchical_clusters.append(
                         fcluster(linkage_matrix, t=np.floor(dist*1000)/1000, criterion='distance')
                     )
+                    self.hierarchical_distances.append(np.floor(dist*1000)/1000)
                 else:
                     print("Distance",np.floor(dist))
                     hierarchical_clusters.append(
                         fcluster(linkage_matrix, t=np.floor(dist), criterion='distance')
                     )
+                    self.hierarchical_distances.append(np.floor(dist))
         else:
             for dist in self.hierarchical_distances:
                 hierarchical_clusters.append(
@@ -909,9 +912,14 @@ class TerraBuilder:
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_terra(self):
-        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1205auto{self.region_method}cluster.pkl", "wb") as f:
+        if self.use_auto_levels:
+            ending_name = f"{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1205auto{self.region_method}cluster"    
+        else:
+            ending_name = f"{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1205{self.region_method}cluster"
+        
+        with open(self.output_folder+f"/terra_nxgraph_{ending_name}.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
-        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_beta1gamma1205auto{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/map_nodeid2imgidx_{ending_name}.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
         
         terra = Terra(
@@ -931,7 +939,7 @@ class TerraBuilder:
         )
         save_terra(
             terra, 
-            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1205auto{self.region_method}cluster.pkl"
+            self.output_folder+f"/Terra_{ending_name}.pkl"
         )
         print("Finished! Terra Saved!")
         if self.DEBUG_MODE:
