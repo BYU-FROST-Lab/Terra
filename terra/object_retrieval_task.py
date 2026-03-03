@@ -39,7 +39,8 @@ if __name__ == '__main__':
     terra.predict_objects(
         input_task_clip_tensor, 
         tasks[terra.num_terrain:], 
-        object_task_params["prediction_method"]
+        object_task_params["prediction_method"],
+        object_task_params["trim"]
     )
     
     # Display Results
