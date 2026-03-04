@@ -1,5 +1,5 @@
 data_folder: /ros2_bags/holoocean_sim/sparsefull_data
-output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam
+output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam_fix
 save_average_embeddings: true
 debug: true
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml

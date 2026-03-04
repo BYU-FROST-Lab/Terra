@@ -18,7 +18,7 @@ import clip
 import open3d as o3d
 from scipy.cluster.hierarchy import dendrogram, fcluster
 
-from terra.utils import tensor_cosine_similarity, numeric_key, find_latest_itr, int_defaultdict
+from terra.utils import tensor_cosine_similarity, numeric_key, find_latest_itr
 from terra.gvd import DistanceMap
 from terra.terra import Terra
 from terra.utils import save_terra
@@ -466,13 +466,16 @@ class TerraBuilder:
             if self.DEBUG_MODE and not already_displayed:
                 print("Matching Global Index:", chosen_g_idx)
                 num_disp_imgs = min(len(img_indices), 20) # disp max 20 images
-                for cntr, img_idx in enumerate(img_indices):
-                    if cntr < num_disp_imgs:
-                        plt.figure()
-                        plt.imshow(plt.imread(self.data_folder+"/"+self.img_names[img_idx]))
-                    else:
-                        break
-                plt.show()
+                try:
+                    for cntr, img_idx in enumerate(img_indices):
+                        if cntr < num_disp_imgs:
+                            plt.figure()
+                            plt.imshow(plt.imread(self.data_folder+"/"+self.img_names[img_idx]))
+                        else:
+                            break
+                    plt.show()
+                except:
+                    print("Bad old naming convention")
                 
                 pcd = o3d.geometry.PointCloud()
                 pcd.points = o3d.utility.Vector3dVector(self.global_pc[:,:3])
