@@ -50,9 +50,10 @@ def numeric_key(path):
 def int_defaultdict():
     return defaultdict(int)
 
-def find_latest_itr(folder: str):
+def find_latest_itr(folder: str, pattern=r"gidx2clipcounts_dict_itr(\d+)\.pkl"):
     """Finds the largest iteration number."""
-    regex = re.compile(r"clip_segs_itr(\d+)\.pt")
+    # regex = re.compile(r"clip_segs_itr(\d+)\.pt")
+    regex = re.compile(pattern)
     max_itr = -1
     for f in os.listdir(folder):
         match = regex.search(f)
@@ -62,7 +63,7 @@ def find_latest_itr(folder: str):
                 max_itr = itr
     return max_itr
 
-def find_latest_file(folder: str, pattern=r"clip_segs_itr(\d+)\.pt"):
+def find_latest_file(folder: str, pattern=r"gidx2clipcounts_dict_itr(\d+)\.pkl"):
     """Finds the clip_segs_itr{last_itr}.pt file with the largest iteration number."""
     regex = re.compile(pattern)
     max_itr, latest_file = -1, None

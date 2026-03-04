@@ -1,0 +1,29 @@
+## Processing parameters
+data_folder: /ros2_bags/holoocean_sim/sparsefull_data
+output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam_fix
+num_cams: 1
+debug: false
+continue_processing: false
+save_step_size: 1000
+unaligned_threshold: 0.2 # seconds
+
+## Camera intrinsics
+IMG_W: 768
+IMG_H: 480
+cam1_K: [378.81963288,   0.0,         389.80067716,
+         0.0,         375.49008026, 238.34077718,
+         0.0,           0.0,           1.0] # 768 x 480 [W x H] and FoV = 90 deg # 768 x 480
+cam1_dist: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+## YOLO Model
+use_yoloe: false
+yolo_model_path: /holoocean_3cls.pt # holo_3cls_nano_stepsz25_256imgsz_500epochs
+yolo_conf_threshold: 0.1
+
+## MS Map parameters
+match_threshold: 0.9
+use_dbscan: true
+dbscan_eps: 2.0
+dbscan_min_samples: 5
+cam2point_dist_threshold: 20.0 # [m]
+cam_axis: ['+x']  # ['+x', '-x', '+y', '-y']

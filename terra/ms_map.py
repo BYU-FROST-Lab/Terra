@@ -57,7 +57,7 @@ class MSMap:
         self.cam2point_dist_thresh = args['cam2point_dist_threshold'] # Include images within 20 meters of points
         self.num_scans = 0
 
-        # Timing Lists TODO: Delete when done
+        # Timing Lists
         self.scan_times = []
         self.pcl_in_image_times = []
         self.yolo_times = []
@@ -256,12 +256,15 @@ class MSMap:
         # Load lidar point cloud data
         self.lidar_pc = np.load(lidar_pc_file)
     
-        # Load all images # TODO: Changed for undistorting
-        # self.camera_images = [cv2.imread(f) for f in camera_image_files]
-        # self.IMG_H, self.IMG_W = self.camera_images[0].shape[:2]
+        # Load all images
         dist_cam_imgs = [cv2.imread(f) for f in camera_image_files]
+        for img in dist_cam_imgs:
+            assert img.shape[0] == self.IMG_H and img.shape[1] == self.IMG_W 
+        
         self.camera_images = [cv2.undistort(img, self.K[i], self.dist[i], None, self.newK[i]) for i, img in enumerate(dist_cam_imgs)]
-
+        for img in self.camera_images:
+            assert img.shape[0] == self.IMG_H and img.shape[1] == self.IMG_W 
+        
         # Load transformation data
         self.transforms_lidar_to_cam = [self.load_transformation(tf_l2c_file) for tf_l2c_file in transform_lidar_to_cam_files]
         self.transform_lidar_to_global = self.load_transformation(transform_lidar_to_global_file)
@@ -273,14 +276,12 @@ class MSMap:
                 Image.fromarray(img[
                     self.roi[cam_idx][1]:self.roi[cam_idx][1]+self.roi[cam_idx][3],
                     self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
-            ).unsqueeze(0).to(self.device) # TODO: Changed for undistorting
+            ).unsqueeze(0).to(self.device)
             with torch.no_grad():
                 img_emb = self.clip_model.encode_image(prep).float()
                 img_emb.div_(img_emb.norm(dim=-1, keepdim=True))
                 self.clip_imgs.append(img_emb)
-
                 
-            # self.saved_img_names.append(camera_image_files[cam_idx])
             img_path = Path(camera_image_files[cam_idx])
             folder_name = img_path.parent.name  # e.g., "camera1_images"
             file_name = img_path.name           # e.g., "cam1_img_123456.jpg"
@@ -330,8 +331,7 @@ class MSMap:
             cam_points = cam_points_h[:, :3]
 
             # Project onto image plane (N, 3)
-            # proj_points = cam_points @ self.K[cam_idx].T
-            proj_points = cam_points @ self.newK[cam_idx].T  # TODO: Changed for undistorting
+            proj_points = cam_points @ self.newK[cam_idx].T
 
             # Normalize by z (N,) and round to nearest pixel
             zs = proj_points[:, 2]
@@ -341,8 +341,6 @@ class MSMap:
             # Original indices (needed for map lookups)
             pt_indices = np.nonzero(mask)[0]
 
-            # Filter which points are in the image bounds # TODO: Changed for undistorting
-            # in_bounds = (xs >= 0) & (xs < self.IMG_W) & (ys >= 0) & (ys < self.IMG_H)
             ## Only match points within undistorted part of image using undist_img[y:y+h, x:x+w] (x, y, w, h = roi)
             in_bounds = (xs >= self.roi[cam_idx][0]) & (xs < (self.roi[cam_idx][0]+self.roi[cam_idx][2])) \
                 & (ys >= self.roi[cam_idx][1]) & (ys < (self.roi[cam_idx][1]+self.roi[cam_idx][3]))
@@ -618,14 +616,29 @@ class MSMap:
         best_scores = torch.full((num_masks,), 0.0, device=device)
         best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
-        for start, scores in chunked_tensor_cosine_similarity(
-            clip_embs_tensor,          # (num_masks, D)
-            self.clip_segs,          # (num_existing, D)
-            chunk_size=8192
-        ): # scores: (num_masks, chunk)
+        # TODO: Delete this incorrect commented out code
+        # for start, scores in chunked_tensor_cosine_similarity(
+        #     clip_embs_tensor,          # (num_masks, D)
+        #     self.clip_segs,          # (num_existing, D)
+        #     chunk_size=8192
+        # ): # scores: (chunk, num_clip_ids)
 
-            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-            chunk_max_ids += start  # convert local → global clip id
+        #     chunk_max_scores, chunk_max_ids = scores.max(dim=1)
+        #     chunk_max_ids += start  # convert local → global clip id
+
+        #     better = chunk_max_scores > best_scores
+        #     best_scores[better] = chunk_max_scores[better]
+        #     best_clip_ids[better] = chunk_max_ids[better]
+
+        #     del scores  # free GPU memory
+        
+        for start, scores in chunked_tensor_cosine_similarity(
+            self.clip_segs,          # (num_existing, D)
+            clip_embs_tensor,          # (num_masks, D)
+            chunk_size=8192
+        ): # scores: (chunk, num_masks)
+            chunk_max_scores, chunk_max_ids = scores.max(dim=0)
+            chunk_max_ids += start  # convert chunk → full clip id
 
             better = chunk_max_scores > best_scores
             best_scores[better] = chunk_max_scores[better]

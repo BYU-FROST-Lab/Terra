@@ -61,7 +61,8 @@ class TerraBuilder:
                 self.use_auto_levels = False
         elif self.region_method == "spectral":
             self.min_graph_area = args['spec_min_graph_area']
-            self.max_sem_diff = args['spec_max_semantic_diff']            
+            self.max_sem_diff = args['spec_max_semantic_diff']
+            self.use_auto_levels = False            
         self.dbscan_params = {
             'eps': args['dbscan_params']['eps'],
             'min_samples': args['dbscan_params']['min_samples'], 
@@ -534,8 +535,8 @@ class TerraBuilder:
             self.visualizer.display_3dsg(terra_graph, pc=self.global_pc[:,:3])
         
         # self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
-        # self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
-        self.terra_graph = self.connect_all_components(terra_graph, self.cossim_weight_ratio) # ensures fully connected graph
+        self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
+        # self.terra_graph = self.connect_all_components(terra_graph, self.cossim_weight_ratio) # ensures fully connected graph
 
         if self.DEBUG_MODE:
             print("After connecting all components")
@@ -913,9 +914,9 @@ class TerraBuilder:
             
     def save_terra(self):
         if self.use_auto_levels:
-            ending_name = f"{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1205auto{self.region_method}cluster"    
+            ending_name = f"{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma{self.cossim_weight_ratio}auto{self.region_method}cluster"    
         else:
-            ending_name = f"{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma1205{self.region_method}cluster"
+            ending_name = f"{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma{self.cossim_weight_ratio}{self.region_method}cluster"
         
         with open(self.output_folder+f"/terra_nxgraph_{ending_name}.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
@@ -955,10 +956,8 @@ class TerraBuilder:
         
         euclidean_dist = np.linalg.norm(G.nodes[n1_id]["pos"] - G.nodes[n2_id]["pos"]) 
 
-        # weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
-        
-        weight = 1.0 * euclidean_dist + 1205.0 * (1 - min(cos_sim_places,1))
-        
+        weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
+
         return weight
 
     @staticmethod

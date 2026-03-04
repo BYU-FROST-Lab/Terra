@@ -41,7 +41,7 @@ def generate_launch_description():
             period=5.0,  # seconds
             actions=[
                 ExecuteProcess(
-                    cmd=['ros2', 'bag', 'play', rosbag_path, '--clock'],
+                    cmd=['ros2', 'bag', 'play', rosbag_path, '-r 0.2', '--clock'],
                     output='screen'
                 ),
             ],

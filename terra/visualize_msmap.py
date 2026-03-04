@@ -64,6 +64,7 @@ if __name__ == "__main__":
     latest_file = find_latest_file(args.output_folder)
     last_itr = find_latest_itr(args.output_folder)
     pc_clip_dict_path = os.path.join(args.output_folder, latest_file)
+    print(pc_clip_dict_path)
     with open(pc_clip_dict_path, "rb") as f: pc_clip_dict = pkl.load(f)
     
     clipid_2_globalpts = map_clipid_to_globalpts(global_pc, pc_clip_dict)

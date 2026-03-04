@@ -1,9 +1,9 @@
 save_metric_data:
   ros__parameters:
-    rosbag_path: /ros2_bags/holoocean_sim/dense18
+    rosbag_path: /ros2_bags/holoocean_sim/sparsefull
     lidar_topic: /sphere_agent/points
     camera_topic: /sphere_agent/forward_image
-    save_folder: /ros2_bags/holoocean_sim/dense18_metric_data
+    save_folder: /ros2_bags/holoocean_sim/sparsefull_data
 
     # extrinsic_transforms
     publish_extrinsics: true

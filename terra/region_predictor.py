@@ -2,7 +2,7 @@ import numpy as np
 import networkx as nx
 import torch
 
-from terra.utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
+from terra.utils import tensor_cosine_similarity
 
 
 class RegionPredictor:

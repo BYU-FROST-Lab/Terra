@@ -105,7 +105,6 @@ class ObjectPredictor:
     
     def _predict_ms_avg(self, tasks_tensor, place_nodes_dict=None):
         if place_nodes_dict is None:
-            ## CLIP AVG
             idx_scores = {}
             matched_idxs = []
             for start, scores in chunked_tensor_cosine_similarity(

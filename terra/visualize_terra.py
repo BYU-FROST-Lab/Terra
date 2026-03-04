@@ -649,6 +649,10 @@ if __name__ == '__main__':
     parser.add_argument('--view_json',
                         type=str,
                         help="Filepath to view.json file saved")
+    parser.add_argument('--level_offset',
+                        type=float,
+                        default=50,
+                        help="Separatione distance in [m] between layers of 3DSG (& PC)")
     args = parser.parse_args()
     
     global_pc_files = sorted(Path(args.global_pc).glob("*.npy"),key=numeric_key)        
@@ -672,17 +676,16 @@ if __name__ == '__main__':
     with open(args.terra_3dsg, "rb") as f:
         terra_3dsg = pkl.load(f)
     
-    tv = TerraVisualizer(level_offset=50, num_terrains=args.num_terrains)
+    tv = TerraVisualizer(level_offset=args.level_offset, num_terrains=args.num_terrains)
     
     # Display Regions 
     tv.display_regions(terra_3dsg, plot_ids=True)
     
     # Display Places
-    # tv.display_places(terra_3dsg)
+    tv.display_places(terra_3dsg)
     
-    # Display full 3DSG with point cloud
+    # Display full 3DSG
     geo = tv.display_3dsg(terra_3dsg, return_geo=True)
-    # tv.display_3dsg(terra_3dsg,pc=global_pc[:,:3])
     
     vis = o3d.visualization.Visualizer()
     vis.create_window()
@@ -693,3 +696,7 @@ if __name__ == '__main__':
         ctr = vis.get_view_control()
         ctr.convert_from_pinhole_camera_parameters(params)
     vis.run()
+    vis.destroy_window()
+    
+    # Display full 3DSG with point cloud
+    tv.display_3dsg(terra_3dsg,pc=global_pc[:,:3])
