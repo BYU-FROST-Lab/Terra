@@ -4,6 +4,7 @@ import torch
 import numpy as np
 
 import clip
+import open3d as o3d
 
 from terra.utils import load_terra
 from terra_eval.holoocean_bboxes import HoloBBoxes, get_liosam2orig_transformation
@@ -21,6 +22,36 @@ def transform_gt_bboxes(gt_bboxes_dict, T_HOLO2LIO):
             gt_bboxes_xform_dict[gt_id].append(obb_copy)
     return gt_bboxes_xform_dict
 
+def create_wire_bbox(xmin, xmax, ymin, ymax, zmin, zmax, color=[1, 0, 0]):
+    # 8 corners of the box
+    points = np.array([
+        [xmin, ymin, zmin],
+        [xmax, ymin, zmin],
+        [xmax, ymax, zmin],
+        [xmin, ymax, zmin],
+        [xmin, ymin, zmax],
+        [xmax, ymin, zmax],
+        [xmax, ymax, zmax],
+        [xmin, ymax, zmax],
+    ])
+
+    # 12 edges of the box
+    lines = [
+        [0,1], [1,2], [2,3], [3,0],  # bottom
+        [4,5], [5,6], [6,7], [7,4],  # top
+        [0,4], [1,5], [2,6], [3,7]   # vertical
+    ]
+
+    colors = [color for _ in lines]
+
+    line_set = o3d.geometry.LineSet(
+        points=o3d.utility.Vector3dVector(points),
+        lines=o3d.utility.Vector2iVector(lines),
+    )
+    line_set.colors = o3d.utility.Vector3dVector(colors)
+
+    return line_set
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--params', type=str, help="YAML file with object tasks and Terra path")
@@ -32,6 +63,35 @@ if __name__ == '__main__':
     # Load Terra
     terra = load_terra(cfg['terra'])
     terra.alpha = cfg['alpha']
+    if 'bounds' in cfg:
+        terra.object_predictor.xmin = cfg['bounds'][0]
+        terra.object_predictor.xmax = cfg['bounds'][1]
+        terra.object_predictor.ymin = cfg['bounds'][2]
+        terra.object_predictor.ymax = cfg['bounds'][3]
+        terra.object_predictor.zmin = cfg['bounds'][4]
+        terra.object_predictor.zmax = cfg['bounds'][5]
+        print("Updated bounds:",
+              terra.object_predictor.xmin,
+              terra.object_predictor.xmax,
+              terra.object_predictor.ymin,
+              terra.object_predictor.ymax,
+              terra.object_predictor.zmin,
+              terra.object_predictor.zmax)
+        # # Add bounds to plot
+        # wire_bbox = create_wire_bbox(
+        #     terra.object_predictor.xmin,
+        #     terra.object_predictor.xmax,
+        #     terra.object_predictor.ymin,
+        #     terra.object_predictor.ymax,
+        #     terra.object_predictor.zmin,
+        #     terra.object_predictor.zmax
+        # )
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(terra.pc)
+        # # pcd.transform(get_liosam2orig_transformation(case))
+        # pcd.paint_uniform_color([0.5,0.5,0.5])
+        # o3d.visualization.draw_geometries([wire_bbox, pcd])
+        
     print("Alpha parameter for object prediction:", terra.alpha)
 
     # Setup CLIP
