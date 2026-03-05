@@ -1,0 +1,24 @@
+---
+data_folder: /ros2_bags/holoocean_sim/sparsefull_data
+output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam
+gt_bboxes_csv: /docker_ros2_ws/src/terra/terra_eval/config/sim/gt_bboxes.csv
+gt_obj_names: /docker_ros2_ws/src/terra/terra_eval/config/sim/gt_object_names.yaml
+case: "sparse"
+
+terra: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
+alpha: 0.25
+prediction_method: "ms_trim" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
+trim: 0.6 # only used in ms_trim method
+object_tasks:
+  - {task: "find a car", label: 7}
+  - {task: "find a bus", label: 5}
+  # - {task: "find a shuttle", label: 5}
+  - {task: "find a bike rack", label: 3}
+  # - {task: "find a bicycle rack", label: 3}
+  - {task: "find a cone", label: 10}
+  - {task: "find a dumpster", label: 13}
+  - {task: "find a fire hydrant", label: 14}
+  - {task: "find a garbage can", label: 16}
+  - {task: "find a patio umbrella", label: 20}
+  - {task: "find a semi truck", label: 22}
+  - {task: "find a stop sign", label: 25}

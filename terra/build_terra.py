@@ -48,6 +48,7 @@ class TerraBuilder:
         ## Terra params
         self.z_offset_viz = args['z_offset_viz']
         self.z_offset_lidar = args['z_offset_lidar']
+        self.merge_all_components = args['merge_all_components']
         self.region_method = args['region_method']
         if self.region_method == "agglomerative":
             agg_params = args['agg_params']
@@ -537,9 +538,10 @@ class TerraBuilder:
             self.visualizer.display_3dsg(terra_graph)
             self.visualizer.display_3dsg(terra_graph, pc=self.global_pc[:,:3])
         
-        # self.terra_graph = self.get_largest_merged_component(terra_graph) # merges disconnected components (needed for hier-regions)
-        self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
-        # self.terra_graph = self.connect_all_components(terra_graph, self.cossim_weight_ratio) # ensures fully connected graph
+        if self.merge_all_components:
+            self.terra_graph = self.connect_all_components(terra_graph, self.cossim_weight_ratio) # ensures connected graph
+        else:
+            self.terra_graph = self.get_largest_components(terra_graph)[0] # removes disconnected components (needed for hier-regions)
 
         if self.DEBUG_MODE:
             print("After connecting all components")
@@ -1008,38 +1010,6 @@ class TerraBuilder:
             components = list(nx.connected_components(G))
 
         return G
-
-    @staticmethod
-    def get_largest_merged_component(G: nx.Graph):
-        G = G.copy()
-        total_nodes = G.number_of_nodes()
-
-        while True:
-            components = sorted(nx.connected_components(G), key=len, reverse=True)
-
-            # Identify large components
-            large_components = [
-                comp for comp in components
-                if len(comp) >= (0.25 * total_nodes)
-            ]
-
-            # Stop if zero or one large component
-            if len(large_components) <= 1:
-                break
-
-            # Merge the two largest large components
-            comp_a, comp_b = large_components[:2]
-
-            (u, v), dist = TerraBuilder.closest_nodes_between_components(
-                G, comp_a, comp_b, "pos"
-            )
-
-            # Add edge to connect them
-            G.add_edge(u, v)
-
-        # Return the (new) largest component
-        largest_comp = max(nx.connected_components(G), key=len)
-        return G.subgraph(largest_comp).copy()
     
     @staticmethod
     def get_largest_components(G: nx.Graph, n=1):

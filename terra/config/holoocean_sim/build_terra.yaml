@@ -1,7 +1,7 @@
-data_folder: /ros2_bags/holoocean_sim/sparsefull_data
-output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam_fix
+data_folder: /ros2_bags/holoocean_sim/sparsefull_prevdata
+output_folder: /ros2_bags/holoocean_sim/sparsefull_prevdata/output/1_cam
 save_average_embeddings: true
-debug: true
+debug: false
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 
 ## Terrain params
@@ -18,10 +18,11 @@ max_distance: 10.0 # 2.0 [m] / 0.2 [m/voxel] = [voxels]
 z_offset_viz: 50.0 # [m]
 z_offset_lidar: 1.0 # [m] dist from LiDAR to ground (negative-z means below LiDAR)
 cossim_weight_ratio: 100.0
+merge_all_components: false
 dbscan_params:
   eps: 1.0
   min_samples: 4
-search_radius: 0.75
+search_radius: 2.5
 alpha: 0.23
 ## Region params
 region_method: "agglomerative" # options: ["agglomerative", "spectral"]

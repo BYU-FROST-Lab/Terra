@@ -47,13 +47,15 @@ if __name__ == '__main__':
             input_task_clip_tensor,
             terrain_preferences=path_planning_params["terrain_preferences"],
             method=path_planning_params["prediction_method"],
+            trim=path_planning_params["trim"],
             start_node=start_query
         )
     else:
         terra.plan_path_to_destination(
             input_task_clip_tensor,
             terrain_preferences=path_planning_params["terrain_preferences"],
-            method=path_planning_params["prediction_method"]
+            method=path_planning_params["prediction_method"],
+            trim=path_planning_params["trim"]
         )
     
     # Display Results

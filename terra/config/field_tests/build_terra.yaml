@@ -18,6 +18,7 @@ max_distance: 5.0 # [m]
 z_offset_viz: 50.0 # [m]
 z_offset_lidar: -2.5 # [m] dist from LiDAR to ground (negative-z means below LiDAR)
 cossim_weight_ratio: 100.0
+merge_all_components: true
 dbscan_params:
   eps: 1.0
   min_samples: 4

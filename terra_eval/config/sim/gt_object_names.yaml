@@ -1,0 +1,35 @@
+---
+label_names:
+  - {label: 0, name: "None", color: [0,0,0]}
+  - {label: 1, name: "Asphalt", color: [79, 82, 77]}
+  - {label: 2, name: "Bench", color: [212, 191, 125]}
+  - {label: 3, name: "BikeRack", color: [209, 208, 203]}
+  - {label: 4, name: "Building", color: [31, 240, 205]}
+  - {label: 5, name: "Bus", color: [240, 220, 43]}
+  - {label: 6, name: "Bush", color: [177, 247, 124]}
+  - {label: 7, name: "Car", color: [224, 109, 237]}
+  - {label: 8, name: "Ceiling", color: [161, 247, 233]}
+  - {label: 9, name: "Chair", color: [65, 13, 255]}
+  - {label: 10, name: "Cone", color: [255, 169, 10]}
+  - {label: 11, name: "Crate", color: [140, 86, 0]}
+  - {label: 12, name: "Desk", color: [242, 65, 224]}
+  - {label: 13, name: "Dumpster", color: [0, 138, 14]}
+  - {label: 14, name: "FireHydrant", color: [255, 0, 0]}
+  - {label: 15, name: "Floor", color: [2, 125, 104]}
+  - {label: 16, name: "GarbageCan", color: [0, 184, 92]}
+  - {label: 17, name: "Grass", color: [91, 235, 52]}
+  - {label: 18, name: "Pallet", color: [143, 129, 6]}
+  - {label: 19, name: "ParkingGate", color: [222, 164, 177]}
+  - {label: 20, name: "PatioUmbrella", color: [195, 0, 255]}
+  - {label: 21, name: "Railing", color: [242, 97, 130]}
+  - {label: 22, name: "SemiTruck", color: [124, 6, 138]}
+  - {label: 23, name: "Sidewalk", color: [232, 232, 232]}
+  - {label: 24, name: "SpeedLimitSign", color: [222, 218, 245]}
+  - {label: 25, name: "StopSign", color: [250, 37, 62]}
+  - {label: 26, name: "StreetLamps", color: [255, 149, 10]}
+  - {label: 27, name: "Table", color: [186, 17, 169]}
+  - {label: 28, name: "Tree", color: [69, 99, 46]}
+  - {label: 29, name: "Unlabeled", color: [0, 0, 0]}
+  - {label: 30, name: "Wall", color: [126, 60, 250]}
+  - {label: 31, name: "Trash", color: [107, 156, 137]}
+  - {label: 32, name: "Any", color: [255, 255, 255]}

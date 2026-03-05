@@ -1,9 +1,9 @@
 ## Processing parameters
-data_folder: /ros2_bags/holoocean_sim/sparsefull_data
-output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam_fix
+data_folder: /ros2_bags/holoocean_sim/sparsefull_prevdata
+output_folder: /ros2_bags/holoocean_sim/sparsefull_prevdata/output/1_cam
 num_cams: 1
 debug: false
-continue_processing: false
+continue_processing: true
 save_step_size: 1000
 unaligned_threshold: 0.2 # seconds
 

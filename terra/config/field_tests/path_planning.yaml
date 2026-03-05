@@ -2,7 +2,7 @@
 terra: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_new_org/output/3_cam/Terra_20.0mimgembs_nodist1img_beta1gamma1205autoagglomerativecluster.pkl
 alpha: 0.26
 prediction_method: "ms_max" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
-# trim: 0.2 # TODO: Implement trim functionality
+trim: 0.2
 
 #  terrain list: 0: leaves, 1: road, 2: sidewalk, 3: gravel, 4: dirt, 5: grass, 6: water
 #        preferred : set of terrain_ids that should have no penalty (default: None)

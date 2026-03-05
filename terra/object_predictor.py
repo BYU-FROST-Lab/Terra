@@ -111,7 +111,7 @@ class ObjectPredictor:
                 self.terra.semantic_gidx_avgclip,
                 tasks_tensor,
                 chunk_size=8192
-            ):
+            ): # (num_pts_chunked, num_tasks)
                 max_scores, max_tasks = scores.max(dim=1)
                 mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
                 valid_idxs = mask.nonzero(as_tuple=True)[0]
