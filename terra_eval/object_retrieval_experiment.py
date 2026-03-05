@@ -59,16 +59,16 @@ class ObjectEvaluator():
         self.task_rel_matches = [0 for _ in range(self.num_tasks)] # \bar{M}_t
     
     def evaluate(self):
-        self.record_recall_metrics()
+        self.record_accuracy_metrics()
         self.record_precision_metrics()
         
         # Print out metrics
-        recall = sum(self.pred_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
+        accuracy = sum(self.pred_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
         precision = sum(self.task_rel_matches) / sum(self.task_rel_count) if sum(self.task_rel_count) > 0 else 0.0
-        F1 = 0.0 if (recall + precision) == 0 else 2 * (precision * recall) / (precision + recall)
+        F1 = 0.0 if (accuracy + precision) == 0 else 2 * (precision * accuracy) / (precision + accuracy)
         
         print(f"\n\nOBJECT METRICS FOR DATASET: {self.data_folder}")
-        print(f"Precision = {precision:.3f}, Recall = {recall:.3f}, F1 = {F1:.3f}\n\n")
+        print(f"Precision = {precision:.3f}, Accuracy = {accuracy:.3f}, F1 = {F1:.3f}\n\n")
     
     def record_precision_metrics(self):
         print("\n\nCalculating Precision Metrics:")
@@ -80,8 +80,8 @@ class ObjectEvaluator():
             self.task_rel_matches[t] = Mbar_t            
             print(f"Task {self.task_names[t]}: GT Count = {Nbar_t}, GT Matches = {Mbar_t}")
             
-    def record_recall_metrics(self):
-        print("\n\nCalculating Recall Metrics:")
+    def record_accuracy_metrics(self):
+        print("\n\nCalculating Accuracy Metrics:")
         for t in range(self.num_tasks):
             Nt = self.gt_obj_count[t]
             topk_objs = self.get_topk_objs_for_task(t, Nt)

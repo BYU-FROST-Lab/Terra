@@ -9,7 +9,7 @@ bounds: [0, 85, -35, 45, -10, 100] # [xmin, xmax, ymin, ymax, zmin, zmax] # LIOS
 
 terra: /ros2_bags/holoocean_sim/sparse13_prevdata/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
 alpha: 0.25
-prediction_method: "3dsg_max" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
+prediction_method: "3dsg_avg" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
 trim: 0.6 # only used in ms_trim method
 object_tasks:
   - {task: "find a car", label: 7}

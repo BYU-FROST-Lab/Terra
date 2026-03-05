@@ -20,8 +20,8 @@ cam3_K:  [456.77801458, 0.0, 378.49188005,
 cam3_dist: [0.02182443, -0.04749719, 0.00062508, 0.00044833] # right (cam3) - ssp
 
 terra: /ros2_bags/metric_data_0.5s/synced/provo_river_p1_11_3_25_new_org/output/3_cam/Terra_20.0mimgembs_nodist1img_beta1gamma1205autoagglomerativecluster.pkl
-alpha: 0.26
 prediction_method: "ms_max" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
+alpha: 0.26
 trim: 0.2 # only used in ms_trim method
 object_tasks:
   - {task: "parked car", ground_truth: 11} # 2 less cars for 1 cam (i.e. GT=9)
