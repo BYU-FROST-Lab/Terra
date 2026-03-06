@@ -1,0 +1,13 @@
+terra: /path/to/Terra.pkl
+alpha: 0.23
+prediction_method: "max" # [max, thresh, mix, aib]
+k: 1
+region_tasks:
+  - task: "task_1" #Region Description
+    place_nodes: [0, 1, 2, 3] #Ground truth nodes
+  - task: "task_2"
+    place_nodes: [0, 1, 2, 3]
+  - task: "task_3"
+    place_nodes: [0, 1, 2, 3]
+  - task: "task_4"
+    place_nodes: [0, 1, 2, 3]
