@@ -39,7 +39,7 @@ python3 -m terra_eval.object_retrieval_experiment --params=/path/to/object_retri
 
 <summary><b>Region Queryring Tasks</b></summary>
 
-To perform region querying evaluation with the Terra 3DSG saved from [Building Terra](#building-terra), you can use the following files:
+To perform region querying evaluation with the Terra 3DSG saved, you can use the following files:
  - `region_vis_script`: has different functions for displaying the ids of terra nodes, and functionality for calculating all the nodes in a polygon, given a list of ids. Used to find the ground truth nodes of regions. Once you have a list of the ground truth nodes for a region, you will copy that list into the yaml file that will be passed into one of the two following files. Referr to the `region_querying.yaml` found in the config directory as an example.
 - `region_metrics.py`: iterates through different ranges of alpha and k to find the parameters that produce the best overall F1 score for all the regions, and the best for each task seperately
 - `region_querying_plots.py`: iterates through several configurations of terra (for example different methods of clustering, or different graphs) and potential to iterate throught different ranges of k and alpha, calculting the metrics for each config.
