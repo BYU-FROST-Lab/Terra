@@ -172,8 +172,6 @@ class ObjectPredictor:
                 max_scores, max_tasks = scores.max(dim=1)
                 for local_clip_idx in range(scores.shape[0]):
                     clip_id = start + local_clip_idx
-                    if clip_id not in self.terra.gidx_2_clipcounts:
-                        continue
                     if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
                         clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
                 del scores
@@ -203,8 +201,6 @@ class ObjectPredictor:
                 max_scores, max_tasks = scores.max(dim=1)
                 for local_clip_idx in range(scores.shape[0]):
                     clip_id = start + local_clip_idx
-                    if clip_id not in self.terra.gidx_2_clipcounts:
-                        continue
                     if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
                         clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
                 del scores

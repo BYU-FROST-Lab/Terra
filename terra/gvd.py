@@ -468,7 +468,7 @@ class DistanceMap:
                 diag_neighbors = sum([self.voro_map[ny,nx] for (ny,nx) in self.get_4_diag_neighbors(y,x)])
                 if manhattan_neighbors >= 3 or diag_neighbors >= 3:
                     self.gvd_nodes[y,x] = True
-                elif manhattan_neighbors == 1:#(diag_neighbors == 1 and manhattan_neighbors <= 1) or (manhattan_neighbors == 1 and diag_neighbors <= 1):
+                elif manhattan_neighbors == 1:
                     self.gvd_nodes[y,x] = True
                 else:
                     self.gvd_edges[y,x] = True

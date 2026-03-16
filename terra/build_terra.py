@@ -448,7 +448,7 @@ class TerraBuilder:
             # Find closest global_idx node
             xyz = sphere.get_center()
             xyz[2] = self.z_offset_lidar # shifts node point to be on ground
-            dist, g_idxs = global_kdtree.query(xyz, k=50) # 20 closest neighboring pts
+            dist, g_idxs = global_kdtree.query(xyz, k=50) # XX closest neighboring pts
             
             found = False
             for g_idx in g_idxs:        
@@ -600,7 +600,7 @@ class TerraBuilder:
         
         nodes = list(self.terra_graph.nodes)
         map_idx2nodeidx = {}
-        prev_id = len(self.terrain_nodes)
+        prev_id = len(self.terrain_nodes) - 1
         for i, n_id in enumerate(nodes):
             map_idx2nodeidx[i] = n_id
         
@@ -755,7 +755,7 @@ class TerraBuilder:
         
         subgraphs = []
         subgraph_hierarchy = {}
-        graph_id_counter = len(self.terrain_nodes) + 1
+        graph_id_counter = len(self.terrain_nodes)
         graphs_to_split = [(graph_id_counter, 0, None, terra_graph_orig, 0)]  # (id, level, parent_id, graph, cutoff)
         graph_id_counter += 1
         cutoff_dict = {
