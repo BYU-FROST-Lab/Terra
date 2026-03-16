@@ -77,20 +77,20 @@ if __name__ == '__main__':
               terra.object_predictor.ymax,
               terra.object_predictor.zmin,
               terra.object_predictor.zmax)
-        # # Add bounds to plot
-        # wire_bbox = create_wire_bbox(
-        #     terra.object_predictor.xmin,
-        #     terra.object_predictor.xmax,
-        #     terra.object_predictor.ymin,
-        #     terra.object_predictor.ymax,
-        #     terra.object_predictor.zmin,
-        #     terra.object_predictor.zmax
-        # )
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(terra.pc)
-        # # pcd.transform(get_liosam2orig_transformation(case))
-        # pcd.paint_uniform_color([0.5,0.5,0.5])
-        # o3d.visualization.draw_geometries([wire_bbox, pcd])
+        # Add bounds to plot
+        wire_bbox = create_wire_bbox(
+            terra.object_predictor.xmin,
+            terra.object_predictor.xmax,
+            terra.object_predictor.ymin,
+            terra.object_predictor.ymax,
+            terra.object_predictor.zmin,
+            terra.object_predictor.zmax
+        )
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(terra.pc)
+        # pcd.transform(get_liosam2orig_transformation(case))
+        pcd.paint_uniform_color([0.5,0.5,0.5])
+        o3d.visualization.draw_geometries([wire_bbox, pcd])
         
     print("Alpha parameter for object prediction:", terra.alpha)
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     map_idx_2_gtid = {idx: gt_id for idx, gt_id in enumerate(gt_ids)}
     gt_bboxes = HoloBBoxes(cfg['gt_bboxes_csv'], cfg['gt_obj_names'], use_context=False)
     gt_bboxes.update_bbox_subset(gt_ids)
-    gt_bboxes.display(terra.pc, case="sparse",use_color=True, plot_subset=True)
+    gt_bboxes.display(terra.pc, case=cfg['case'],use_color=True, plot_subset=True)
     gt_bboxes_dict = gt_bboxes.get_gt_bboxes()
     ## Transform GT bboxes into point cloud frame
     T_LIO2HOLO = get_liosam2orig_transformation(cfg['case'])
