@@ -143,8 +143,6 @@ class MSMap:
             yolo_classes = self.yolo_model.names
             for cls_idx, cls_str in yolo_classes.items():
                 clip_emb = self.clip_model.encode_text(clip.tokenize([cls_str]).to(self.device)).float()
-                # # TODO: norm mode
-                # clip_emb.div_(clip_emb.norm(dim=-1, keepdim=True))
                 yolo_clip_embs.append(clip_emb)
 
             #Initialize data structures
@@ -285,9 +283,7 @@ class MSMap:
                         self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
                 ).unsqueeze(0).to(self.device)
             with torch.no_grad():
-                img_emb = self.clip_model.encode_image(prep)#.float
-                # # TODO: norm mode
-                # img_emb.div_(img_emb.norm(dim=-1, keepdim=True))
+                img_emb = self.clip_model.encode_image(prep)
             self.clip_imgs.append(img_emb)
                 
             img_path = Path(camera_image_files[cam_idx])
@@ -364,10 +360,6 @@ class MSMap:
             # Batch KD-tree query
             dists, g_indices = self.global_kdtree.query(p_Gs)
 
-            # # TODO: batch mode
-            # for x, y, pt_idx, inten, g_idx, p_L_dist in zip(xs, ys, pt_indices, intensity, g_indices, np.linalg.norm(points_xyz, axis=1)):
-            ### points_xyz_dist = np.sqrt(points_xyz[:,0]**2+points_xyz[:,1]**2+points_xyz[:,2]**2)
-            # TODO: sequential mode
             points_xyz_dist = np.zeros((points_xyz.shape[0],))
             for pl_idx, p_L in enumerate(points_xyz):
                 points_xyz_dist[pl_idx] = np.sqrt(p_L[0]**2+p_L[1]**2+p_L[2]**2)      
@@ -387,7 +379,7 @@ class MSMap:
                         self.map_globalidx2imgidx[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
 
                 # --- No distance threshold ---
-                if g_idx not in self.map_globalidx2imgidx.keys(): # TODO: old
+                if g_idx not in self.map_globalidx2imgidx.keys():
                     if g_idx in self.map_globalidx2dist_nodistthresh:
                         if p_L_dist < self.map_globalidx2dist_nodistthresh[g_idx]:
                             self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
@@ -604,24 +596,13 @@ class MSMap:
             return torch.empty((0, self.clip_segs.shape[1])), []
         
         preprocessed = [self.clip_preprocess(img).unsqueeze(0).to(self.device) for img in clip_input_list]
-        
-        # # TODO: batch mode
-        # clip_input_batch = torch.vstack(preprocessed)
-        # with torch.no_grad():
-        #     fastsam_clip_embs_tensor = self.clip_model.encode_image(clip_input_batch)
-        
-        # TODO: sequential mode
+
         fastsam_clip_embs = []
         for p in preprocessed:
             with torch.no_grad():
                 enc_img = self.clip_model.encode_image(p)
             fastsam_clip_embs.append(enc_img)
         fastsam_clip_embs_tensor = torch.vstack(fastsam_clip_embs)
-        
-        # # TODO: norm mode
-        # fastsam_clip_embs_tensor.div_(
-        #     fastsam_clip_embs_tensor.norm(dim=-1, keepdim=True)
-        # ) 
         
         return fastsam_clip_embs_tensor, valid_masks_global_idxs
 

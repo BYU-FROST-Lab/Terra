@@ -509,8 +509,7 @@ class DistanceMap:
             for x in range(self.gvd_ids.shape[1]):
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]: # TODO: old
-                        # if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]: # TODO: new
+                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
                             connected_nodes.add(tuple(sorted([(y, x), (ny, nx)])))
         for (n1, n2) in connected_nodes:
             nID1 = self.gvd_ids[n1[0],n1[1]]
@@ -562,8 +561,7 @@ class DistanceMap:
             for x in range(self.gvd_ids.shape[1]):
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]: # TODO: old
-                        # if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]: # TODO: new
+                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
                             connected_node_ids.add(tuple((self.gvd_ids[y, x], self.gvd_ids[ny, nx])))
         return connected_node_ids
     
@@ -571,17 +569,13 @@ class DistanceMap:
         neighbor_counts = {}
         for y in range(self.gvd_ids.shape[0]):
             for x in range(self.gvd_ids.shape[1]):
-                # if self.gvd_ids[y, x] != -1 and self.gvd_ids[y, x] not in neighbor_counts:
-                #     neighbor_counts[self.gvd_ids[y, x]] = 0 # TODO: new
                 if self.gvd_edges[y, x] and self.gvd_ids[y, x] != -1:
                     for (ny,nx) in self.get_4_manhattan_neighbors(y,x):
-                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]: # TODO: old
-                        # if self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]: # TODO: new
-                            if self.gvd_ids[y, x] not in neighbor_counts: # TODO: old
+                        if self.gvd_edges[ny,nx] and self.gvd_ids[ny, nx] != -1 and self.gvd_ids[y, x] != self.gvd_ids[ny, nx]:
+                            if self.gvd_ids[y, x] not in neighbor_counts:
                                 neighbor_counts[self.gvd_ids[y, x]] = 1
                             else:
                                 neighbor_counts[self.gvd_ids[y, x]] += 1
-                            # neighbor_counts[self.gvd_ids[y, x]] += 1 # TODO: new
                             if self.gvd_ids[ny, nx] not in neighbor_counts:
                                 neighbor_counts[self.gvd_ids[ny, nx]] = 1
                             else:
