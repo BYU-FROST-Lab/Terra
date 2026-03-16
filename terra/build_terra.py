@@ -130,7 +130,8 @@ class TerraBuilder:
         self.input_terrain_clip_embs = []
         for terrain in self.terrain_classes:
             emb = self.clip_model.encode_text(clip.tokenize([terrain]).to(self.device)).float()
-            self.input_terrain_clip_embs.append(emb.div_(emb.norm(dim=-1, keepdim=True)))
+            self.input_terrain_clip_embs.append(emb) # TODO: old
+            # self.input_terrain_clip_embs.append(emb.div_(emb.norm(dim=-1, keepdim=True))) # TODO: new
             
         self.input_terrain_clip_tensor = torch.vstack(self.input_terrain_clip_embs) # (num_input_terrain, 512)
 
@@ -142,6 +143,41 @@ class TerraBuilder:
         self.nonterrain_gidx = []
         self.semantic_gidxs = []
         
+        # # TODO: old (seq)
+        # t0_clipavg = time.time()
+        # global_clip_filt = torch.zeros((0,512),device=self.device)
+        # for global_idx in tqdm(range(self.global_pc.shape[0]), desc="Processing points"):
+        #     if global_idx in self.gidx2clipcounts_dict.keys():
+        #         num_detections = 0
+        #         clip_emb_vec = torch.zeros((1,512),device=self.device)
+        #         for clip_id, count in self.gidx2clipcounts_dict[global_idx].items():
+        #             clip_emb_vec += count * self.clip_segs[clip_id,:]
+        #             num_detections += count
+        #         clip_avg_emb = clip_emb_vec / num_detections
+        #         clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True)) # TODO: new
+        #         global_clip_filt = torch.concatenate((global_clip_filt, clip_avg_emb))
+                
+        #         self.semantic_gidxs.append(global_idx)
+                
+        #         scores = tensor_cosine_similarity(
+        #                         clip_avg_emb, 
+        #                         self.input_terrain_clip_tensor) # (num_clusters, num_prompt_tasks)
+        #         max_prompt_score = scores.max().item()
+        #         max_prompt_score_idx = scores.argmax().item()
+                
+        #         if max_prompt_score > self.terrain_threshold:
+        #             self.terrain_gidx.append(global_idx)
+        #             if max_prompt_score_idx not in self.terrainid2gidxs_dict.keys():
+        #                 self.terrainid2gidxs_dict[max_prompt_score_idx] = [global_idx]
+        #             else:
+        #                 self.terrainid2gidxs_dict[max_prompt_score_idx].append(global_idx)
+        #         else:
+        #             self.nonterrain_gidx.append(global_idx)
+        #     else:
+        #         self.nonsemantic_gidx.append(global_idx)
+        # self.semantic_gidx_avgclip = global_clip_filt
+        
+        # TODO: new (batch)        
         clip_emb_list = []
         batch_clip = []
         batch_indices = []
@@ -161,8 +197,7 @@ class TerraBuilder:
                 clip_emb_vec.add_(self.clip_segs[clip_id,:], alpha=count)
                 num_detections += count
             clip_emb_vec.div_(num_detections)
-            # L2 normalize to unit hypersphere
-            clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True))
+            # clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True)) # TODO: new
             
             batch_clip.append(clip_emb_vec)
             batch_indices.append(global_idx)
@@ -237,8 +272,8 @@ class TerraBuilder:
         ## Save the Data ##
         self.load_or_save_avg_embeddings(save=True)
         
-        if self.DEBUG_MODE:
-            self.plot_score_dist(max_prompt_scores)
+        # if self.DEBUG_MODE:
+        #     self.plot_score_dist(max_prompt_scores)
 
     def load_or_save_avg_embeddings(self, save=False):
         # Get Paths to save data   
@@ -448,10 +483,13 @@ class TerraBuilder:
             # Find closest global_idx node
             xyz = sphere.get_center()
             xyz[2] = self.z_offset_lidar # shifts node point to be on ground
-            dist, g_idxs = global_kdtree.query(xyz, k=50) # 20 closest neighboring pts
+            dist, g_idxs = global_kdtree.query(xyz, k=20) # TODO: old
+            # dist, g_idxs = global_kdtree.query(xyz, k=50) # k closest neighboring pts TODO: new (was 20)
             
+            closest_neighbor_idx = 0
             found = False
-            for g_idx in g_idxs:        
+            for g_idx in g_idxs:
+                closest_neighbor_idx += 1        
                 if g_idx in self.map_globalidx2imgidx:        
                     img_indices = list(self.map_globalidx2imgidx[g_idx])
                     chosen_g_idx = g_idx
@@ -461,11 +499,13 @@ class TerraBuilder:
                     img_indices = list(self.map_globalidx2imgidx_nodist[g_idx])
                     chosen_g_idx = g_idx
                     found = True
+                    break # TODO: old
+                    # TODO: new (removed break here)
             if not found:
                 assert False, f"Image association not found"
             
             if self.DEBUG_MODE and not already_displayed:
-                print("Matching Global Index:", chosen_g_idx)
+                print("Matching Global Index:", chosen_g_idx, f"closest {closest_neighbor_idx} neighbor")
                 num_disp_imgs = min(len(img_indices), 20) # disp max 20 images
                 try:
                     for cntr, img_idx in enumerate(img_indices):
@@ -491,8 +531,9 @@ class TerraBuilder:
             self.map_nodeid2imgidx[node_idx] = img_indices
             
             clip_emb_vec = torch.mean(self.clip_imgs[img_indices,:], dim=0, keepdim=True)
-                    
-            self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True))
+            
+            self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec # TODO: old
+            # self.map_gvdnodes2clipembs[node_idx] = clip_emb_vec.div_(clip_emb_vec.norm(dim=-1,keepdim=True)) # TODO: new
                
         t1_associate_clip_emb = time.time()
         print("Runtime to associate CLIP Embeddings to GVD nodes",t1_associate_clip_emb - t0_associate_clip_emb,"seconds")
@@ -600,7 +641,8 @@ class TerraBuilder:
         
         nodes = list(self.terra_graph.nodes)
         map_idx2nodeidx = {}
-        prev_id = len(self.terrain_nodes)
+        prev_id = len(self.terrain_nodes) - 1 # TODO: old
+        # prev_id = len(self.terrain_nodes) # TODO: new
         for i, n_id in enumerate(nodes):
             map_idx2nodeidx[i] = n_id
         
@@ -670,7 +712,7 @@ class TerraBuilder:
                 avg_pos = np.mean(pos,axis=0) # [2,]
                 embs = torch.vstack([self.terra_graph.nodes[map_idx2nodeidx[idx]]['embedding'] for idx in curr_label_indices])
                 avg_emb = torch.mean(embs,dim=0).unsqueeze(0) # [1,512]
-                avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True))
+                # avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True)) # TODO: new
                 
                 # Add region node
                 self.terra_graph.add_node(
@@ -713,7 +755,7 @@ class TerraBuilder:
                             if stop:
                                 break
         # Finally, add a global root node if multiple top-level regions exist
-        self.add_root_region_node(prev_id+1)
+        # self.add_root_region_node(prev_id+1) # TODO: new
     
     def add_root_region_node(self, root_node_id):
         root_node_level = len(self.hierarchical_distances) + 2
@@ -733,7 +775,7 @@ class TerraBuilder:
 
         embs = torch.vstack([self.terra_graph.nodes[n]["embedding"] for n in top_level_nodes])
         avg_emb = torch.mean(embs, dim=0).unsqueeze(0)
-        avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True))
+        # avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True)) # TODO: new
 
         self.terra_graph.add_node(
             root_node_id,
@@ -893,7 +935,7 @@ class TerraBuilder:
                 
                 embs = torch.vstack([g.nodes[n]['embedding'] for n in g.nodes])
                 avg_emb = torch.mean(embs,dim=0).unsqueeze(0) # [1,512]
-                avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True))
+                # avg_emb.div_(avg_emb.norm(dim=-1,keepdim=True)) # TODO: new
                 
                 # Add region node
                 self.terra_graph.add_node(
@@ -949,6 +991,7 @@ class TerraBuilder:
         )
         print("Finished! Terra Saved!")
         if self.DEBUG_MODE:
+            terra.visualizer.level_offset = self.z_offset_viz
             terra.display_3dsg()
 
     @staticmethod
@@ -961,7 +1004,8 @@ class TerraBuilder:
         
         euclidean_dist = np.linalg.norm(G.nodes[n1_id]["pos"] - G.nodes[n2_id]["pos"]) 
 
-        weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1))
+        weight = euclidean_dist + cossim_weight_ratio * (1 - cos_sim_places) # TODO: old
+        # weight = euclidean_dist + cossim_weight_ratio * (1 - min(cos_sim_places,1)) # TODO: new (no min() previously)
 
         return weight
 

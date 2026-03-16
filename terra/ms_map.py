@@ -143,12 +143,13 @@ class MSMap:
             yolo_classes = self.yolo_model.names
             for cls_idx, cls_str in yolo_classes.items():
                 clip_emb = self.clip_model.encode_text(clip.tokenize([cls_str]).to(self.device)).float()
-                clip_emb.div_(clip_emb.norm(dim=-1, keepdim=True))
+                # # TODO: norm mode
+                # clip_emb.div_(clip_emb.norm(dim=-1, keepdim=True))
                 yolo_clip_embs.append(clip_emb)
 
             #Initialize data structures
             self.clip_segs = torch.vstack(yolo_clip_embs) # (num_classes, 512)
-            self.gidx2clipcounts_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
+            self.gidx2clipcounts_dict = {} #defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
             self.num_scans = 0
             self.last_scan_idx = 0
             self.clip_imgs = []
@@ -156,8 +157,7 @@ class MSMap:
             self.map_globalidx2imgidx = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2imgidx_nodistthresh = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2dist_nodistthresh = {} # map from global_index to img_index {g_idx: dist_m, ...}
-
-
+            
         #Iterate through each scan
         last_saved_idx = self.last_scan_idx
         for scan_idx, transform_lidar2global_file in enumerate(sorted(Path(self.transforms_lidar2global_folder).glob("*.npy"), key=numeric_key)):
@@ -174,7 +174,7 @@ class MSMap:
             if abs(closest_lidar_pc_timestamp - float(timestamp)) > self.unaligned_threshold:
                 print("lidar scan unaligned")
                 continue
-            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp:.6f}.npy') #TODO Change this back to 4 decimal places
+            lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp:.6f}.npy')
                         
             all_cameras_aligned = True
             camera_image_files = []
@@ -257,13 +257,18 @@ class MSMap:
         self.lidar_pc = np.load(lidar_pc_file)
     
         # Load all images
+        self.camera_images = []
         dist_cam_imgs = [cv2.imread(f) for f in camera_image_files]
-        for img in dist_cam_imgs:
+        for cam_idx, img in enumerate(dist_cam_imgs):
             assert img.shape[0] == self.IMG_H and img.shape[1] == self.IMG_W 
-        
-        self.camera_images = [cv2.undistort(img, self.K[i], self.dist[i], None, self.newK[i]) for i, img in enumerate(dist_cam_imgs)]
-        for img in self.camera_images:
-            assert img.shape[0] == self.IMG_H and img.shape[1] == self.IMG_W 
+            if len(self.dist[cam_idx]) == 0:
+                self.camera_images.append(img)      
+            else:
+                self.camera_images.append(
+                    cv2.undistort(img, self.K[cam_idx], self.dist[cam_idx], None, self.newK[cam_idx])
+                )
+            assert self.camera_images[cam_idx].shape[0] == self.IMG_H \
+                and self.camera_images[cam_idx].shape[1] == self.IMG_W 
         
         # Load transformation data
         self.transforms_lidar_to_cam = [self.load_transformation(tf_l2c_file) for tf_l2c_file in transform_lidar_to_cam_files]
@@ -271,22 +276,25 @@ class MSMap:
 
     def clip_base_image(self, camera_image_files):
         for cam_idx, img in enumerate(self.camera_images):
-            # prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
-            prep = self.clip_preprocess(
-                Image.fromarray(img[
-                    self.roi[cam_idx][1]:self.roi[cam_idx][1]+self.roi[cam_idx][3],
-                    self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
-            ).unsqueeze(0).to(self.device)
+            if len(self.dist[cam_idx]) == 0:
+                prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
+            else:
+                prep = self.clip_preprocess(
+                    Image.fromarray(img[
+                        self.roi[cam_idx][1]:self.roi[cam_idx][1]+self.roi[cam_idx][3],
+                        self.roi[cam_idx][0]:self.roi[cam_idx][0]+self.roi[cam_idx][2]])
+                ).unsqueeze(0).to(self.device)
             with torch.no_grad():
-                img_emb = self.clip_model.encode_image(prep).float()
-                img_emb.div_(img_emb.norm(dim=-1, keepdim=True))
-                self.clip_imgs.append(img_emb)
+                img_emb = self.clip_model.encode_image(prep)#.float
+                # # TODO: norm mode
+                # img_emb.div_(img_emb.norm(dim=-1, keepdim=True))
+            self.clip_imgs.append(img_emb)
                 
             img_path = Path(camera_image_files[cam_idx])
             folder_name = img_path.parent.name  # e.g., "camera1_images"
             file_name = img_path.name           # e.g., "cam1_img_123456.jpg"
             self.saved_img_names.append(f"{folder_name}/{file_name}")            
-
+    
     def get_pcl_points_found_in_image(self, scan_idx):
         # Get the 3D point cloud points that correspond to the 2D image
         # This can be done using the camera intrinsics and the depth information
@@ -344,6 +352,7 @@ class MSMap:
             ## Only match points within undistorted part of image using undist_img[y:y+h, x:x+w] (x, y, w, h = roi)
             in_bounds = (xs >= self.roi[cam_idx][0]) & (xs < (self.roi[cam_idx][0]+self.roi[cam_idx][2])) \
                 & (ys >= self.roi[cam_idx][1]) & (ys < (self.roi[cam_idx][1]+self.roi[cam_idx][3]))
+            
             xs, ys = xs[in_bounds], ys[in_bounds]
             pt_indices = pt_indices[in_bounds]
             points_xyz = points_xyz[in_bounds]
@@ -355,10 +364,17 @@ class MSMap:
             # Batch KD-tree query
             dists, g_indices = self.global_kdtree.query(p_Gs)
 
-            for x, y, pt_idx, inten, g_idx, p_L_dist in zip(xs, ys, pt_indices, intensity, g_indices, np.linalg.norm(points_xyz, axis=1)):
+            # # TODO: batch mode
+            # for x, y, pt_idx, inten, g_idx, p_L_dist in zip(xs, ys, pt_indices, intensity, g_indices, np.linalg.norm(points_xyz, axis=1)):
+            ### points_xyz_dist = np.sqrt(points_xyz[:,0]**2+points_xyz[:,1]**2+points_xyz[:,2]**2)
+            # TODO: sequential mode
+            points_xyz_dist = np.zeros((points_xyz.shape[0],))
+            for pl_idx, p_L in enumerate(points_xyz):
+                points_xyz_dist[pl_idx] = np.sqrt(p_L[0]**2+p_L[1]**2+p_L[2]**2)      
+            for x, y, pt_idx, inten, g_idx, p_L_dist in zip(xs, ys, pt_indices, intensity, g_indices, points_xyz_dist):
                 self.map_yx2idx[cam_idx][(y, x)] = pt_idx
                 lidar_imgs[cam_idx][y, x] = inten  # use intensity
-
+                
                 # Nearest global point
                 self.map_lidar2globalidx[pt_idx] = g_idx
                 self._pixel_to_global_idx[cam_idx][y, x] = g_idx
@@ -371,15 +387,15 @@ class MSMap:
                         self.map_globalidx2imgidx[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
 
                 # --- No distance threshold ---
-                if g_idx in self.map_globalidx2dist_nodistthresh:
-                    if p_L_dist < self.map_globalidx2dist_nodistthresh[g_idx]:
-                        # If there is a closer image, replace previous distance and image with closer image and its distance
+                if g_idx not in self.map_globalidx2imgidx.keys(): # TODO: old
+                    if g_idx in self.map_globalidx2dist_nodistthresh:
+                        if p_L_dist < self.map_globalidx2dist_nodistthresh[g_idx]:
+                            self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
+                            self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
+                    else:
                         self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
                         self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
-                else:
-                    self.map_globalidx2dist_nodistthresh[g_idx] = p_L_dist
-                    self.map_globalidx2imgidx_nodistthresh[g_idx] = set([len(self.saved_img_names) - self.num_cams + cam_idx])
-
+            
             lidar_imgs[cam_idx] = lidar_imgs[cam_idx] / np.max(lidar_imgs[cam_idx])
             self.lidar_imgs_bool.append(lidar_imgs[cam_idx].astype(bool)) # True for non-zero intensities
             if self.DEBUG_MODE and (scan_idx % self.scan_step_sz == 0):
@@ -425,7 +441,13 @@ class MSMap:
                     y_indices, x_indices = np.where(filtered_lidar_img > 0)
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
-                        self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                        if g_idx in self.gidx2clipcounts_dict:
+                            if cls_id in self.gidx2clipcounts_dict[g_idx]:
+                                self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                            else:
+                                self.gidx2clipcounts_dict[g_idx][cls_id] = 1
+                        else:
+                            self.gidx2clipcounts_dict[g_idx] = {cls_id: 1}
             else:
                 self.yolo_masks.append([])
 
@@ -512,95 +534,95 @@ class MSMap:
         buffer = 10
         kernel = np.ones((5, 5), np.uint8)
 
-        # --- Precompute boolean masks for faster overlap checks ---
-        camera_nonzero = np.any(self.camera_images[cam_idx] != 0, axis=2)    # HxW bool
-        filtered_nonzero = np.any(filtered_image != 0, axis=2)   # HxW bool
+        filtered_gray = cv2.cvtColor(filtered_image, cv2.COLOR_BGR2GRAY)
+        filtered_gray_nonzero = filtered_gray > 0 # could differ with rounding on dark pixels?
 
         clip_input_list = []
         valid_masks_global_idxs = []
-
+        fastsam_clip_embs = []
         for mask in fastsam_masks:
             mask_bool = (mask.cpu().numpy() > 0)
+            mask_np = (mask_bool.astype(np.uint8) * 255)
             if mask_bool.sum() == 0:
                 continue
-
-            # overlap checks
-            cam_overlap = np.count_nonzero(mask_bool & camera_nonzero)
+            cam_overlap = np.count_nonzero(self.camera_images[cam_idx][mask_bool]) # fixed
+            filtered_overlap = np.count_nonzero(filtered_image[mask_bool]) # fixed
             if cam_overlap == 0:
                 continue
-            filtered_overlap = np.count_nonzero(mask_bool & filtered_nonzero)
-            if filtered_overlap / float(mask_bool.sum()) < 0.5:
+            # if filtered_overlap / float(mask_bool.sum()) < 0.5: # prev
+            if filtered_overlap / cam_overlap < 0.5: # fixed
                 continue
 
-            # bounding box and dilation
-            mask_u8 = (mask_bool.astype(np.uint8) * 255)
-            x, y, w, h = cv2.boundingRect(mask_u8)
+            x, y, w, h = cv2.boundingRect(mask_np)
             x1, y1 = max(0, x - buffer), max(0, y - buffer)
             x2, y2 = min(self.IMG_W, x + w + buffer), min(self.IMG_H, y + h + buffer)
-
-
-            dilated = cv2.dilate(mask_u8, kernel, iterations=3).astype(bool)
-            if not dilated.any():
+            mask_np = cv2.dilate(mask_np, kernel, iterations=3).astype(bool)
+            if not mask_np.any():
                 continue
 
             # crop and zero-out background inside crop
-            cropped_bb = filtered_image[y1:y2, x1:x2].copy()
-            roi = dilated[y1:y2, x1:x2]
-            cropped_bb[~roi] = 0
-            try:
-                pil_crop = Image.fromarray(cropped_bb)
-            except Exception:
-                pil_crop = Image.fromarray((np.clip(cropped_bb, 0, 255)).astype(np.uint8))
-
-            # vectorized lookup for mapped lidar pixels inside the dilated mask
-            # ys, xs = np.nonzero(dilated & self.lidar_img_bool)
-            ys, xs = np.nonzero(dilated & filtered_nonzero & self.lidar_imgs_bool[cam_idx])
-            if ys.size == 0:
-                continue
-            candidate_global_idxs = self._pixel_to_global_idx[cam_idx][ys, xs]
+            masked_bb_img = filtered_image[y1:y2, x1:x2].copy()
+            roi = mask_np[y1:y2, x1:x2]
+            masked_bb_img[~roi] = 0
+            masked_img = np.zeros_like(filtered_image)
+            masked_img[mask_np > 0] = filtered_image[mask_np > 0]
+            
+            pil_crop = Image.fromarray(masked_bb_img.copy())
+            
+            # # vectorized lookup for mapped lidar pixels inside the dilated mask
+            ys, xs = np.nonzero((mask_np>0) & filtered_gray_nonzero & self.lidar_imgs_bool[cam_idx])  # prev
+            corresponding_global_idxs = self._pixel_to_global_idx[cam_idx][ys, xs]
             # filter out unmapped entries (-1)
-            candidate_global_idxs = candidate_global_idxs[candidate_global_idxs >= 0]
-            if candidate_global_idxs.size == 0:
+            corresponding_global_idxs = corresponding_global_idxs[corresponding_global_idxs >= 0]
+            if corresponding_global_idxs.size == 0:
                 continue
 
             # --- DBSCAN per-mask (reverted to original behavior) ---
             if self.use_dbscan:
-                # gather 3D points corresponding to candidate_global_idxs
-                corresponding_global_pc_arr = self.global_pc[candidate_global_idxs, :3]
-                if corresponding_global_pc_arr.size == 0:
+                # # gather 3D points corresponding to candidate_global_idxs
+                corresponding_global_pc = self.global_pc[corresponding_global_idxs, :3]
+                if corresponding_global_pc.size == 0:
                     continue
-
                 # fit_predict on this mask's points
-                labels = self.dbscan_global.fit_predict(corresponding_global_pc_arr)
+                labels = self.dbscan_global.fit_predict(corresponding_global_pc)
                 # find non-noise clusters and pick the largest cluster
                 unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
                 if counts.size == 0 or counts.max() == 0:
-                    continue
+                    continue                
                 largest_label = unique_labels[np.argmax(counts)]
                 # select global indices belonging to that largest cluster
-                largest_global_pt_indices = candidate_global_idxs[labels == largest_label].tolist()
+                largest_global_pt_indices = corresponding_global_idxs[labels == largest_label].tolist()
             else:
-                largest_global_pt_indices = candidate_global_idxs.tolist()
-
+                largest_global_pt_indices = corresponding_global_idxs.tolist()
             if not largest_global_pt_indices:
                 continue
-
             clip_input_list.append(pil_crop)
+            
             valid_masks_global_idxs.append(largest_global_pt_indices)
 
         if len(clip_input_list) == 0:
             return torch.empty((0, self.clip_segs.shape[1])), []
-
-        # preprocess and batch for CLIP
-        preprocessed = [self.clip_preprocess(img).unsqueeze(0) for img in clip_input_list]
-        clip_input_batch = torch.cat(preprocessed, dim=0).to(self.device, non_blocking=True)
-
-        with torch.no_grad():
-            fastsam_clip_embs_tensor = self.clip_model.encode_image(clip_input_batch)
-
-        fastsam_clip_embs_tensor.div_(
-            fastsam_clip_embs_tensor.norm(dim=-1, keepdim=True)
-        )
+        
+        preprocessed = [self.clip_preprocess(img).unsqueeze(0).to(self.device) for img in clip_input_list]
+        
+        # # TODO: batch mode
+        # clip_input_batch = torch.vstack(preprocessed)
+        # with torch.no_grad():
+        #     fastsam_clip_embs_tensor = self.clip_model.encode_image(clip_input_batch)
+        
+        # TODO: sequential mode
+        fastsam_clip_embs = []
+        for p in preprocessed:
+            with torch.no_grad():
+                enc_img = self.clip_model.encode_image(p)
+            fastsam_clip_embs.append(enc_img)
+        fastsam_clip_embs_tensor = torch.vstack(fastsam_clip_embs)
+        
+        # # TODO: norm mode
+        # fastsam_clip_embs_tensor.div_(
+        #     fastsam_clip_embs_tensor.norm(dim=-1, keepdim=True)
+        # ) 
+        
         return fastsam_clip_embs_tensor, valid_masks_global_idxs
 
     def update_clip_and_gidx2clipcounts_dict(self, clip_embs_tensor, global_idxs):
@@ -615,22 +637,6 @@ class MSMap:
         # Track best match per mask
         best_scores = torch.full((num_masks,), 0.0, device=device)
         best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
-        
-        # TODO: Delete this incorrect commented out code
-        # for start, scores in chunked_tensor_cosine_similarity(
-        #     clip_embs_tensor,          # (num_masks, D)
-        #     self.clip_segs,          # (num_existing, D)
-        #     chunk_size=8192
-        # ): # scores: (chunk, num_clip_ids)
-
-        #     chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-        #     chunk_max_ids += start  # convert local → global clip id
-
-        #     better = chunk_max_scores > best_scores
-        #     best_scores[better] = chunk_max_scores[better]
-        #     best_clip_ids[better] = chunk_max_ids[better]
-
-        #     del scores  # free GPU memory
         
         for start, scores in chunked_tensor_cosine_similarity(
             self.clip_segs,          # (num_existing, D)
@@ -654,7 +660,13 @@ class MSMap:
                 max_clip_id = self.clip_segs.shape[0] - 1
 
             for g_idx in global_idxs[mask_idx]:
-                self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                if g_idx in self.gidx2clipcounts_dict:
+                    if max_clip_id in self.gidx2clipcounts_dict[g_idx]:
+                        self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                    else:
+                        self.gidx2clipcounts_dict[g_idx][max_clip_id] = 1
+                else:
+                    self.gidx2clipcounts_dict[g_idx] = {max_clip_id: 1}
 
     def save_semantic_pcl(self, itr):
         ## Save Semantic Point Cloud

@@ -1,7 +1,7 @@
-data_folder: /ros2_bags/holoocean_sim/sparse13_prevdata
-output_folder: /ros2_bags/holoocean_sim/sparse13_prevdata/output/1_cam
+data_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new
+output_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new/output/1_cam_batch_nonorm
 save_average_embeddings: true
-debug: false
+debug: true
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 
 ## Terrain params
@@ -15,8 +15,8 @@ max_deviation: 3.75 # 0.75 [m] / 0.2 [m/voxel] = [voxels]
 max_distance: 10.0 # 2.0 [m] / 0.2 [m/voxel] = [voxels]
 
 ## Terra params
-z_offset_viz: 50.0 # [m]
-z_offset_lidar: 1.0 # [m] dist from LiDAR to ground (negative-z means below LiDAR)
+z_offset_viz: 10.0 # [m]
+z_offset_lidar: -2.5 # [m] dist from LiDAR to ground (negative-z means below LiDAR)
 cossim_weight_ratio: 100.0
 merge_all_components: false
 dbscan_params:
