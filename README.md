@@ -95,7 +95,12 @@ my_dataset
         - For more information on runing ros2 in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/usage/ROS2.html).
     - Make sure the location of this downloaded metric data has been volumed into the docker container.
 - Download the simulated YOLO model [here](https://gofile.me/7dj2d/0wFLzTul8).
-    - Copy the model into the docker container located in: `yolo_holo_3classes/holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt`.
+    - After unzipping, the model is located in: `holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt`.
+    - Identify your container name in a terminal with: `docker ps`
+    - Copy the model into the container with:
+      ```
+      docker cp <yolo_folder_location>/holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt <container_name>:/holoocean_3cls.pt
+      ```
 - Given this metric data, proceed to [Building Terra](#building-terra).  
 
 </details>
@@ -134,6 +139,8 @@ ros2 launch terra_ros build_metric_map_multicam_rate.launch.py
 
 # Building Terra
 
+Change into the Terra repo in container with: `cd /docker_ros2_ws/src/terra`
+
 <details open>
 
 <summary><b>Building Metric-Semantic Map (MS Map)</b></summary>
@@ -145,6 +152,7 @@ Provided that you have all the data saved in the file structure shown above, you
 ```bash
 python3 -m terra.ms_map --params=terra/config/<dataset_name>/msmap.yaml
 ```
+> Note: This will take a while to process at about 1-4 seconds per lidar-image pair.
 
 To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For example:
 ```bash
