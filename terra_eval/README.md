@@ -16,7 +16,7 @@ This repository contains code to aid in evaluating Terra 3DSGs
 <summary><b>Simulated Object Retrieval Experiment</b></summary>
 
 This experiment is done as follows:
-- Modify the `config/sim/<test>_object_experiment.yaml` file to match the build Terra dataset location and output folders.
+- Modify the `terra_eval/config/sim/<test>_object_experiment.yaml` file to match the build Terra dataset location and output folders.
 - Run the object retrieval experiment as follows:
 ```bash
 python3 -m terra_eval.sim_object_experiment --params=terra_eval/config/sim/<test>_object_experiment.yaml
