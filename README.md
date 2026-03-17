@@ -139,6 +139,8 @@ ros2 launch terra_ros build_metric_map_multicam_rate.launch.py
 
 # Building Terra
 
+Change into the Terra repo in container with: `cd /docker_ros2_ws/src/terra`
+
 <details open>
 
 <summary><b>Building Metric-Semantic Map (MS Map)</b></summary>
