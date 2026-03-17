@@ -85,7 +85,10 @@ my_dataset
 <summary><b>Simulation: Business Campus Dataset</b></summary>
 
 - Download the dataset: [Dense 1/8](https://gofile.me/7dj2d/SXqnhsc01) (3.44 GB), [Sparse 1/3](https://gofile.me/7dj2d/hl1vzv3dO) (1.75 GB), and [Sparse Full](https://gofile.me/7dj2d/JrfDXzLgy) (13.56 GB).
-    - These links enable downloading the extracted metric data from each rosbag collected in HoloOcean. For more information about the Business Campus World in HoloOcean see [this documentation](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/packages/BusinessCampus/BusinessCampus.html).
+    - These links enable downloading the extracted metric data from each rosbag collected in HoloOcean.
+        - For more information about the Business Campus World in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/packages/BusinessCampus/BusinessCampus.html).
+        - For more information on installing this world in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/packages/docs/installation.html).
+        - For more information on runing ros2 in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/usage/ROS2.html).
     - Make sure the location of this downloaded metric data has been volumed into the docker container.
     - Given this metric data, proceed to [Building Terra](#building-terra).  
 
@@ -130,11 +133,11 @@ ros2 launch terra_ros build_metric_map_multicam_rate.launch.py
 <summary><b>Building Metric-Semantic Map (MS Map)</b></summary>
 
 Provided that you have all the data saved in the file structure shown above, you can build the metric-semantic map (ms map) as follows:
-- Update the `terra/config/holoocean_sim/msmap.yaml` arguments to match the saved data folder path and YOLO terrain model location.
+- Update the `terra/config/<dataset_name>/msmap.yaml` arguments to match the saved data folder path and YOLO terrain model location.
     - We provide different msmap yaml files showing capabilities of handling more than 1 camera image data as well as using YOLOE for datasets where you don't have a trained YOLO terrain model. 
 - Run the MS Map code with the correct yaml filepath as an argument as follows: 
 ```bash
-python3 -m terra.ms_map --params=terra/config/holoocean_sim/msmap.yaml
+python3 -m terra.ms_map --params=terra/config/<dataset_name>/msmap.yaml
 ```
 
 To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For example:
@@ -150,7 +153,7 @@ python3 -m terra.visualize_msmap --data_folder=/data/folder --output_folder=/dir
 <summary><b>Building Region and Place Layers from MS Map</b></summary>
 
 With the results saved from MS Map, you can build the terrain-aware places and region layers of the 3DSG as follows:
-- Update the `terra/config/holoocean_sim/build_terra.yaml` arguments to match the saved MS Map files location and other relevant arguments.
+- Update the `terra/config/<dataset_name>/build_terra.yaml` arguments to match the saved MS Map files location and other relevant arguments.
 - Run Build Terra code with your updated yaml file as an argument as follows: 
 ```bash
 python3 -m terra.build_terra --params=/path/to/build_terra.yaml
