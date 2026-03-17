@@ -152,6 +152,8 @@ Provided that you have all the data saved in the file structure shown above, you
 ```bash
 python3 -m terra.ms_map --params=terra/config/<dataset_name>/msmap.yaml
 ```
+> [!NOTE]
+> This will take a while to process at about 2-4 seconds per lidar-image pair.
 
 To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For example:
 ```bash
