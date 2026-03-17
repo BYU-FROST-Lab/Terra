@@ -96,10 +96,9 @@ my_dataset
     - Make sure the location of this downloaded metric data has been volumed into the docker container.
 - Download the simulated YOLO model [here](https://gofile.me/7dj2d/0wFLzTul8).
     - After unzipping, the model is located in: `holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt`.
+    - Identify your container name in a terminal with: `docker ps`
     - Copy the model into the container with:
       ```
-      docker ps
-
       docker cp <yolo_folder_location>/holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt <container_name>:/holoocean_3cls.pt
       ```
 - Given this metric data, proceed to [Building Terra](#building-terra).  
