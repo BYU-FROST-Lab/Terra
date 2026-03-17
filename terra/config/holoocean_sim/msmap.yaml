@@ -1,6 +1,6 @@
 ## Processing parameters
-data_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new_names
-output_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new_names/output/1_cam_batch_nonorm
+data_folder: /ros2_bags/holoocean_sim/sparse13_test
+output_folder: /ros2_bags/holoocean_sim/sparse13_test/output/1_cam
 num_cams: 1
 debug: false
 continue_processing: false

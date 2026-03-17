@@ -1,7 +1,7 @@
-data_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new
-output_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new/output/1_cam_batch_nonorm
+data_folder: /ros2_bags/holoocean_sim/sparse13_test
+output_folder: /ros2_bags/holoocean_sim/sparse13_test/output/1_cam
 save_average_embeddings: true
-debug: true
+debug: false
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 
 ## Terrain params
