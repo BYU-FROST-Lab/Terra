@@ -91,6 +91,7 @@ my_dataset
         - For more information on runing ros2 in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/usage/ROS2.html).
     - Make sure the location of this downloaded metric data has been volumed into the docker container.
 - Download the simulated YOLO model [here](https://gofile.me/7dj2d/0wFLzTul8).
+    - Copy the model into the docker container located in: `yolo_holo_3classes/holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt`.
 - Given this metric data, proceed to [Building Terra](#building-terra).  
 
 </details>
