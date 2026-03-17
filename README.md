@@ -46,6 +46,10 @@ docker run --rm -it --gpus all --net host -v /tmp/.X11-unix:/tmp/.X11-unix -v <p
 ```
 Build and source the ros2 repository
 ```
+tmux
+
+cd docker_ros2_ws
+
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 source install/setup.bash
