@@ -90,7 +90,8 @@ my_dataset
         - For more information on installing this world in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/packages/docs/installation.html).
         - For more information on runing ros2 in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/usage/ROS2.html).
     - Make sure the location of this downloaded metric data has been volumed into the docker container.
-    - Given this metric data, proceed to [Building Terra](#building-terra).  
+- Download the simulated YOLO model [here](https://gofile.me/7dj2d/0wFLzTul8).
+- Given this metric data, proceed to [Building Terra](#building-terra).  
 
 </details>
 
