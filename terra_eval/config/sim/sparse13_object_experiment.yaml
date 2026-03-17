@@ -1,16 +1,16 @@
 ---
-data_folder: /ros2_bags/holoocean_sim/sparse13_prevdata
-output_folder: /ros2_bags/holoocean_sim/sparse13_prevdata/output/1_cam
+data_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new_names
+output_folder: /ros2_bags/holoocean_sim/sparse13_prevdata_new_names/output/1_cam
 gt_bboxes_csv: /docker_ros2_ws/src/terra/terra_eval/config/sim/sparse13_gt_bboxes.csv
 gt_obj_names: /docker_ros2_ws/src/terra/terra_eval/config/sim/gt_object_names.yaml
 case: "sparse"
 # bounds: [-30, 50, -100, -15, 0, 100] # [xmin, xmax, ymin, ymax, zmin, zmax] # HOLOFrame
 bounds: [0, 85, -35, 45, -10, 100] # [xmin, xmax, ymin, ymax, zmin, zmax] # LIOSAMFrame
 
-terra: /ros2_bags/holoocean_sim/sparse13_prevdata/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
+terra: /ros2_bags/holoocean_sim/sparse13_prevdata_new_names/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
 alpha: 0.25
-prediction_method: "3dsg_avg" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
-trim: 0.6 # only used in ms_trim method
+prediction_method: "ms_trim" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
+trim: 0.8 # only used in ms_trim method
 object_tasks:
   - {task: "find a car", label: 7}
   - {task: "find a bike rack", label: 3}

@@ -189,8 +189,8 @@ def get_liosam2orig_transformation(case):
     
     if case == "sparse":
         # Sparse13/SparseFull
-        # trans = np.array([5,-10,8.49])
-        trans = np.array([5,-9.57,8.49])
+        trans = np.array([5,-10,8.49]) # Terra Paper
+        # trans = np.array([5,-9.57,8.49]) # Better
         rot_mat = np.array([
             [0, 1, 0],
             [-1, 0, 0],
