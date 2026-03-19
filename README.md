@@ -93,6 +93,7 @@ my_dataset
         - For more information about the Business Campus World in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/packages/BusinessCampus/BusinessCampus.html).
         - For more information on installing this world in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/packages/docs/installation.html).
         - For more information on runing ros2 in HoloOcean see [here](https://byu-holoocean.github.io/holoocean-docs/v2.3.0/usage/ROS2.html).
+    - Can extract subfolders into a single dataset folder with: `unzip holoocean_<dataset-name>.zip -d holoocean_<dataset-name>`
     - Make sure the location of this downloaded metric data has been volumed into the docker container.
 - Download the simulated YOLO model [here](https://gofile.me/7dj2d/0wFLzTul8).
     - After unzipping, the model is located in: `holo_3cls_nano_stepsz25_256imgsz_500epochs/weights/best.pt`.
@@ -132,7 +133,7 @@ If you have a ROS 2 bag of your Ouster OS1-128 LiDAR and RGB Camera data, then d
 - Update the `params.yaml` ros parameters in `terra_ros/config` for your dataset and rosbag
 - Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
 ```bash
-ros2 launch terra_ros build_metric_map_multicam_rate.launch.py
+ros2 launch terra_ros build_metric_map_multicam_rate.launch.py params_file:=<path_to_updated_params_file>.yaml
 ```
 </details>
 
@@ -152,7 +153,7 @@ Provided that you have all the data saved in the file structure shown above, you
 ```bash
 python3 -m terra.ms_map --params=terra/config/<dataset_name>/msmap.yaml
 ```
-> Note: This will take a while to process at about 1-4 seconds per lidar-image pair.
+> Note: This will take a while to process at about 1 second per lidar-image pair.
 
 To visualize the resulting MS Map, we have provided a helper script where you just need to pass in the filepath to your saved data folder. Each different semantic CLIP id will have a different color. For example:
 ```bash
@@ -247,7 +248,7 @@ python3 -m terra.path_planning_task --params=/path/to/path_planning.yaml
     - `queries`: 
         - `destination`: String explaining the destination query
         - `start`: (Optional) string explaining start location. If not used, default's to start being the first place node in the graph
-    - `prediction_method`: Pass a string of the method to use from the following [ms_avg, ms_max, 3dsg_avg]. These methods are explained in detail in the paper. (Default: `ms_avg`)
+    - `prediction_method`: Pass a string of the method to use from the following [ms_avg, ms_max, 3dsg_avg, 3dsg_max, ms_medoid, ms_trim]. These methods are explained in detail in the paper. (Default: `ms_avg`)
     - `alpha`: Threshold to determine whether an object is task relevant (i.e. if its cosine-similarity score is above `alpha` then it is task-relevant). (Default: `0.23`) 
 
 </details>
