@@ -132,7 +132,7 @@ If you have a ROS 2 bag of your Ouster OS1-128 LiDAR and RGB Camera data, then d
 - Update the `params.yaml` ros parameters in `terra_ros/config` for your dataset and rosbag
 - Now to build the metric point cloud map with LIO-SAM and save the data into our folder structure, run
 ```bash
-ros2 launch terra_ros build_metric_map_multicam_rate.launch.py
+ros2 launch terra_ros build_metric_map_multicam_rate.launch.py params_file:=<path_to_updated_params_file>.yaml
 ```
 </details>
 
