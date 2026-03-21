@@ -1,14 +1,14 @@
 ---
-data_folder: /ros2_bags/holoocean_sim/dense18_prevdata
-output_folder: /ros2_bags/holoocean_sim/dense18_prevdata/output/1_cam
+data_folder: /ros2_bags/holoocean_sim/dense18_test
+output_folder: /ros2_bags/holoocean_sim/dense18_test/output/1_cam
 gt_bboxes_csv: /docker_ros2_ws/src/terra/terra_eval/config/sim/dense18_gt_bboxes.csv
 gt_obj_names: /docker_ros2_ws/src/terra/terra_eval/config/sim/gt_object_names.yaml
 case: "dense"
-# bounds: [-30, 50, -100, -15, 0, 100] # [xmin, xmax, ymin, ymax, zmin, zmax] # HOLOFrame
-bounds: [0, 85, -35, 45, -10, 100] # [xmin, xmax, ymin, ymax, zmin, zmax] # LIOSAMFrame
+# bounds: [5, 70, -70, -20, 0, 100] # [xmin, xmax, ymin, ymax, zmin, zmax] # HOLOFrame
+bounds: [0, 65, -43, 7, -8.49, 91.51] # [xmin, xmax, ymin, ymax, zmin, zmax] # LIOSAMFrame
 
-terra: /ros2_bags/holoocean_sim/dense18_prevdata/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
-alpha: 0.27
+terra: /ros2_bags/holoocean_sim/dense18_test/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
+alpha: 0.26
 prediction_method: "ms_avg" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
 trim: 0.6 # only used in ms_trim method
 object_tasks:

@@ -1,10 +1,10 @@
 ## Processing parameters
-data_folder: /ros2_bags/holoocean_sim/sparse13_test
-output_folder: /ros2_bags/holoocean_sim/sparse13_test/output/1_cam
+data_folder: /ros2_bags/holoocean_sim/sparsefull_test
+output_folder: /ros2_bags/holoocean_sim/sparsefull_test/output/1_cam
 num_cams: 1
 debug: false
 continue_processing: false
-save_step_size: 500
+save_step_size: 1000
 unaligned_threshold: 0.2 # seconds
 
 ## Camera intrinsics

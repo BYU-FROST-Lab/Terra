@@ -1,11 +1,13 @@
 ---
-data_folder: /ros2_bags/holoocean_sim/sparsefull_data
-output_folder: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam
+data_folder: /ros2_bags/holoocean_sim/sparsefull_test
+output_folder: /ros2_bags/holoocean_sim/sparsefull_test/output/1_cam
 gt_bboxes_csv: /docker_ros2_ws/src/terra/terra_eval/config/sim/sparsefull_gt_bboxes.csv
 gt_obj_names: /docker_ros2_ws/src/terra/terra_eval/config/sim/gt_object_names.yaml
 case: "sparse"
+# bounds: [-500, 500, -500, 500, 0, 11] # [xmin, xmax, ymin, ymax, zmin, zmax] # HOLOFrame
+bounds: [-510, 490, -505, 495, -8.49, 2.51] # [xmin, xmax, ymin, ymax, zmin, zmax] # LIOSAMFrame
 
-terra: /ros2_bags/holoocean_sim/sparsefull_data/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
+terra: /ros2_bags/holoocean_sim/sparsefull_test/output/1_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100.0agglomerativecluster.pkl
 alpha: 0.25
 prediction_method: "ms_avg" # [ms_avg, ms_max, ms_medoid, ms_trim, 3dsg_avg, 3dsg_max]
 trim: 0.6 # only used in ms_trim method
