@@ -346,8 +346,11 @@ class MSMap:
             pt_indices = np.nonzero(mask)[0]
 
             ## Only match points within undistorted part of image using undist_img[y:y+h, x:x+w] (x, y, w, h = roi)
-            in_bounds = (xs >= self.roi[cam_idx][0]) & (xs < (self.roi[cam_idx][0]+self.roi[cam_idx][2])) \
-                & (ys >= self.roi[cam_idx][1]) & (ys < (self.roi[cam_idx][1]+self.roi[cam_idx][3]))
+            if len(self.dist[cam_idx]) == 0:
+                in_bounds = (xs >= 0) & (xs < self.IMG_W) & (ys >= 0) & (ys < self.IMG_H)
+            else:
+                in_bounds = (xs >= self.roi[cam_idx][0]) & (xs < (self.roi[cam_idx][0]+self.roi[cam_idx][2])) \
+                    & (ys >= self.roi[cam_idx][1]) & (ys < (self.roi[cam_idx][1]+self.roi[cam_idx][3]))
             
             xs, ys = xs[in_bounds], ys[in_bounds]
             pt_indices = pt_indices[in_bounds]
