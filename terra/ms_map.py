@@ -540,20 +540,19 @@ class MSMap:
             mask_np = (mask_bool.astype(np.uint8) * 255)
             if mask_bool.sum() == 0:
                 continue
-            cam_overlap = np.count_nonzero(self.camera_images[cam_idx][mask_bool]) # fixed
-            filtered_overlap = np.count_nonzero(filtered_image[mask_bool]) # fixed
+            cam_overlap = np.count_nonzero(self.camera_images[cam_idx][mask_bool])
+            filtered_overlap = np.count_nonzero(filtered_image[mask_bool])
             if cam_overlap == 0:
                 continue
-            # if filtered_overlap / float(mask_bool.sum()) < 0.5: # prev
-            if filtered_overlap / cam_overlap < 0.5: # fixed
+            if filtered_overlap / cam_overlap < 0.5:
                 continue
 
             x, y, w, h = cv2.boundingRect(mask_np)
             x1, y1 = max(0, x - buffer), max(0, y - buffer)
             x2, y2 = min(self.IMG_W, x + w + buffer), min(self.IMG_H, y + h + buffer)
             mask_np = cv2.dilate(mask_np, kernel, iterations=3).astype(bool)
-            if not mask_np.any():
-                continue
+            # if not mask_np.any():
+            #     continue
 
             # crop and zero-out background inside crop
             masked_bb_img = filtered_image[y1:y2, x1:x2].copy()
@@ -564,8 +563,8 @@ class MSMap:
             
             pil_crop = Image.fromarray(masked_bb_img.copy())
             
-            # # vectorized lookup for mapped lidar pixels inside the dilated mask
-            ys, xs = np.nonzero((mask_np>0) & filtered_gray_nonzero & self.lidar_imgs_bool[cam_idx])  # prev
+            # vectorized lookup for mapped lidar pixels inside the dilated mask
+            ys, xs = np.nonzero((mask_np>0) & filtered_gray_nonzero & self.lidar_imgs_bool[cam_idx]) 
             corresponding_global_idxs = self._pixel_to_global_idx[cam_idx][ys, xs]
             # filter out unmapped entries (-1)
             corresponding_global_idxs = corresponding_global_idxs[corresponding_global_idxs >= 0]
@@ -615,34 +614,14 @@ class MSMap:
             - CLIP embeddings
             - Point cloud dictionary (gidx2clipcounts_dict)
         """
-        device = clip_embs_tensor.device
-        num_masks = clip_embs_tensor.shape[0]
-        
-        # Track best match per mask
-        best_scores = torch.full((num_masks,), 0.0, device=device)
-        best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
-        
-        for start, scores in chunked_tensor_cosine_similarity(
-            self.clip_segs,          # (num_existing, D)
-            clip_embs_tensor,          # (num_masks, D)
-            chunk_size=8192
-        ): # scores: (chunk, num_masks)
-            chunk_max_scores, chunk_max_ids = scores.max(dim=0)
-            chunk_max_ids += start  # convert chunk → full clip id
-
-            better = chunk_max_scores > best_scores
-            best_scores[better] = chunk_max_scores[better]
-            best_clip_ids[better] = chunk_max_ids[better]
-
-            del scores  # free GPU memory
-        
-        for mask_idx in range(num_masks):
-            if best_scores[mask_idx] > self.theta_cos_sim:
-                max_clip_id = best_clip_ids[mask_idx].item()
+        scores = tensor_cosine_similarity(clip_embs_tensor, self.clip_segs) # (num_masks, num_clip_ids)
+        ## Add in any new CLIP embedding vectors and associate global indices to CLIP vector index
+        for mask_idx in range(scores.shape[0]): # num masks
+            if scores[mask_idx,:].max().item() > self.theta_cos_sim:
+                max_clip_id = scores[mask_idx,:].argmax().item()
             else:
                 self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
                 max_clip_id = self.clip_segs.shape[0] - 1
-
             for g_idx in global_idxs[mask_idx]:
                 if g_idx in self.gidx2clipcounts_dict:
                     if max_clip_id in self.gidx2clipcounts_dict[g_idx]:
