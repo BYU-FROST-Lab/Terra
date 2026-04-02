@@ -1,6 +1,6 @@
 ## Processing parameters
-data_folder: /ros2_bags/holoocean_sim/sparsefull_test
-output_folder: /ros2_bags/holoocean_sim/sparsefull_test/output/1_cam_test1
+data_folder: /ros2_bags/holoocean_sim/dense18_test
+output_folder: /ros2_bags/holoocean_sim/dense18_test/output/1_cam
 num_cams: 1
 debug: false
 continue_processing: false
