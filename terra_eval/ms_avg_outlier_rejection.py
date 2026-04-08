@@ -1,9 +1,11 @@
 from argparse import ArgumentParser
 import pickle as pkl
+import random
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
 from tqdm import tqdm
+from sklearn.manifold import TSNE
 
 from terra.utils import tensor_cosine_similarity, load_terra
 
@@ -64,7 +66,7 @@ def count_outliers(X, w, threshold=0.3):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--Terra', type=str, help="Terra class object filepath")
-    parser.add_argument('--terrain_gidx', type=str, help="List of global indices assigned to terrain")
+    parser.add_argument('--terrain_gidx', type=str, help="List of global indices assigned to terrain (e.g. terrain_gidx.pkl)")
     # parser.add_argument('--num_imgs', type=int, default=-1, help="Number of images to process (-1 = all)")
     args = parser.parse_args()
     
@@ -83,35 +85,56 @@ if __name__ == '__main__':
     chosen_gidx = None
     clipid_2_counts = None
     
-    # skip_count = 5000
-    # count = 0
-    for g_idx, cid_2_cnt in tqdm(gidx_2_clipcounts.items(),desc="Selecting point with most outliers"):
-        if g_idx not in terrain_gidxs:
-        # if g_idx in terrain_gidxs:
-            continue
-        # if count < skip_count:
-        #     count += 1
-        #     continue
-        # chosen_gidx = g_idx
-        # clipid_2_counts = cid_2_cnt
-        # break
+    # # skip_count = 5000
+    # # count = 0
+    # for g_idx, cid_2_cnt in tqdm(gidx_2_clipcounts.items(),desc="Selecting point with most outliers"):
+    #     if g_idx not in terrain_gidxs:
+    #     # if g_idx in terrain_gidxs:
+    #         continue
+    #     # if count < skip_count:
+    #     #     count += 1
+    #     #     continue
+    #     # chosen_gidx = g_idx
+    #     # clipid_2_counts = cid_2_cnt
+    #     # break
         
-        # Build X and w
-        X = torch.zeros((len(cid_2_cnt), 512), device=device)
-        w = torch.zeros((len(cid_2_cnt),), device=device)
+    #     # Build X and w
+    #     X = torch.zeros((len(cid_2_cnt), 512), device=device)
+    #     w = torch.zeros((len(cid_2_cnt),), device=device)
 
-        for i, (clip_id, count) in enumerate(cid_2_cnt.items()):
-            X[i,:] = clip_ids[clip_id,:]
-            w[i] = count
+    #     for i, (clip_id, count) in enumerate(cid_2_cnt.items()):
+    #         X[i,:] = clip_ids[clip_id,:]
+    #         w[i] = count
 
-        num_outliers = count_outliers(X, w, threshold=0.3)
+    #     num_outliers = count_outliers(X, w, threshold=0.3)
 
-        if num_outliers > max_outliers:
-            max_outliers = num_outliers
-            chosen_gidx = g_idx
-            clipid_2_counts = cid_2_cnt
-            print("New max number of outliers",max_outliers)
-
+    #     if num_outliers > max_outliers and len(cid_2_cnt) > 30:
+    #         max_outliers = num_outliers
+    #         chosen_gidx = g_idx
+    #         clipid_2_counts = cid_2_cnt
+    #         print("Number of clip detections for global index {}: {}".format(g_idx, w.sum().item()))
+    #         print("New max number of outliers",max_outliers)
+    #         break
+    
+    ## Random gidx
+    random_key = random.choice(list(gidx_2_clipcounts.keys()))
+    chosen_gidx = random_key
+    clipid_2_counts = gidx_2_clipcounts[chosen_gidx]
+    # while len(clipid_2_counts) < 30:
+    while len(clipid_2_counts) < 30 or chosen_gidx not in terrain_gidxs:
+        random_key = random.choice(list(gidx_2_clipcounts.keys()))
+        chosen_gidx = random_key
+        clipid_2_counts = gidx_2_clipcounts[chosen_gidx]
+    # Build X and w
+    X = torch.zeros((len(clipid_2_counts), 512), device=device)
+    w = torch.zeros((len(clipid_2_counts),), device=device)
+    for i, (clip_id, count) in enumerate(clipid_2_counts.items()):
+        X[i,:] = clip_ids[clip_id,:]
+        w[i] = count
+    max_outliers = count_outliers(X, w, threshold=0.3)
+    print("Number of clip detections for global index {}: {}".format(chosen_gidx, w.sum().item()))
+    
+    
     print(f"Chosen gidx: {chosen_gidx}")
     print(f"Number of outliers: {max_outliers}")
         
@@ -158,6 +181,9 @@ if __name__ == '__main__':
     trimmed_mean_06_xy = np.array([trimmed_mean_w_06[92].item(), trimmed_mean_w_06[133].item()])
     trimmed_mean_09_xy = np.array([trimmed_mean_w_09[92].item(), trimmed_mean_w_09[133].item()])
     trimmed_mean_095_xy = np.array([trimmed_mean_w_095[92].item(), trimmed_mean_w_095[133].item()])
+    has_trimmed_mean_095_nan = np.isnan(trimmed_mean_095_xy).any()
+    if has_trimmed_mean_095_nan:
+        print("Warning: Weighted Trimmed Mean t=0.95 contains NaNs; skipping it in plots.")
     geometric_median_xy = np.array([geometric_median_w[92].item(), geometric_median_w[133].item()])
     max_xy = np.array([max_w[92].item(), max_w[133].item()])
     
@@ -184,7 +210,8 @@ if __name__ == '__main__':
     plt.scatter(trimmed_mean_04_xy[0], trimmed_mean_04_xy[1], color='magenta', label='Weighted Trimmed Mean t=0.4', marker='*', s=200)
     plt.scatter(trimmed_mean_06_xy[0], trimmed_mean_06_xy[1], color='green', label='Weighted Trimmed Mean t=0.6', marker='*', s=200)
     plt.scatter(trimmed_mean_09_xy[0], trimmed_mean_09_xy[1], color='blue', label='Weighted Trimmed Mean t=0.9', marker='*', s=200)
-    plt.scatter(trimmed_mean_095_xy[0], trimmed_mean_095_xy[1], color='black', label='Weighted Trimmed Mean t=0.95', marker='*', s=200)
+    if not has_trimmed_mean_095_nan:
+        plt.scatter(trimmed_mean_095_xy[0], trimmed_mean_095_xy[1], color='black', label='Weighted Trimmed Mean t=0.95', marker='*', s=200)
     plt.xlabel("Embedding Dimension 92")
     plt.ylabel("Embedding Dimension 133")
     if is_terrain:
@@ -193,7 +220,111 @@ if __name__ == '__main__':
         plt.title(f"Clip Embeddings and Averages for Nonterrain Global Index {chosen_gidx}")
     plt.legend()
     plt.show()
-      
+
+    # t-SNE projection for checking potential multimodality
+    if X.shape[0] >= 3:
+        x_np = X.detach().cpu().numpy()
+        
+        if has_trimmed_mean_095_nan:
+            learned_embs = torch.stack([
+                mu_w,
+                medoid_w,
+                max_w,
+                trimmed_mean_w_02,
+                trimmed_mean_w_04,
+                trimmed_mean_w_06,
+                trimmed_mean_w_09,
+            ], dim=0).detach().cpu().numpy()
+
+            learned_names = [
+                "Weighted Mean",
+                "Weighted Medoid",
+                "Max Embedding",
+                "Weighted Trimmed Mean t=0.2",
+                "Weighted Trimmed Mean t=0.4",
+                "Weighted Trimmed Mean t=0.6",
+                "Weighted Trimmed Mean t=0.9",
+            ]
+            learned_markers = ["X", "^", "P", "*", "*", "*", "*"]
+            learned_colors = ["red", "green", "brown", "orange", "magenta", "green", "blue"]
+        else:
+            learned_embs = torch.stack([
+                mu_w,
+                medoid_w,
+                max_w,
+                trimmed_mean_w_02,
+                trimmed_mean_w_04,
+                trimmed_mean_w_06,
+                trimmed_mean_w_09,
+                trimmed_mean_w_095,
+            ], dim=0).detach().cpu().numpy()
+
+            learned_names = [
+                "Weighted Mean",
+                "Weighted Medoid",
+                "Max Embedding",
+                "Weighted Trimmed Mean t=0.2",
+                "Weighted Trimmed Mean t=0.4",
+                "Weighted Trimmed Mean t=0.6",
+                "Weighted Trimmed Mean t=0.9",
+                "Weighted Trimmed Mean t=0.95",
+            ]
+            learned_markers = ["X", "^", "P", "*", "*", "*", "*", "*"]
+            learned_colors = ["red", "green", "brown", "orange", "magenta", "green", "blue", "black"]
+
+        tsne_input = np.vstack([x_np, learned_embs])
+        n_samples = x_np.shape[0]
+        print(n_samples)
+        perplexity = min(30, n_samples - 1)
+        perplexity = max(2, perplexity)
+
+        tsne = TSNE(
+            n_components=2,
+            perplexity=perplexity,
+            init="pca",
+            learning_rate="auto",
+            random_state=42
+        )
+        tsne_all = tsne.fit_transform(tsne_input)
+        tsne_xy = tsne_all[:n_samples]
+        tsne_learned = tsne_all[n_samples:]
+
+        plt.figure()
+        plt.scatter(
+            tsne_xy[:, 0],
+            tsne_xy[:, 1],
+            c=w_np,
+            s=sizes,
+            cmap="viridis",
+            alpha=0.75,
+            label="Clip Embeddings"
+        )
+
+        for i, name in enumerate(learned_names):
+            plt.scatter(
+                tsne_learned[i, 0],
+                tsne_learned[i, 1],
+                color=learned_colors[i],
+                marker=learned_markers[i],
+                s=220,
+                edgecolors="white",
+                linewidths=0.7,
+                label=name
+            )
+
+        cbar = plt.colorbar()
+        cbar.set_label("Detection Count (weight)")
+        plt.xlabel("t-SNE 1")
+        plt.ylabel("t-SNE 2")
+        if is_terrain:
+            plt.title(f"t-SNE of Clip Embeddings for Terrain Global Index {chosen_gidx}")
+        else:
+            plt.title(f"t-SNE of Clip Embeddings for Nonterrain Global Index {chosen_gidx}")
+        plt.legend(fontsize=8, loc="best")
+        plt.show()
+    else:
+        print(f"Skipping t-SNE: need at least 3 points, got {X.shape[0]}")
+
     # Display distribution of distances from mean (do outliers exist?)
     plt.figure()
     plt.hist(dist.cpu().detach().numpy(), bins=50)

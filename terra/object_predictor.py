@@ -104,6 +104,7 @@ class ObjectPredictor:
         return self.objects
     
     def _predict_ms_avg(self, tasks_tensor, place_nodes_dict=None):
+        print("MS_AVG sizes:",self.terra.semantic_gidx_avgclip.shape, tasks_tensor.shape)
         if place_nodes_dict is None:
             idx_scores = {}
             matched_idxs = []
@@ -162,6 +163,7 @@ class ObjectPredictor:
         self._cluster_into_bboxes(list(matched_idxs), idx_scores)
     
     def _predict_ms_max(self, tasks_tensor, place_nodes_dict=None):
+        print("MS_MAX sizes:",self.terra.clip_segs.shape, tasks_tensor.shape)
         if place_nodes_dict is None:
             clipid_scores = {}
             for start, scores in chunked_tensor_cosine_similarity(
