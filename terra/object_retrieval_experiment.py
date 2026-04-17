@@ -63,13 +63,27 @@ class ObjectEvaluator():
         self.record_precision_metrics()
         
         # Print out metrics
-        recall = sum(self.pred_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
-        precision = sum(self.task_rel_matches) / sum(self.task_rel_count) if sum(self.task_rel_count) > 0 else 0.0
-        F1 = 0.0 if (recall + precision) == 0 else 2 * (precision * recall) / (precision + recall)
-        
+        RAcc = sum(self.pred_matches) / sum(self.gt_obj_count) if sum(self.gt_obj_count) > 0 else 0.0
+        RPrec = sum(self.task_rel_matches) / sum(self.task_rel_count) if sum(self.task_rel_count) > 0 else 0.0
+        F1 = 0.0 if (RPrec + RAcc) == 0 else 2 * (RPrec * RAcc) / (RPrec + RAcc)
+
         print(f"\n\nOBJECT METRICS FOR DATASET: {self.data_folder}")
-        print(f"Precision = {precision:.3f}, Recall = {recall:.3f}, F1 = {F1:.3f}\n\n")
-    
+        print(f"RPrec = {RPrec:.3f}, RAcc = {RAcc:.3f}, F1 = {F1:.3f}\n\n")
+        racc_t = []
+        rprec_t = []
+        f1_t = []
+        for t in range(self.num_tasks):
+            RAcc_t = self.pred_matches[t] / self.gt_obj_count[t] if self.gt_obj_count[t] > 0 else 0.0
+            RPrec_t = self.task_rel_matches[t] / self.task_rel_count[t] if self.task_rel_count[t] > 0 else 0.0
+            F1_t = 0.0 if (RPrec_t + RAcc_t) == 0 else 2 * (RPrec_t * RAcc_t) / (RPrec_t + RAcc_t)
+            racc_t.append(RAcc_t)
+            rprec_t.append(RPrec_t)
+            f1_t.append(F1_t)
+            print(f"Task {self.task_names[t]}: PredCount = {self.pred_matches[t]}, RPrec = {RPrec_t:.3f}, RAcc = {RAcc_t:.3f}, F1 = {F1_t:.3f}")
+        print(f"Per Object then Averaged Metrics: RPrec_bar = {np.mean(rprec_t):.3f}, RAcc_bar = {np.mean(racc_t):.3f}, F1_bar = {np.mean(f1_t):.3f}")
+        f1_obj = 0.0 if (np.mean(rprec_t) + np.mean(racc_t)) == 0 else 2 * (np.mean(rprec_t) * np.mean(racc_t)) / (np.mean(rprec_t) + np.mean(racc_t))
+        print(f"Harmonic Mean of RPrec_bar and RAcc_bar: F1_obj = {f1_obj:.3f}")
+
     def record_precision_metrics(self):
         print("\n\nCalculating Precision Metrics:")
         task_relevant_objs = self.get_top90percent_objs()
