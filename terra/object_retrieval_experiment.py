@@ -59,7 +59,7 @@ class ObjectEvaluator():
         self.task_rel_matches = [0 for _ in range(self.num_tasks)] # \bar{M}_t
     
     def evaluate(self):
-        self.record_recall_metrics()
+        self.record_accuracy_metrics()
         self.record_precision_metrics()
         
         # Print out metrics
@@ -79,7 +79,7 @@ class ObjectEvaluator():
             racc_t.append(RAcc_t)
             rprec_t.append(RPrec_t)
             f1_t.append(F1_t)
-            print(f"Task {self.task_names[t]}: PredCount = {self.pred_matches[t]}, RPrec = {RPrec_t:.3f}, RAcc = {RAcc_t:.3f}, F1 = {F1_t:.3f}")
+            print(f"Task {self.task_names[t]}: TaskRelObjCount = {self.task_rel_count[t]}, RPrec = {RPrec_t:.3f}, RAcc = {RAcc_t:.3f}, F1 = {F1_t:.3f}")
         print(f"Per Object then Averaged Metrics: RPrec_bar = {np.mean(rprec_t):.3f}, RAcc_bar = {np.mean(racc_t):.3f}, F1_bar = {np.mean(f1_t):.3f}")
         f1_obj = 0.0 if (np.mean(rprec_t) + np.mean(racc_t)) == 0 else 2 * (np.mean(rprec_t) * np.mean(racc_t)) / (np.mean(rprec_t) + np.mean(racc_t))
         print(f"Harmonic Mean of RPrec_bar and RAcc_bar: F1_obj = {f1_obj:.3f}")
@@ -94,8 +94,8 @@ class ObjectEvaluator():
             self.task_rel_matches[t] = Mbar_t            
             print(f"Task {self.task_names[t]}: GT Count = {Nbar_t}, GT Matches = {Mbar_t}")
             
-    def record_recall_metrics(self):
-        print("\n\nCalculating Recall Metrics:")
+    def record_accuracy_metrics(self):
+        print("\n\nCalculating Accuracy Metrics:")
         for t in range(self.num_tasks):
             Nt = self.gt_obj_count[t]
             topk_objs = self.get_topk_objs_for_task(t, Nt)
@@ -347,27 +347,71 @@ class ObjectEvaluator():
                 decision = self._wait_for_yn()
                 
                 if decision is None:
-                    assert False, f"[Object {obj_idx}] for task {self.task_names[task_idx]}. No decision made!"
+                    self.display_pointcloud_with_obb(obb, obb_corners)
+                    
+                    while True:
+                        key = input("Second decision? (y/n): ").strip().lower()
+                        if key in ["y", "n"]:
+                            decision2 = (key == "y")
+                            break
+                    
+                    if decision2 is None:
+                        assert False, f"[Object {obj_idx}] for task {self.task_names[task_idx]}. No decision made!"
+                    elif decision2:
+                        print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Matched (y)")
+                        num_matches += 1
+                    else:
+                        print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match or GT already detected (n)")
                 elif decision:
                     print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Matched (y)")
                     num_matches += 1
                 else:
                     print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match or GT already detected (n)")
             else:
-                print(f"\n[Object {obj_idx}] for task {self.task_names[task_idx]}. No images see bounding box centroid!\n")
+                print(f"\n[Object {obj_idx}] for task {self.task_names[task_idx]}. No images see bounding box centroid. Displaying in 3D\n")
+                self.display_pointcloud_with_obb(obb, obb_corners)
+                while True:
+                    key = input("3D decision? (y/n): ").strip().lower()
+                    if key in ["y", "n"]:
+                        decision2 = (key == "y")
+                        break
+                
+                if decision2 is None:
+                    assert False, f"[Object {obj_idx}] for task {self.task_names[task_idx]}. No decision made!"
+                elif decision2:
+                    print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Matched (y)")
+                    num_matches += 1
+                else:
+                    print(f"[Object {obj_idx}] for task {self.task_names[task_idx]}. Not a match or GT already detected (n)")
         return num_matches
     
+    def display_pointcloud_with_obb(self, obb, obb_corners):
+        # Display PC if not visible in image
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(self.terra.pc)
+        pcd.paint_uniform_color([0.5,0.5,0.5])
+        spheres = []
+        for corner in obb_corners:
+            sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([corner[0],corner[1],corner[2]])
+            sphere.paint_uniform_color([1.0, 0.0, 0.0])
+            spheres.append(sphere)
+        sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5).translate([obb.center[0],obb.center[1],obb.center[2]])
+        sphere.paint_uniform_color([0.0, 1.0, 0.0])
+        spheres.append(sphere)
+        o3d.visualization.draw_geometries([pcd] + spheres)
     
     def _wait_for_yn(self):
         """
-        Blocks until user presses 'y' or 'n' in the matplotlib window.
-        Returns True for 'y', False for 'n'.
+        Blocks until user presses 'y' or 'n' or 'p' in the matplotlib window.
+        Returns True for 'y', False for 'n', None for 'p'.
         """
         decision = {"value": None}
 
         def on_key(event):
-            if event.key in ("y", "n"):
+            if event.key in ("y", "n", "p"):
                 decision["value"] = (event.key == "y")
+                if event.key == "p":
+                    decision["value"] = None
                 for fig_num in plt.get_fignums():
                     plt.close(fig_num)
 
