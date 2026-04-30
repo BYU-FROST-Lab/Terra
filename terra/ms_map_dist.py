@@ -156,6 +156,7 @@ class MSMap:
             self.map_globalidx2imgidx = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2imgidx_nodistthresh = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2dist_nodistthresh = {} # map from global_index to img_index {g_idx: dist_m, ...}
+            self.clipid2distances = defaultdict(list) # {clip_id: [p_L_dist, p_L_dist, ...]}
 
 
         #Iterate through each scan
@@ -256,7 +257,7 @@ class MSMap:
         # Load lidar point cloud data
         self.lidar_pc = np.load(lidar_pc_file)
     
-        # Load all images
+        # Load all images and undistort
         dist_cam_imgs = [cv2.imread(f) for f in camera_image_files]
         self.camera_images = [cv2.undistort(img, self.K[i], self.dist[i], None, self.newK[i]) for i, img in enumerate(dist_cam_imgs)]
 
@@ -266,6 +267,7 @@ class MSMap:
 
     def clip_base_image(self, camera_image_files):
         for cam_idx, img in enumerate(self.camera_images):
+            # prep = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).to(self.device)
             prep = self.clip_preprocess(
                 Image.fromarray(img[
                     self.roi[cam_idx][1]:self.roi[cam_idx][1]+self.roi[cam_idx][3],
@@ -286,6 +288,7 @@ class MSMap:
     def get_pcl_points_found_in_image(self, scan_idx):
         # Get the 3D point cloud points that correspond to the 2D image
         # This can be done using the camera intrinsics and the depth information
+        self.map_globalidx2pldist = {}
         self.map_yx2idx = [dict() for _ in range(self.num_cams)] # map from 2D image coord to 3D PC index
         self.map_lidar2globalidx = {} # map from 3D lidar PC index to 3D global PC index
         self._pixel_to_global_idx = [
@@ -327,7 +330,7 @@ class MSMap:
             cam_points = cam_points_h[:, :3]
 
             # Project onto image plane (N, 3)
-            proj_points = cam_points @ self.newK[cam_idx].T 
+            proj_points = cam_points @ self.newK[cam_idx].T
 
             # Normalize by z (N,) and round to nearest pixel
             zs = proj_points[:, 2]
@@ -358,6 +361,14 @@ class MSMap:
                 # Nearest global point
                 self.map_lidar2globalidx[pt_idx] = g_idx
                 self._pixel_to_global_idx[cam_idx][y, x] = g_idx
+                
+                # store closest LiDAR distance per global index
+                if g_idx not in self.map_globalidx2pldist:
+                    self.map_globalidx2pldist[g_idx] = p_L_dist
+                else:
+                    self.map_globalidx2pldist[g_idx] = min(
+                        self.map_globalidx2pldist[g_idx], p_L_dist
+                    )
 
                 # --- Within distance threshold ---
                 if p_L_dist < self.cam2point_dist_thresh:
@@ -422,6 +433,10 @@ class MSMap:
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
                         self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                        if g_idx in self.map_globalidx2pldist:
+                            self.clipid2distances[cls_id].append(
+                                self.map_globalidx2pldist[g_idx]
+                            )
             else:
                 self.yolo_masks.append([])
 
@@ -556,7 +571,6 @@ class MSMap:
             candidate_global_idxs = self._pixel_to_global_idx[cam_idx][ys, xs]
             # filter out unmapped entries (-1)
             candidate_global_idxs = candidate_global_idxs[candidate_global_idxs >= 0]
-            candidate_global_idxs = np.unique(candidate_global_idxs) # TODO: Added to remove redundant pts
             if candidate_global_idxs.size == 0:
                 continue
 
@@ -606,45 +620,41 @@ class MSMap:
             - CLIP embeddings
             - Point cloud dictionary (gidx2clipcounts_dict)
         """
-        # device = clip_embs_tensor.device
+        device = clip_embs_tensor.device
         num_masks = clip_embs_tensor.shape[0]
         
-        # # Track best match per mask
-        # best_scores = torch.full((num_masks,), 0.0, device=device)
-        # best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
+        # Track best match per mask
+        best_scores = torch.full((num_masks,), 0.0, device=device)
+        best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
-        # for start, scores in chunked_tensor_cosine_similarity(
-        #     clip_embs_tensor,          # (num_masks, D)
-        #     self.clip_segs,          # (num_existing, D)
-        #     chunk_size=8192
-        # ): # scores: (num_masks, chunk)
+        for start, scores in chunked_tensor_cosine_similarity(
+            clip_embs_tensor,          # (num_masks, D)
+            self.clip_segs,          # (num_existing, D)
+            chunk_size=8192
+        ): # scores: (num_masks, chunk)
 
-        #     chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-        #     chunk_max_ids += start  # convert local → global clip id
+            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
+            chunk_max_ids += start  # convert local → global clip id
 
-        #     better = chunk_max_scores > best_scores
-        #     best_scores[better] = chunk_max_scores[better]
-        #     best_clip_ids[better] = chunk_max_ids[better]
+            better = chunk_max_scores > best_scores
+            best_scores[better] = chunk_max_scores[better]
+            best_clip_ids[better] = chunk_max_ids[better]
 
-        #     del scores  # free GPU memory
+            del scores  # free GPU memory
         
         for mask_idx in range(num_masks):
-            # if best_scores[mask_idx] > self.theta_cos_sim:
-            #     max_clip_id = best_clip_ids[mask_idx].item()
-            # else:
-            #     self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-            #     max_clip_id = self.clip_segs.shape[0] - 1
-            self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-            max_clip_id = self.clip_segs.shape[0] - 1
+            if best_scores[mask_idx] > self.theta_cos_sim:
+                max_clip_id = best_clip_ids[mask_idx].item()
+            else:
+                self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+                max_clip_id = self.clip_segs.shape[0] - 1
 
-            set_tracker = set()
             for g_idx in global_idxs[mask_idx]:
-                if g_idx not in set_tracker:
-                    set_tracker.add(g_idx)
-                else:
-                    print(global_idxs[mask_idx])
-                    assert False, "Duplicate global index in the same mask's global_idxs list, which should not happen"
                 self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                if g_idx in self.map_globalidx2pldist:
+                    self.clipid2distances[max_clip_id].append(
+                        self.map_globalidx2pldist[g_idx]
+                    )
 
     def save_semantic_pcl(self, itr):
         ## Save Semantic Point Cloud
@@ -661,6 +671,9 @@ class MSMap:
         torch.save(clip_imgs,self.output_folder+f"/clip_imgs_itr{itr}.pt")
         with open(self.output_folder+f"/saved_img_names_itr{itr}.pkl","wb") as f:
             pkl.dump(self.saved_img_names, f)
+            
+        with open(self.output_folder+f"/clipid2distances_itr{itr}.pkl", "wb") as f:
+            pkl.dump(self.clipid2distances, f)
 
         print(f"\nSaved gidx2clipcounts_dict and clip_segs at iteration {itr}\n")
        
@@ -782,6 +795,10 @@ class MSMap:
         self.clip_imgs = list(self.clip_imgs.unbind(dim=0))
         with open(self.output_folder+f"/saved_img_names_itr{self.last_scan_idx}.pkl","rb") as f:
             self.saved_img_names = pkl.load(f)
+        
+        with open(self.output_folder+f"/clipid2distances_itr{self.last_scan_idx}.pkl", "rb") as f:
+            self.clipid2distances = pkl.load(f)
+        
         self.num_scans = self.last_scan_idx + 1
 
     ######################

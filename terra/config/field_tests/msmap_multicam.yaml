@@ -1,7 +1,7 @@
 ## Processing parameters
-data_folder: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26
-output_folder: /ros2_bags/metric_data_0.5s/synced/rvpark_v4_1_23_26/output/1_cam
-num_cams: 1
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned
+output_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam_continuous
+num_cams: 3
 debug: false
 continue_processing: false
 save_step_size: 500

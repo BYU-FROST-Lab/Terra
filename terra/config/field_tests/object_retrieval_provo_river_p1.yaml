@@ -1,6 +1,6 @@
 ---
 data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned
-output_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam
+output_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam_dist
 num_cams: 3
 IMG_W: 768
 IMG_H: 480
@@ -19,9 +19,10 @@ cam3_K:  [456.77801458, 0.0, 378.49188005,
         0.0, 0.0, 1.0] # 768 x 480
 cam3_dist: [0.02182443, -0.04749719, 0.00062508, 0.00044833] # right (cam3) - ssp
 
-terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam_dist/Terra_20.0mimgembs_nodist1img_beta1gamma100autoagglomerativecluster.pkl
 alpha: 0.26
-prediction_method: "3dsg_max" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+prediction_method: "ms_max" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
 object_tasks:
   - {task: "parked car", ground_truth: 11} # 2 less cars for 1 cam (i.e. GT=9)
   - {task: "bicycle", ground_truth: 3}

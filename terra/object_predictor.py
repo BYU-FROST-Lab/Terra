@@ -1,9 +1,10 @@
 import torch
 import torch.nn.functional as F
 from scipy.spatial import KDTree
-# from sklearn.cluster import DBSCAN
+from sklearn.cluster import HDBSCAN
 import numpy as np
 import open3d as o3d
+import pickle as pkl
 
 from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
 from terra_utils import TerraObject
@@ -68,6 +69,246 @@ def build_trimmed_mean_tensor(gidx_2_clipcounts, clip_segs, semantic_avg, semant
         trimmed_mean_tensor[idx,:] = trimmed_mean.cpu()
     return trimmed_mean_tensor.to(clip_segs.device)
 
+def weighted_median(x, w):
+    idx = torch.argsort(x.squeeze())
+    x_sorted = x[idx]
+    w_sorted = w[idx]
+    cdf = torch.cumsum(w_sorted, dim=0)
+    if len(cdf.shape) == 0:
+        return x_sorted
+    return x_sorted[torch.searchsorted(cdf, 0.5)]
+
+def compute_weighted_trimmed_medoid(X, w, z_mod_thresh=3.5):
+    # Normalize embeddings
+    X = X / X.norm(dim=1, keepdim=True)
+    w_normed = w / w.sum()
+
+    # Weighted mean in embedding space
+    mu = (X * w_normed.unsqueeze(1)).sum(dim=0)
+    mu = mu / mu.norm()
+
+    # Cosine distance
+    sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    dist = 1 - sim
+    
+    # --- Compute z-scores ---
+    # Robust stats
+    med = weighted_median(dist, w_normed)
+    mad = weighted_median(torch.abs(dist - med), w_normed) + 1e-8
+
+    # Robust z-score
+    z = 0.6745 * (dist - med) / mad
+    
+    inliers_mask = torch.abs(z) <= z_mod_thresh
+    
+    mu_trim = (X[inliers_mask[:,0],:] * w_normed[inliers_mask[:,0]].unsqueeze(1)).sum(dim=0)
+    mu_trim = mu_trim / mu_trim.norm()
+    return mu_trim
+
+def build_trimmed_medoid_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs, z_mod_thresh=3.5):
+    device_out = clip_segs.device  # final destination (GPU)
+    # Move source once to CPU (or assume already CPU)
+    clip_segs_cpu = clip_segs.cpu()
+    trimmed_medoid_tensor = torch.zeros(
+        (len(semantic_gidxs), clip_segs.shape[1]),
+        device='cpu',
+        dtype=torch.float32
+    )
+    for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building trimmed medoid tensor")):
+        clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
+        if clipcounts_dict_entry is None:
+            continue
+        clip_ids = list(clipcounts_dict_entry.keys())
+
+        # Stay on CPU
+        X = torch.stack([clip_segs_cpu[clip_id, :] for clip_id in clip_ids])
+        w = torch.tensor(list(clipcounts_dict_entry.values()), dtype=torch.float32)
+        medoid = compute_weighted_trimmed_medoid(X, w, z_mod_thresh)
+        trimmed_medoid_tensor[idx, :] = medoid  # already CPU
+
+    # Move final result back to GPU once
+    return trimmed_medoid_tensor.to(device_out)
+
+def weighted_median_index(x, w):
+    # Sort distances
+    sorted_idx = torch.argsort(x[:,0])
+    x_sorted = x[sorted_idx]
+    w_sorted = w[sorted_idx]
+    # CDF
+    cdf = torch.cumsum(w_sorted, dim=0)
+    # Find weighted median position
+    median_pos = torch.searchsorted(cdf, 0.5)
+    # Map back to original index
+    return sorted_idx[median_pos]
+
+def build_weighted_median_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs):
+    device_out = clip_segs.device  # final destination (GPU)
+    # Move source once to CPU (or assume already CPU)
+    clip_segs_cpu = clip_segs.cpu()
+    weighted_median_tensor = torch.zeros(
+        (len(semantic_gidxs), clip_segs.shape[1]),
+        device='cpu',
+        dtype=torch.float32
+    )
+    for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building weighted median tensor")):
+        clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
+        if clipcounts_dict_entry is None:
+            continue
+        clip_ids = list(clipcounts_dict_entry.keys())
+
+        # Stay on CPU
+        X = torch.stack([clip_segs_cpu[clip_id, :] for clip_id in clip_ids])
+        w = torch.tensor(list(clipcounts_dict_entry.values()), dtype=torch.float32)
+        
+        # Normalize embeddings
+        X = X / X.norm(dim=1, keepdim=True)
+        w_normed = w / w.sum()
+        # Weighted mean in embedding space
+        mu = (X * w_normed.unsqueeze(1)).sum(dim=0)
+        mu = mu / mu.norm()
+        # Cosine distance
+        sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+        dist = 1 - sim
+        # --- Compute z-scores ---
+        # Robust stats
+        median_idx = weighted_median_index(dist, w_normed)
+        weighted_median_tensor[idx, :] = X[median_idx, :]  # already CPU
+        
+        del X, w, dist, sim  # help memory
+
+    # Move final result back to GPU once
+    return weighted_median_tensor.to(device_out)
+
+def compute_hdbscan_embedding(X, w, min_cluster_size=2, selection="weight", num_terrain=0):
+    """
+    X: [N, D] torch tensor
+    w: [N] torch tensor
+    returns: [D] torch tensor
+    """
+    # normalize for cosine geometry
+    Xn = X / (X.norm(dim=1, keepdim=True) + 1e-8)
+    wn = w / w.sum()
+    Xw = Xn * wn.unsqueeze(1)
+    Xw_np = Xw.detach().cpu().numpy()
+    labels = HDBSCAN(
+        min_cluster_size=min_cluster_size,
+        min_samples=1,
+        metric="euclidean"
+    ).fit_predict(Xw_np)
+    # group clusters
+    clusters = {}
+    for i, l in enumerate(labels):
+        if l != -1:
+            clusters.setdefault(l, []).append(i)
+
+    # fallback → your strongest baseline
+    if not clusters:
+        return (X * w.unsqueeze(1)).sum(0) / w.sum()
+
+    # pick cluster
+    if selection == "size": # pick cluster with most elements
+        best = max(clusters, key=lambda c: len(clusters[c]))
+        idx = clusters[best]
+        Xc, wc = X[idx], w[idx]
+        out = (Xc * wc.unsqueeze(1)).sum(0) / wc.sum()
+    elif selection == "average": # average across clusters
+        out = torch.zeros(X.shape[1], device=X.device)
+        counter = 0
+        for i, (c, cluster_idxs) in enumerate(clusters.items()):
+            cluster_X = X[cluster_idxs,:]
+            cluster_w = w[cluster_idxs]
+            cluster_embedding = (cluster_X * cluster_w.unsqueeze(1)).sum(0) / cluster_w.sum()
+            cluster_embedding = cluster_embedding / cluster_embedding.norm()
+            out += cluster_embedding * cluster_w.sum()
+            counter += cluster_w.sum()
+        out = out / counter
+        out = out / out.norm()
+    else:  # "weight" - pick cluster with largest total weight
+        best = max(clusters, key=lambda c: wn[clusters[c]].sum().item())
+        idx = clusters[best]
+        Xc, wc = X[idx], w[idx]
+        out = (Xc * wc.unsqueeze(1)).sum(0) / wc.sum()
+    return out / (out.norm() + 1e-8)
+
+def build_hdbscan_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs, 
+                         min_cluster_size=2, selection="weight", num_terrain=0):
+    """
+    Returns:
+        [num_gidxs, D] tensor
+    """
+    clip_segs_cpu = clip_segs.cpu()
+
+    out = torch.zeros(
+        (len(semantic_gidxs), clip_segs.shape[1]),
+        dtype=torch.float32,
+        device="cpu"
+    )
+
+    for i, gidx in enumerate(tqdm(semantic_gidxs, desc="HDBSCAN")):
+        entry = gidx_2_clipcounts.get(gidx, None)
+        if not entry:
+            continue
+
+        ids = list(entry.keys())
+
+        X = torch.stack([clip_segs_cpu[j] for j in ids])
+        w = torch.tensor(list(entry.values()), dtype=torch.float32)
+        
+        if X.shape[0] == 1:
+            out[i,:] = X[0,:]
+            continue
+
+        out[i,:] = compute_hdbscan_embedding(
+            X, w,
+            min_cluster_size=min_cluster_size,
+            selection=selection,
+            num_terrain=num_terrain
+        ).cpu()
+
+    return out.to(clip_segs.device)
+
+
+# def build_avgdist_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs):
+#     # Load distance pickle file
+#     outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
+#     with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
+#         gidx2dists = pkl.load(f)
+#     # Precompute distance lookups
+#     max_dist = max([dist for dist in gidx2dists.values()])
+#     print("Max distance across all clip_ids:", max_dist,"[m]")
+    
+#     gidx2mean = {
+#         gidx: abs(max_dist - np.mean(dists)) / max_dist for gidx, dists in gidx2dists.items()
+#     }
+    
+#     device_out = clip_segs.device  # final destination (GPU)
+#     # Move source once to CPU (or assume already CPU)    
+#     clip_segs_cpu = clip_segs.cpu()
+#     avgdist_tensor = torch.zeros(
+#         (len(semantic_gidxs), clip_segs.shape[1]),
+#         device='cpu',
+#         dtype=torch.float32
+#     )
+#     for idx, gidx in enumerate(tqdm(semantic_gidxs, desc="Building avgdist tensor")):
+#         clipcounts_dict_entry = gidx_2_clipcounts.get(gidx, None)
+#         if clipcounts_dict_entry is None:
+#             continue
+#         clip_ids = torch.tensor(list(clipcounts_dict_entry.keys()), dtype=torch.long)
+        
+#         w_dist = gidx2mean[gidx]
+        
+#         X = clip_segs_cpu[clip_ids]
+#         w = torch.tensor(list(clipcounts_dict_entry.values()), dtype=torch.float32)
+#         w_normed = w / w.sum()
+#         combined_w = w_normed
+#         combined_w = combined_w / combined_w.sum()
+#         weighted_avg_dist = (X * combined_w.unsqueeze(1)).sum(dim=0)
+#         weighted_avg_dist = weighted_avg_dist / weighted_avg_dist.norm()
+        
+#         avgdist_tensor[idx, :] = w_dist * weighted_avg_dist.cpu()
+
+#     return avgdist_tensor.to(device_out)
+
 
 class ObjectPredictor:
     """
@@ -102,7 +343,39 @@ class ObjectPredictor:
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
-            ## CLIP AVG
+            # ## MS-AVG
+            # idx_scores = {}
+            # matched_idxs = []
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     self.terra.semantic_gidx_avgclip,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         # Move small data to CPU immediately
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
+            
+            ## MS-AVG-WITH-DISTANCE_WEIGHTS # TODO: implement...
+            print("Running MS-Avg-Dist Method")
+            # Load distance pickle file
+            outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
+            with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
+                gidx2dist = pkl.load(f)
+            # Precompute distance lookups
+            max_dist = max([dist for dist in gidx2dist.values()])
+            print("Max distance across all clip_ids:", max_dist,"[m]")
+            gidx2weight = {
+                gidx: abs(max_dist - dist) / max_dist for gidx, dist in gidx2dist.items()
+            }          
+            
             idx_scores = {}
             matched_idxs = []
             for start, scores in chunked_tensor_cosine_similarity(
@@ -117,12 +390,12 @@ class ObjectPredictor:
                     idx_filt = start + local_idx.item()
                     idx = self.terra.semantic_gidxs[idx_filt]
                     # Move small data to CPU immediately
-                    idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+                    idx_scores[idx] = gidx2weight[idx] * scores[local_idx, self.terra.num_terrain:].cpu()
                     matched_idxs.append(idx)
                 # free GPU memory
                 del scores
             
-            # ## CLIP MEDOID
+            # ## MS-Medoid
             # print("Running MEDOID Method")
             # idx_scores = {}
             # matched_idxs = []
@@ -148,7 +421,7 @@ class ObjectPredictor:
             #     # free GPU memory
             #     del scores
             
-            # ## CLIP AVG-TRIMMED
+            # ## MS-Trim
             # print("Running AVG-TRIMMED Method")
             # idx_scores = {}
             # matched_idxs = []
@@ -177,7 +450,104 @@ class ObjectPredictor:
             #     # free GPU memory
             #     del scores
             
+            
+            # ## MS-Trim-Medoid
+            # print("Running TRIMMED-MEDOID Method")
+            # idx_scores = {}
+            # matched_idxs = []
+            # z_mod_thresh = 3.5
+            # print("Z_mod-score threshold:",z_mod_thresh)
+            # avg_trimmed_tensor = build_trimmed_medoid_tensor(
+            #     self.terra.gidx_2_clipcounts, 
+            #     self.terra.clip_segs,
+            #     self.terra.semantic_gidxs,
+            #     z_mod_thresh=z_mod_thresh
+            # )
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     avg_trimmed_tensor,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
+            
+            # ## MS-Median
+            # print("Running WEIGHTED-MEDIAN Method")
+            # idx_scores = {}
+            # matched_idxs = []
+            # weighted_median_tensor = build_weighted_median_tensor(
+            #     self.terra.gidx_2_clipcounts, 
+            #     self.terra.clip_segs,
+            #     self.terra.semantic_gidxs
+            # )
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     weighted_median_tensor,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
+            
+            # ## MS-HDBSCAN
+            # print("Running HDBSCAN Method")
+            # idx_scores = {}
+            # matched_idxs = []
+            # selection_method = "average" # ["size","weight","average"]
+            # print("Selection method:",selection_method)
+            # hdb_tensor = build_hdbscan_tensor(
+            #     self.terra.gidx_2_clipcounts, 
+            #     self.terra.clip_segs,
+            #     self.terra.semantic_gidxs,
+            #     min_cluster_size=2,
+            #     selection=selection_method,
+            #     num_terrain=self.terra.num_terrain
+            # )
+            # print("Finished building hdbscan tensor")
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     hdb_tensor,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
+            
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
+            
+            # Load distance pickle file
+            outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
+            with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
+                gidx2dist = pkl.load(f)
+            # Precompute distance lookups
+            max_dist = max([dist for dist in gidx2dist.values()])
+            print("Max distance across all clip_ids:", max_dist,"[m]")
+            gidx2weight = {
+                gidx: abs(max_dist - dist) / max_dist for gidx, dist in gidx2dist.items()
+            }   
+            
             clipid_scores = {}
             for start, scores in chunked_tensor_cosine_similarity(
                 self.terra.clip_segs,
@@ -196,7 +566,8 @@ class ObjectPredictor:
                 curr_clipid, curr_count = max(self.terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
                 if curr_clipid not in clipid_scores:
                     continue
-                idx_scores[idx] = clipid_scores[curr_clipid]
+                # idx_scores[idx] = (1 + gidx2weight[idx]) * clipid_scores[curr_clipid]
+                idx_scores[idx] = gidx2weight[idx] * clipid_scores[curr_clipid]
                 matched_idxs.append(idx)
                 
         elif use_avg_clipids: # use average clipids with place node filtering
