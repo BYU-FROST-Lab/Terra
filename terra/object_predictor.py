@@ -343,39 +343,7 @@ class ObjectPredictor:
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
-            # ## MS-AVG
-            # idx_scores = {}
-            # matched_idxs = []
-            # for start, scores in chunked_tensor_cosine_similarity(
-            #     self.terra.semantic_gidx_avgclip,
-            #     tasks_tensor,
-            #     chunk_size=8192
-            # ):
-            #     max_scores, max_tasks = scores.max(dim=1)
-            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
-            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
-            #     for local_idx in valid_idxs:
-            #         idx_filt = start + local_idx.item()
-            #         idx = self.terra.semantic_gidxs[idx_filt]
-            #         # Move small data to CPU immediately
-            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
-            #         matched_idxs.append(idx)
-            #     # free GPU memory
-            #     del scores
-            
-            ## MS-AVG-WITH-DISTANCE_WEIGHTS # TODO: implement...
-            print("Running MS-Avg-Dist Method")
-            # Load distance pickle file
-            outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
-            with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
-                gidx2dist = pkl.load(f)
-            # Precompute distance lookups
-            max_dist = max([dist for dist in gidx2dist.values()])
-            print("Max distance across all clip_ids:", max_dist,"[m]")
-            gidx2weight = {
-                gidx: abs(max_dist - dist) / max_dist for gidx, dist in gidx2dist.items()
-            }          
-            
+            ## MS-AVG
             idx_scores = {}
             matched_idxs = []
             for start, scores in chunked_tensor_cosine_similarity(
@@ -390,10 +358,42 @@ class ObjectPredictor:
                     idx_filt = start + local_idx.item()
                     idx = self.terra.semantic_gidxs[idx_filt]
                     # Move small data to CPU immediately
-                    idx_scores[idx] = gidx2weight[idx] * scores[local_idx, self.terra.num_terrain:].cpu()
+                    idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
                     matched_idxs.append(idx)
                 # free GPU memory
                 del scores
+            
+            # ## MS-AVG-WITH-DISTANCE_WEIGHTS
+            # print("Running MS-Avg-Dist Method")
+            # # Load distance pickle file
+            # outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
+            # with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
+            #     gidx2dist = pkl.load(f)
+            # # Precompute distance lookups
+            # max_dist = max([dist for dist in gidx2dist.values()])
+            # print("Max distance across all clip_ids:", max_dist,"[m]")
+            # gidx2weight = {
+            #     gidx: abs(max_dist - dist) / max_dist for gidx, dist in gidx2dist.items()
+            # }          
+            
+            # idx_scores = {}
+            # matched_idxs = []
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     self.terra.semantic_gidx_avgclip,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         # Move small data to CPU immediately
+            #         idx_scores[idx] = gidx2weight[idx] * scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
             
             # ## MS-Medoid
             # print("Running MEDOID Method")
@@ -536,18 +536,8 @@ class ObjectPredictor:
             #     del scores
             
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
-            
-            # Load distance pickle file
-            outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
-            with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
-                gidx2dist = pkl.load(f)
-            # Precompute distance lookups
-            max_dist = max([dist for dist in gidx2dist.values()])
-            print("Max distance across all clip_ids:", max_dist,"[m]")
-            gidx2weight = {
-                gidx: abs(max_dist - dist) / max_dist for gidx, dist in gidx2dist.items()
-            }   
-            
+
+            ## MS-MAX
             clipid_scores = {}
             for start, scores in chunked_tensor_cosine_similarity(
                 self.terra.clip_segs,
@@ -566,9 +556,44 @@ class ObjectPredictor:
                 curr_clipid, curr_count = max(self.terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
                 if curr_clipid not in clipid_scores:
                     continue
-                # idx_scores[idx] = (1 + gidx2weight[idx]) * clipid_scores[curr_clipid]
-                idx_scores[idx] = gidx2weight[idx] * clipid_scores[curr_clipid]
+                idx_scores[idx] = clipid_scores[curr_clipid]
                 matched_idxs.append(idx)
+
+            
+            # ## MS-MAX-WITH-DISTANCE_WEIGHTS
+            # print("Running MS-Max-Dist Method")
+            # Load distance pickle file
+            # outer_dir = "/ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/"
+            # with open(outer_dir + "provo_river_p1_11_3_25_cleaned/output/3_cam_dist/gidx2closestimgdist_dict_itr1829.pkl", "rb") as f:
+            #     gidx2dist = pkl.load(f)
+            # # Precompute distance lookups
+            # max_dist = max([dist for dist in gidx2dist.values()])
+            # print("Max distance across all clip_ids:", max_dist,"[m]")
+            # gidx2weight = {
+            #     gidx: abs(max_dist - dist) / max_dist for gidx, dist in gidx2dist.items()
+            # }   
+            
+            # clipid_scores = {}
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     self.terra.clip_segs,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     for local_clip_idx in range(scores.shape[0]):
+            #         clip_id = start + local_clip_idx
+            #         if max_tasks[local_clip_idx] >= self.terra.num_terrain and max_scores[local_clip_idx] > self.terra.alpha:
+            #             clipid_scores[clip_id] = scores[local_clip_idx, self.terra.num_terrain:].cpu()
+            #     del scores
+            # idx_scores = {}
+            # matched_idxs = []
+            # for idx, clip_ids in self.terra.gidx_2_clipcounts.items():
+            #     curr_clipid, curr_count = max(self.terra.gidx_2_clipcounts[idx].items(), key=lambda x: x[1])
+            #     if curr_clipid not in clipid_scores:
+            #         continue
+            #     # idx_scores[idx] = (1 + gidx2weight[idx]) * clipid_scores[curr_clipid]
+            #     idx_scores[idx] = gidx2weight[idx] * clipid_scores[curr_clipid]
+            #     matched_idxs.append(idx)
                 
         elif use_avg_clipids: # use average clipids with place node filtering
             task_pts = {}

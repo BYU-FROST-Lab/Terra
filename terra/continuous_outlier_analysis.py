@@ -9,56 +9,187 @@ import open3d as o3d
 
 from utils import tensor_cosine_similarity
 
+# def geometric_median(X, w=None, eps=1e-5, max_iter=100):
+#     """
+#     X: (N, D)
+#     w: (N,) or None
+#     """
 
-def weighted_median(x, w):
-    idx = torch.argsort(x.squeeze())
-    x_sorted = x[idx]
-    w_sorted = w[idx]
-    cdf = torch.cumsum(w_sorted, dim=0)
-    if len(cdf.shape) == 0:
-        return x_sorted
-    return x_sorted[torch.searchsorted(cdf, 0.5)]
+#     # Normalize embeddings (same as your pipeline)
+#     X = X / X.norm(dim=1, keepdim=True)
 
-def count_outliers(X, w, std_dev=3):
+#     N, D = X.shape
+
+#     # ---- FAST PATH: no weights or uniform weights ----
+#     if w is None or torch.all(w == 1):
+#         y = X.mean(dim=0)
+
+#         for _ in range(max_iter):
+#             diff = X - y
+#             dist = torch.norm(diff, dim=1).clamp(min=eps)
+
+#             weights = 1.0 / dist
+#             y_new = (weights[:, None] * X).sum(dim=0) / weights.sum()
+
+#             if torch.norm(y - y_new) < eps:
+#                 break
+#             y = y_new
+
+#     # ---- Weighted case ----
+#     else:
+#         w = w / w.sum()
+#         y = (X * w.unsqueeze(1)).sum(dim=0)
+
+#         for _ in range(max_iter):
+#             diff = X - y
+#             dist = torch.norm(diff, dim=1).clamp(min=eps)
+
+#             weights = w / dist
+#             y_new = (weights[:, None] * X).sum(dim=0) / weights.sum()
+
+#             if torch.norm(y - y_new) < eps:
+#                 break
+#             y = y_new
+
+#     return y / y.norm()
+
+def cosine_geometric_median(X, w=None, eps=1e-5, max_iter=50):
+    """
+    Cosine-based geometric median for L2-normalized embeddings.
+
+    X: (N, D)
+    w: optional (N,)
+    """
+
+    # Normalize (critical for cosine geometry)
+    X = X / X.norm(dim=1, keepdim=True)
+
+    if w is not None:
+        w = w / w.sum()
+
+    # initialize with weighted mean direction (good start)
+    if w is None:
+        y = X.mean(dim=0)
+    else:
+        y = (X * w.unsqueeze(1)).sum(dim=0)
+
+    y = y / y.norm()
+
+    for _ in range(max_iter):
+        # cosine distance surrogate: 1 - dot
+        sim = X @ y
+        dist = (1 - sim).clamp(min=eps)
+
+        # weights: closer points matter more
+        if w is None:
+            weights = 1.0 / dist
+        else:
+            weights = w / dist
+
+        y_new = (weights.unsqueeze(1) * X).sum(dim=0)
+        y_new = y_new / y_new.norm()
+
+        if torch.norm(y - y_new) < eps:
+            break
+
+        y = y_new
+
+    return y
+
+
+def count_outliers_geomedian(X, w=None, std_dev=3):
+    N = X.shape[0]
+
     # Normalize embeddings
     X = X / X.norm(dim=1, keepdim=True)
-    w_normed = w / w.sum()
 
-    # Weighted mean in embedding space
-    mu = (X * w_normed.unsqueeze(1)).sum(dim=0)
-    mu = mu / mu.norm()
+    # ---- Compute robust center ----
+    # mu = geometric_median(X, w)
+    mu = cosine_geometric_median(X, w)
 
-    # Cosine distance
+    # ---- Cosine distance ----
     sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
     dist = 1 - sim
-    
-    # --- Compute z-scores ---
-    # Robust stats
-    med = weighted_median(dist, w_normed)
-    mad = weighted_median(torch.abs(dist - med), w_normed) + 1e-8
 
-    # Robust z-score
+    # ---- FAST PATH: no weights or uniform weights ----
+    if w is None or torch.all(w == 1):
+        med = dist.median()
+        mad = torch.median(torch.abs(dist - med)) + 1e-8
+
+        z = 0.6745 * (dist - med) / mad
+        outliers = torch.abs(z) > std_dev
+
+        return outliers.sum()
+
+    # ---- Weighted case ----
+    w = w / w.sum()
+
+    med = weighted_median(dist, w)
+    mad = weighted_median(torch.abs(dist - med), w) + 1e-8
+
     z = 0.6745 * (dist - med) / mad
-    
     outliers = torch.abs(z) > std_dev
 
-    # # --- Weighted variance ---
-    # var_d = (w * dist**2).sum() / (X.shape[0] - 1) # sample variance
+    return (w * outliers.float()).sum()
 
-    # # --- Standard deviation ---
-    # std_d = torch.sqrt(var_d + 1e-8)
-    
-    # # --- Outlier threshold ---
-    # threshold = std_dev * std_d
 
-    # # --- Outlier mask ---
-    # outliers = dist > threshold
+def weighted_median(x, w=None):
+    x = x.squeeze()
 
-    # Count outliers
-    # num_outliers = outliers.count_nonzero()
-    num_outliers = (w * (outliers.squeeze())).sum()
-    
-    return num_outliers
+    # Unweighted case (fast path)
+    if w is None:
+        return x.median()
+
+    w = w.squeeze()
+
+    idx = torch.argsort(x)
+    x_sorted = x[idx]
+    w_sorted = w[idx]
+
+    cdf = torch.cumsum(w_sorted, dim=0)
+    cutoff = 0.5 * w_sorted.sum()
+
+    return x_sorted[torch.searchsorted(cdf, cutoff)]
+
+
+def count_outliers_meanmedian(X, w=None, std_dev=3):
+    N = X.shape[0]
+
+    # Normalize embeddings
+    X = X / X.norm(dim=1, keepdim=True)
+
+    # ---- FAST PATH: no weights or uniform weights ----
+    if w is None or torch.all(w == 1):
+        mu = X.mean(dim=0)
+        mu = mu / mu.norm()
+
+        sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+        dist = 1 - sim
+
+        med = dist.median()
+        mad = torch.median(torch.abs(dist - med))
+
+        z = 0.6745 * (dist - med) / mad
+        outliers = torch.abs(z) > std_dev
+
+        return outliers.sum()
+
+    # ---- Weighted case (only if actually needed) ----
+    w = w / w.sum()
+
+    mu = (X * w.unsqueeze(1)).sum(dim=0)
+    mu = mu / mu.norm()
+
+    sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    dist = 1 - sim
+
+    med = weighted_median(dist, w)
+    mad = weighted_median(torch.abs(dist - med), w) + 1e-8
+
+    z = 0.6745 * (dist - med) / mad
+    outliers = torch.abs(z) > std_dev
+
+    return (w * outliers.float()).sum()
 
 # def count_outliers(X, w, threshold=0.3):
 #     # Normalize embeddings
@@ -90,6 +221,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--clip_segs', type=str, required=True, help="Tensor of segment CLIP embeddings.")
     parser.add_argument('--gidx2clipcounts', type=str, required=True, help="Dictionary mapping global indices to clip counts")
+    parser.add_argument('--global_pc', type=str, required=True, help="Global point cloud file")
     # parser.add_argument('--clip_imgs', type=str, help="Tensor of image CLIP embeddings")
     # parser.add_argument('--gidx2imgs', type=str, help="Dictionary mapping global indices to image indices within distance")
     # parser.add_argument('--img_names', type=str, help="List of image names corresponding to clip_imgs")
@@ -121,30 +253,27 @@ if __name__ == '__main__':
         # # clipid_2_counts = cid_2_cnt
         # # break
         
-        # ## Remove terrain text embeddings
-        # cid_2_cnt_old = dict(cid_2_cnt)
-        # for i, (clip_id, count) in enumerate(cid_2_cnt_old.items()):
-        #     if clip_id < terra.num_terrain:
-        #         del cid_2_cnt[clip_id]
+        ## Remove terrain text embeddings
+        cid_2_cnt_old = dict(cid_2_cnt)
+        for i, (clip_id, count) in enumerate(cid_2_cnt_old.items()):
+            if clip_id < 7: # Assuming terrain clip IDs are 0-6, adjust if needed
+                del cid_2_cnt[clip_id]
         
-        # Build X and w
+        # Build X
         X = torch.zeros((len(cid_2_cnt), 512), device=device)
-        w = torch.zeros((len(cid_2_cnt),), device=device)
 
         for i, (clip_id, count) in enumerate(cid_2_cnt.items()):
             # if clip_id < terra.num_terrain:
             #     print(f"Error: clip_id {clip_id} is less than num_terrain {terra.num_terrain}")
             X[i,:] = clip_ids[clip_id,:]
-            w[i] = count
-        if w.sum() == 0:
-            # To handle terrain only embeddings that have all been removed
-            continue
+
         
-        num_outliers = count_outliers(X, w, std_dev=3.5)
+        # num_outliers = count_outliers_meanmedian(X, std_dev=3.5)
+        num_outliers = count_outliers_geomedian(X, std_dev=3.5)
         # num_outliers = count_outliers(X, w, threshold=0.3)
 
         gidx_2_outlier_counts[g_idx] = num_outliers.detach().cpu().item()
-        gidx_2_total_counts[g_idx] = w.sum().detach().cpu().item()
+        gidx_2_total_counts[g_idx] = len(cid_2_cnt) if len(cid_2_cnt) > 0 else 1
         
         if num_outliers > max_outliers:
             max_outliers = num_outliers
@@ -225,7 +354,7 @@ if __name__ == '__main__':
     vmin = np.percentile(vals, 5)
     vmax = np.percentile(vals, 95)
     
-    pc = terra.pc
+    pc = np.load(args.global_pc) # (num_pts,4)
     all_points = pc[:, :3].astype(np.float64)
     all_colors = np.zeros((pc.shape[0], 3), dtype=np.float64)
     for g_idx, cid_2_cnt in gidx_2_clipcounts.items():

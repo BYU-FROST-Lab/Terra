@@ -419,8 +419,12 @@ class MSMap:
                         self.display_image(f"Filtered LiDAR Image {class_name[cls_id]}", (filtered_lidar_img.astype(np.uint8)*255))
 
                     y_indices, x_indices = np.where(filtered_lidar_img > 0)
+                    # set_tracker = set() # TODO: Added to remove duplicate g_idx points for same mask
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
+                        # if g_idx in set_tracker: # TODO: Added to remove duplicate g_idx
+                        #     continue # TODO: Added to remove duplicate g_idx
+                        # set_tracker.add(g_idx) # TODO: Added to remove duplicate g_idx
                         self.gidx2clipcounts_dict[g_idx][cls_id] += 1
             else:
                 self.yolo_masks.append([])
@@ -556,7 +560,7 @@ class MSMap:
             candidate_global_idxs = self._pixel_to_global_idx[cam_idx][ys, xs]
             # filter out unmapped entries (-1)
             candidate_global_idxs = candidate_global_idxs[candidate_global_idxs >= 0]
-            candidate_global_idxs = np.unique(candidate_global_idxs) # TODO: Added to remove redundant pts
+            # candidate_global_idxs = np.unique(candidate_global_idxs) # TODO: Added to remove redundant pts
             if candidate_global_idxs.size == 0:
                 continue
 
@@ -606,36 +610,36 @@ class MSMap:
             - CLIP embeddings
             - Point cloud dictionary (gidx2clipcounts_dict)
         """
-        # device = clip_embs_tensor.device
+        device = clip_embs_tensor.device
         num_masks = clip_embs_tensor.shape[0]
         
-        # # Track best match per mask
-        # best_scores = torch.full((num_masks,), 0.0, device=device)
-        # best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
+        # Track best match per mask
+        best_scores = torch.full((num_masks,), 0.0, device=device)
+        best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
-        # for start, scores in chunked_tensor_cosine_similarity(
-        #     clip_embs_tensor,          # (num_masks, D)
-        #     self.clip_segs,          # (num_existing, D)
-        #     chunk_size=8192
-        # ): # scores: (num_masks, chunk)
+        for start, scores in chunked_tensor_cosine_similarity(
+            clip_embs_tensor,          # (num_masks, D)
+            self.clip_segs,          # (num_existing, D)
+            chunk_size=8192
+        ): # scores: (num_masks, chunk)
 
-        #     chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-        #     chunk_max_ids += start  # convert local → global clip id
+            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
+            chunk_max_ids += start  # convert local → global clip id
 
-        #     better = chunk_max_scores > best_scores
-        #     best_scores[better] = chunk_max_scores[better]
-        #     best_clip_ids[better] = chunk_max_ids[better]
+            better = chunk_max_scores > best_scores
+            best_scores[better] = chunk_max_scores[better]
+            best_clip_ids[better] = chunk_max_ids[better]
 
-        #     del scores  # free GPU memory
+            del scores  # free GPU memory
         
         for mask_idx in range(num_masks):
-            # if best_scores[mask_idx] > self.theta_cos_sim:
-            #     max_clip_id = best_clip_ids[mask_idx].item()
-            # else:
-            #     self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-            #     max_clip_id = self.clip_segs.shape[0] - 1
-            self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-            max_clip_id = self.clip_segs.shape[0] - 1
+            if best_scores[mask_idx] > self.theta_cos_sim:
+                max_clip_id = best_clip_ids[mask_idx].item()
+            else:
+                self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+                max_clip_id = self.clip_segs.shape[0] - 1
+            # self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+            # max_clip_id = self.clip_segs.shape[0] - 1
 
             set_tracker = set()
             for g_idx in global_idxs[mask_idx]:
