@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import torch
+import matplotlib.pyplot as plt
 
 from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
 
@@ -24,9 +25,12 @@ class RegionPredictor:
         self.region_scores = None
         self.selected_placenodes = {}
         
-    def predict(self, tasks_tensor, method="max", K=1):
+    def predict(self, tasks_tensor, method="max", K=1, tasks_names=None):
         self.selected_placenodes = {}
         
+        if tasks_names is not None:
+            self.tasks_names = tasks_names
+
         print("Method for region monitoring:", method)
         if method == "max":
             self._predict_max(tasks_tensor, K)
@@ -36,6 +40,11 @@ class RegionPredictor:
             self._predict_mix(tasks_tensor, K)
         elif method == "aib":
             self._predict_aib(tasks_tensor, K)
+        elif method == "test":
+            self._predict_test(tasks_tensor, K)
+        elif method == "avg_diff":
+            self._predict_avg_diff(tasks_tensor, K)
+            # self._predict_test(tasks_tensor, K)
         else:
             print("Unrecognized method")
             exit()
@@ -133,7 +142,209 @@ class RegionPredictor:
                     if 1 <= nbr_level < node_level:
                         queue.append(nbr)
             self.selected_placenodes[task_idx] = selected
-    
+
+    def _predict_test(self, tasks_tensor, K):
+        place_scores = tensor_cosine_similarity(
+            self.place_embeddings, 
+            tasks_tensor) # (num_place_nodes, num_tasks)
+        
+        # # Plot histogram of place scores for each task to determine distribution
+        # for task_idx in range(place_scores.shape[1]):
+        #     scores = place_scores[:, task_idx].detach().cpu().numpy()
+        #     plt.hist(scores, bins=50)
+        #     plt.title(f"Histogram of Place Scores for Task {task_idx}")
+        #     plt.xlabel("Cosine Similarity Score")
+        #     plt.ylabel("Frequency")
+        #     plt.grid(True)
+        #     plt.show()
+        
+        self.region_scores = tensor_cosine_similarity(
+            self.region_embeddings, 
+            tasks_tensor) # (num_region_nodes, num_tasks)
+        
+        print("Place Scores Shape:", place_scores.shape)
+        print("Region Scores Shape:", self.region_scores.shape)
+
+
+        # Calculate average cosine similarity scores for region nodes children to see if there is a correlation between region scores and their children's scores
+        for task_idx in range(self.region_scores.shape[1]):
+            region_scores = self.region_scores[:, task_idx].detach().cpu().numpy()
+            place_scores_for_task = place_scores[:, task_idx].detach().cpu().numpy()
+            score_diffs, avg_child_scores, node_scores = [], [], []
+            for node in self.region_nodes:
+                children = list([nbr for nbr in self.terra.terra_3dsg.neighbors(node) if self.terra.terra_3dsg.nodes[nbr]["level"] < self.terra.terra_3dsg.nodes[node]["level"]])
+                child_scores = []
+                # print(f"Node {node}(level {self.terra.terra_3dsg.nodes[node]['level']}) has children {children}(levels {[self.terra.terra_3dsg.nodes[child]['level'] for child in children]})")
+                if children and len(children) > 1:
+                    for child in children:
+                        if child in self.region_nodeid_to_idx: # region node children
+                            child_scores.append(region_scores[self.region_nodeid_to_idx[child]])
+                        elif child in self.place_nodeid_to_idx: # place node children
+                            child_scores.append(place_scores_for_task[self.place_nodeid_to_idx[child]])
+                    
+                    avg_child_score = np.mean(child_scores)
+                    node_score = region_scores[self.region_nodeid_to_idx[node]]
+                    score_diffs.append(node_score - avg_child_score)
+                    avg_child_scores.append(avg_child_score)
+                    node_scores.append(node_score)
+            
+            avg_diff = np.mean(score_diffs)
+            std_diff = np.std(score_diffs)
+            print(f"Task {task_idx}: Average Score Difference between Region Nodes and their Children's Average Scores: {avg_diff:.4f}", f"Std Dev: {std_diff:.4f}")
+
+            # Plot histogram of score differences to see if region nodes tend to have higher scores than their children
+            plt.hist(score_diffs, bins=25)
+            #Plot average
+            plt.axvline(avg_diff, color='red', linestyle='dashed', linewidth=1, label=f'Average Diff: {avg_diff:.4f}')
+            # plt.axvline(avg_diff + std_diff, color='orange', linestyle='dashed', linewidth=1, label=f'Average + 1 Std Dev: {avg_diff + std_diff:.4f}')
+            # plt.axvline(avg_diff - std_diff, color='orange', linestyle='dashed', linewidth=1, label=f'Average - 1 Std Dev: {avg_diff - std_diff:.4f}')
+            plt.legend()
+
+            if self.tasks_names is not None:
+                plt.title(f"Histogram of Score Differences for Task {task_idx}: {self.tasks_names[task_idx]}")
+            else:
+                plt.title(f"Histogram of Score Differences for Task {task_idx}")
+            plt.xlabel("Score Difference (Region - Average Child)")
+            plt.ylabel("Frequency")
+            plt.grid(True)
+            plt.show()
+
+            #Plot Scatter plot of region scores vs average child scores to see if there is a correlation
+            line_of_best_fit = np.polyfit(avg_child_scores, node_scores, 1)
+            correlation = np.corrcoef(avg_child_scores, node_scores)[0,1]
+            x_vals = np.linspace(min(avg_child_scores), max(avg_child_scores), 100)
+            plt.scatter(avg_child_scores, node_scores)
+            plt.plot(x_vals, np.poly1d(line_of_best_fit)(x_vals), color='red', label=f'Line of Best Fit (correlation: {correlation:.2f})')
+            plt.legend()
+            if self.tasks_names is not None:
+                plt.title(f"Region Scores vs Average Child Scores for Task {task_idx}: {self.tasks_names[task_idx]}")
+            else:
+                plt.title(f"Region Scores vs Average Child Scores for Task {task_idx}")
+            plt.xlabel("Average Child Score")
+            plt.ylabel("Region Node Score")
+            plt.grid(True)
+            plt.show()
+
+
+        # Plot region nodes and their scores to see if there are any patterns in scores across levels
+        for task_idx in range(self.region_scores.shape[1]):
+            scores = self.region_scores[:, task_idx].detach().cpu().numpy()
+            norm_scores = (scores - scores.min()) / (scores.max() - scores.min() + 1e-8)
+            cmap = plt.get_cmap("viridis")
+            colors = cmap(norm_scores)
+            levels = np.array([self.terra.terra_3dsg.nodes[node]["level"] for node in self.region_nodes])
+            plt.scatter(scores, levels)
+            # Draw edges between region nodes to visualize tree structure, coloring edges based on scores of connected nodes
+            for i, node in enumerate(self.region_nodes):
+                for nbr in self.terra.terra_3dsg.neighbors(node):
+                    if nbr in self.region_nodeid_to_idx: # only draw edges between region nodes
+                        # Only draw edges between nodes of lower levels to higher levels to visualize tree structure
+                        if self.terra.terra_3dsg.nodes[nbr]["level"] < self.terra.terra_3dsg.nodes[node]["level"]:
+                            nbr_idx = self.region_nodeid_to_idx[nbr]
+                            if scores[nbr_idx] < scores[i]: 
+                                plt.plot([scores[i], scores[nbr_idx]], [levels[i], levels[nbr_idx]], color=colors[i], alpha=0.5)
+                            else: # if neighbor has higher score, draw edge in red to highlight potential important connection that may be missed by max method
+                                plt.plot([scores[i], scores[nbr_idx]], [levels[i], levels[nbr_idx]], color='red', alpha=0.5)
+            
+            if self.tasks_names is not None:    
+                plt.title(f"Region Scores by Level for Task {task_idx}: {self.tasks_names[task_idx]}")
+            else:
+                plt.title(f"Region Scores by Level for Task {task_idx}")
+            plt.ylabel("Region Node Level")
+            plt.xlabel("Cosine Similarity Score")
+            plt.grid(True)
+            plt.show()
+
+        for task_idx in range(self.region_scores.shape[1]):
+            # topk_scores, topk_idxs = torch.topk(self.region_scores[:,task_idx], 15)
+            topk_scores, topk_idxs = torch.topk(self.region_scores[:,task_idx], K)
+            max_score = topk_scores.max().item()
+            topk_nodes = [self.region_nodes[i] for i in topk_idxs.tolist()]
+            chosen_region_nodes = topk_nodes
+
+            # # Print out the levels of the chosen region nodes to verify they are > 1
+            # print(f"Task {task_idx}: Chosen Region Nodes and Levels:")
+            # for node in chosen_region_nodes:
+            #     level = self.terra.terra_3dsg.nodes[node]["level"]
+            #     score = self.region_scores[self.region_nodeid_to_idx[node], task_idx].item()
+            #     print(f"  Node ID: {node}, Level: {level}, Score: {score:.4f}")
+            
+            # Descend through the tree to collect all child nodes
+            selected = set()
+            queue = chosen_region_nodes
+            while queue:
+                node = queue.pop()
+                node_level = self.terra.terra_3dsg.nodes[node]["level"]
+                if node_level == 1:
+                    p_idx = self.place_nodeid_to_idx[node]
+                    if place_scores[p_idx,task_idx] > self.terra.alpha:
+                        selected.add(node)
+                # Explore children until reaching level 1
+                for nbr in self.terra.terra_3dsg.neighbors(node):
+                    nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]
+                    if 1 <= nbr_level < node_level:
+                        queue.append(nbr)
+            self.selected_placenodes[task_idx] = selected
+
+
+    def _predict_avg_diff(self, tasks_tensor, K):
+        place_scores = tensor_cosine_similarity(
+            self.place_embeddings, 
+            tasks_tensor) # (num_place_nodes, num_tasks)
+        
+        self.region_scores = tensor_cosine_similarity(
+            self.region_embeddings, 
+            tasks_tensor) # (num_region_nodes, num_tasks)
+
+        for task_idx in range(self.region_scores.shape[1]):
+            region_scores = self.region_scores[:, task_idx].detach().cpu().numpy()
+            place_scores_for_task = place_scores[:, task_idx].detach().cpu().numpy()
+            score_diffs = {} # node_idx: score_diff
+            for node in self.region_nodes:
+                children = list([nbr for nbr in self.terra.terra_3dsg.neighbors(node) if self.terra.terra_3dsg.nodes[nbr]["level"] < self.terra.terra_3dsg.nodes[node]["level"]])
+                child_scores = []
+                if children and len(children) > 1 and region_scores[self.region_nodeid_to_idx[node]] > self.terra.alpha: # only consider region nodes with scores above alpha and with multiple children to avoid noisy score diffs from leaf nodes or nodes with single child
+                    for child in children:
+                        if child in self.region_nodeid_to_idx: # region node children
+                            child_scores.append(region_scores[self.region_nodeid_to_idx[child]])
+                        elif child in self.place_nodeid_to_idx: # place node children
+                            child_scores.append(place_scores_for_task[self.place_nodeid_to_idx[child]])
+                if child_scores:
+                    avg_child_score = np.mean(child_scores)
+                    score_diff = region_scores[self.region_nodeid_to_idx[node]] - avg_child_score
+                    node_idx = self.region_nodeid_to_idx[node]
+                    score_diffs[node_idx] = score_diff
+            
+            if len(score_diffs) < K:
+                print(f"Warning: Only {len(score_diffs)} region nodes with valid score differences for task {task_idx}, but K={K}. Reducing K to {len(score_diffs)}.")
+                K = len(score_diffs)
+
+            topk_idxs = sorted(score_diffs, key=score_diffs.get, reverse=True)[:K]
+            chosen_region_nodes = [self.region_nodes[i] for i in topk_idxs]
+
+            # Descend through the tree to collect all child nodes
+            selected = set()
+            queue = chosen_region_nodes
+            while queue:
+                node = queue.pop()
+                node_level = self.terra.terra_3dsg.nodes[node]["level"]
+                if node_level == 1:
+                    p_idx = self.place_nodeid_to_idx[node]
+                    if place_scores[p_idx,task_idx] > self.terra.alpha:
+                        selected.add(node)
+                # Explore children until reaching level 1
+                for nbr in self.terra.terra_3dsg.neighbors(node):
+                    nbr_level = self.terra.terra_3dsg.nodes[nbr]["level"]
+                    if 1 <= nbr_level < node_level:
+                        queue.append(nbr)
+            self.selected_placenodes[task_idx] = selected
+
+
+
+
+
+
+
     def _predict_aib(self, tasks_tensor, K):
         place_scores = tensor_cosine_similarity(
             self.place_embeddings, 

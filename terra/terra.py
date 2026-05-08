@@ -109,7 +109,8 @@ class Terra():
         pred_place_nodes = self.region_predictor.predict(
             tasks_tensor,
             method,
-            K
+            K,
+            tasks_names=task_names
         )
         self.update_task_relevant_place_nodes(pred_place_nodes)
     
