@@ -1,0 +1,7 @@
+# Utah Lake Park P1
+terra: /Data/Terra_Field_Tests/synced/utah_lake_park_p1_11_6_25/output/1_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+nodes_with_GPS:
+  - node_id: 0
+    GPS: [40.12345, -111.12345]
+  - node_id: 1
+    GPS: [40.54321, -111.54321]
