@@ -21,13 +21,12 @@ cam3_dist: [0.02182443, -0.04749719, 0.00062508, 0.00044833] # right (cam3) - ss
 
 terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
-prediction_method: "3dsg_avg" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+prediction_method: "3dsg_max" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
 object_tasks:
   - {task: "building", ground_truth: 9} # 3_cam=9, 1_cam=9
   - {task: "garbage", ground_truth: 8} # 3_cam=8, 1_cam=5
   - {task: "parked car", ground_truth: 6} # 3_cam=6, 1_cam=6
   - {task: "fire hydrant", ground_truth: 1} # 3_cam=1, 1_cam=1
-#####   - {task: "grill", ground_truth: 41} # dropping so metrics are more balanced across tasks
   - {task: "stop sign", ground_truth: 1} # 3_cam=1, 1_cam=1
   - {task: "boat on trailer", ground_truth: 5} # 3_cam=5, 1_cam=2
 

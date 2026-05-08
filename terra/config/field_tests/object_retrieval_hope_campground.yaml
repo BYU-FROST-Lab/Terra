@@ -21,12 +21,12 @@ cam3_dist: [0.02182443, -0.04749719, 0.00062508, 0.00044833] # right (cam3) - ss
 
 terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/hope_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
-prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+prediction_method: "3dsg_max" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
 object_tasks:
+  - {task: "grill", ground_truth: 19} # 3_cam=19, 1_cam=10
+  - {task: "cement ring", ground_truth: 21} # 3_cam=21, 1_cam=11
   - {task: "bench", ground_truth: 21} # 3_cam=21, 1_cam11
   - {task: "building", ground_truth: 4} # 3_cam=4, 1_cam=4
   - {task: "wooden sign", ground_truth: 1} # 3_cam=1, 1_cam=1
-  - {task: "cement ring", ground_truth: 21} # 3_cam=21, 1_cam=11
-  - {task: "grill", ground_truth: 19} # 3_cam=19, 1_cam=10
 
 #  - task: "get bike from the bicycle rack" # method=3dsg, alpha=0.25 # blue

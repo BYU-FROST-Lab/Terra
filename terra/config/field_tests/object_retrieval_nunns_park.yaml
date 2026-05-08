@@ -31,7 +31,7 @@ cam3_dist: [16.120267868041992, 31.638051986694336, 0.00022723490837961435,
 
 terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
-prediction_method: "ms_avg" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+prediction_method: "3dsg_max" # [ms_avg, ms_max, 3dsg_avg, 3dsg_max]
 object_tasks:
   - {task: "parked car", ground_truth: 16} # 3_cam=16, 1_cam=14
   - {task: "honey bucket", ground_truth: 4} # 3_cam=4, 1_cam=4
