@@ -210,6 +210,27 @@ def count_outliers_meanmedian(X, w=None, std_dev=3):
 #     # Count outliers
 #     return outliers.count_nonzero()
 
+def compute_avgdistance(X, w=None):
+    N = X.shape[0]
+
+    # Normalize embeddings
+    X = X / X.norm(dim=1, keepdim=True)
+
+    # Compute center (weighted mean)
+    if w is None:
+        mu = X.mean(dim=0)
+    else:
+        w = w / w.sum()
+        mu = (X * w.unsqueeze(1)).sum(dim=0)
+
+    mu = mu / mu.norm()
+
+    # Cosine distance
+    sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    dist = 1 - sim
+
+    return dist.mean().item()
+
 def jet_colormap(t):
     # t in [0,1]
     r = np.clip(1.5 - np.abs(4*t - 3), 0, 1)
@@ -242,6 +263,7 @@ if __name__ == '__main__':
     
     gidx_2_outlier_counts = {}
     gidx_2_total_counts = {}
+    gidx_2_avg_dist = {}
     for g_idx, cid_2_cnt in tqdm(gidx_2_clipcounts.items(),desc="Selecting point with most outliers"):
         # # if g_idx not in terrain_gidxs:
         # if g_idx in terrain_gidxs:
@@ -267,6 +289,7 @@ if __name__ == '__main__':
             #     print(f"Error: clip_id {clip_id} is less than num_terrain {terra.num_terrain}")
             X[i,:] = clip_ids[clip_id,:]
 
+        gidx_2_avg_dist[g_idx] = compute_avgdistance(X, w=None)
         
         # num_outliers = count_outliers_meanmedian(X, std_dev=3.5)
         num_outliers = count_outliers_geomedian(X, std_dev=3.5)
@@ -339,18 +362,62 @@ if __name__ == '__main__':
     plt.tight_layout()
     plt.show()
 
+    # # Display point cloud colored by outliers
+    # vals = np.array(list(gidx_2_outlier_counts.values()))
+    
+    # plt.figure(figsize=(7, 5))
+    # plt.hist(vals, bins=50)
+    # plt.xlabel("Number of outliers per point")
+    # plt.ylabel("Frequency")
+    # plt.title("Distribution of CLIP Outliers per Point")
+    # plt.grid(True, alpha=0.3)
+    # plt.show()
+    
+    # # vmin, vmax = vals.min(), vals.max()
+    # vmin = np.percentile(vals, 5)
+    # vmax = np.percentile(vals, 95)
+    
+    # pc = np.load(args.global_pc) # (num_pts,4)
+    # all_points = pc[:, :3].astype(np.float64)
+    # all_colors = np.zeros((pc.shape[0], 3), dtype=np.float64)
+    # for g_idx, cid_2_cnt in gidx_2_clipcounts.items():
+    #     pts = pc[g_idx,:3]
+    #     # normalize score
+    #     if g_idx in gidx_2_outlier_counts:
+    #         score = gidx_2_outlier_counts[g_idx]
+    #     else:
+    #         score = vmin
+    #     t = (score - vmin) / (vmax - vmin + 1e-8)
+    #     t = np.clip(t, 0, 1)
+    #     # t = t ** 0.5 # contrast boosting for better visualization
+    #     color = jet_colormap(np.array([t]))[0]  # RGB
+    #     all_colors[g_idx] = color
+    # all_points = np.asarray(all_points, dtype=np.float64).reshape(-1, 3)
+    # all_colors = np.asarray(all_colors, dtype=np.float64).reshape(-1, 3)
+
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = o3d.utility.Vector3dVector(all_points)
+    # pcd.colors = o3d.utility.Vector3dVector(all_colors)
+    # vis = o3d.visualization.Visualizer()
+    # vis.create_window()
+    # vis.add_geometry(pcd)
+    # render_opt = vis.get_render_option()
+    # render_opt.point_size = 4.0  # smaller points
+    # vis.run()
+    # vis.destroy_window()
+    
+    ## Use average distance from mean as score instead of outlier count
     # Display point cloud colored by outliers
-    vals = np.array(list(gidx_2_outlier_counts.values()))
+    vals = np.array(list(gidx_2_avg_dist.values()))
     
     plt.figure(figsize=(7, 5))
     plt.hist(vals, bins=50)
-    plt.xlabel("Number of outliers per point")
+    plt.xlabel("Average distance from mean embedding")
     plt.ylabel("Frequency")
-    plt.title("Distribution of CLIP Outliers per Point")
+    plt.title("Distribution of CLIP Average Distances per Point")
     plt.grid(True, alpha=0.3)
     plt.show()
-    
-    # vmin, vmax = vals.min(), vals.max()
+
     vmin = np.percentile(vals, 5)
     vmax = np.percentile(vals, 95)
     
@@ -360,8 +427,8 @@ if __name__ == '__main__':
     for g_idx, cid_2_cnt in gidx_2_clipcounts.items():
         pts = pc[g_idx,:3]
         # normalize score
-        if g_idx in gidx_2_outlier_counts:
-            score = gidx_2_outlier_counts[g_idx]
+        if g_idx in gidx_2_avg_dist:
+            score = gidx_2_avg_dist[g_idx]
         else:
             score = vmin
         t = (score - vmin) / (vmax - vmin + 1e-8)
@@ -382,7 +449,3 @@ if __name__ == '__main__':
     render_opt.point_size = 4.0  # smaller points
     vis.run()
     vis.destroy_window()
-
-    print(f"Chosen gidx: {chosen_gidx}")
-    print(f"Number of outliers: {max_outliers}")
-    
