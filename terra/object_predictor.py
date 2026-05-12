@@ -338,7 +338,7 @@ class ObjectPredictor:
         else:
             print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg_avg, 3dsg_max, aib]")
             exit()
-        print("Returning objects to Terra class")
+        print(f"Detected {len(self.objects)} objects")
         return self.objects
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
@@ -670,7 +670,7 @@ class ObjectPredictor:
         if len(matched_idxs) == 0:
             print("No similar MS-Map indices detected")
             exit()
-        print("Made it to start clustering points into bboxes")
+        
         self._cluster_into_bboxes(list(matched_idxs), idx_scores)
         print("Finished clustering points into bboxes")
         

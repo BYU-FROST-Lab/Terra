@@ -558,6 +558,32 @@ class TerraVisualizer():
         self.display_3dsg(place_subgraph, node_colors=colors, pc=pc)#, node_rad=3)
         self.level_offset = prev_offset
     
+    def display_multi_paths(self, terra_3dsg, path_node_list, pc):
+        prev_offset = self.level_offset 
+        self.level_offset = 1
+        cmap = plt.get_cmap("tab10")  # 10 distinct colors
+        num_paths = len(path_node_list)
+        path_colors =  [cmap(i % 10)[:3] for i in range(num_paths)]
+        
+        place_nodes = [n for n, d in terra_3dsg.nodes(data=True) if d["level"] == 1]
+        place_subgraph = terra_3dsg.subgraph(place_nodes)
+        colors = {}
+        for n in place_nodes:
+            if n == path_node_list[0][0]:
+                colors[n] = (0,0,0)
+            elif n == path_node_list[-1][-1]:
+                colors[n] = (1,0,0)
+            else:
+                colors[n] = (0.75,0.75,0.75)
+                
+            for path_idx, single_path in enumerate(path_node_list):
+                if n in single_path and n != path_node_list[0][0] and n != path_node_list[-1][-1]:
+                    colors[n] = path_colors[path_idx]
+                    break    
+                
+        self.display_3dsg(place_subgraph, node_colors=colors, pc=pc)#, node_rad=3)
+        self.level_offset = prev_offset
+    
     def _create_color_oriented_bbox(self, obb, color=(1, 0, 0)):
         """
         Creates a solid mesh for an oriented bounding box.

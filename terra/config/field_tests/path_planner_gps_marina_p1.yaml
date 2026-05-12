@@ -1,0 +1,32 @@
+---
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_temp.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_temp.pkl
+
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_beta1gamma100autoagglomerativecluster.pkl
+alpha: 0.26
+topk: 5 # number of top place nodes to select based on the prediction method
+prediction_method: "ms_max" # [places, ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+
+#        preferred : set of terrain_ids that should have no penalty (default: None)
+#        forbidden : set of terrain_ids that should not be used (default: None)
+#        penalties : dict mapping terrain_id -> penalty cost (default: None)'
+terrain_preferences:
+  preferred:
+    # - 0
+  forbidden:
+    # - 2
+  penalties:
+    # 0: 1.0
+    # 1: 5.0
+
+tasks:
+  - {start_node: 162, # Place node ID for the starting point
+    # query_destination: "Go to the garbage at road end surrounded by water"
+    # query_destination: "garbage" # correct @ top-1
+    # query_destination: "go to the garbage" # correct @ top-1
+    # query_destination: "go to the garbage water" # incorrect
+    # query_destination: "go to the garbage by white fence" # incorrect
+    # query_destination: "garbage near the end of a road surrounded by water" # incorrect
+    query_destination: "garbage beside water at the end of a road"
+    }
+  
