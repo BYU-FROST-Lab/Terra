@@ -669,7 +669,8 @@ class ObjectPredictor:
         # Cluster object points & extract bounding boxes from clusters
         if len(matched_idxs) == 0:
             print("No similar MS-Map indices detected")
-            exit()
+            # exit()
+            return
         
         self._cluster_into_bboxes(list(matched_idxs), idx_scores)
         print("Finished clustering points into bboxes")

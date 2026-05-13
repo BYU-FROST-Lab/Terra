@@ -1,0 +1,65 @@
+---
+# TODO: remember to change path of place node GPS coordinates to this dataset
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
+
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.26
+topk: 3 # number of top place nodes to select based on the prediction method
+prediction_method: "ms_max" # [places, ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+
+#        preferred : set of terrain_ids that should have no penalty (default: None)
+#        forbidden : set of terrain_ids that should not be used (default: None)
+#        penalties : dict mapping terrain_id -> penalty cost (default: None)'
+terrain_preferences:
+  preferred:
+    # - 0
+  forbidden:
+    # - 2
+  penalties:
+    # 0: 1.0
+    # 1: 5.0
+
+# [1-short, 1-long, object+context, ensemble]
+unique_object_approach: "object+context"
+
+tasks:
+  # ## Option 1.1: 1 prompt-short
+  # - {start_node: 162, # Place node ID for the starting point
+  #   query_destination: "building" # brick, green roof
+  #   }
+  # - {start_node: 162, # Place node ID for the starting point
+  #   query_destination: "dumpsters" # n/a
+  #   }
+  # - {start_node: 162, # Place node ID for the starting point
+  #   query_destination: "buoy" # white round, on road, says SLOW NO WAKE 
+  #   }
+  
+  # ## Option 1.2: 1 prompt-long
+  # - {start_node: 162, # Place node ID for the starting point
+  #   query_destination: "go to the brick building with a green roof"
+  #   }
+  # - {start_node: 162, # Place node ID for the starting point
+  #   query_destination: "go to the dumpsters"
+  #   }
+  # - {start_node: 162, # Place node ID for the starting point
+  #   query_destination: "go to the white round buoy on road that says SLOW NO WAKE"
+  #   }
+
+  ## Option 2: Separate object from context
+  - {start_node: 162, # Place node ID for the starting point
+    object: "building",
+    context: "brick building with a green roof"
+    # context: "brick with a green roof"
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "dumpsters",
+    context: "dumpsters by building"
+    # context: "by building"
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "buoy",
+    context: "white round buoy on road that says SLOW NO WAKE"
+    # context: "white round on road that says SLOW NO WAKE"
+  }
+  

@@ -3,7 +3,7 @@
 place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
 place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
 
-terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
 topk: 3 # number of top place nodes to select based on the prediction method
 prediction_method: "ms_max" # [places, ms_avg, ms_max, 3dsg_avg, 3dsg_max]
@@ -26,62 +26,62 @@ unique_object_approach: "object+context"
 tasks:
   # ## Option 1.1: 1 prompt-short
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "bridge" # brown, over river
+  #   query_destination: "underpass" # in underpass
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "bridge" # white, curved
+  #   query_destination: "honey bucket" # n/a
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "playground" 
+  #   query_destination: "trailer" # truck trailer 
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "garbage" # parking lot 
+  #   query_destination: "dumpster" # by brick building 
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "garbage" # red bldg, bathrooms 
+  #   query_destination: "playground" # in sand 
   #   }
   
   # ## Option 1.2: 1 prompt-long
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "go to the large brown bridge over the river"
+  #   query_destination: "go in the underpass"
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "go to the small white bridge in the woods"
+  #   query_destination: "go to a honey bucket"
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "go to the playground"
+  #   query_destination: "go to the trailer behind the truck"
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "go to the garbage in the parking lot"
+  #   query_destination: "go to the dumpster by the brick building"
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "go to the garbage by the red building"
+  #   query_destination: "go to the playground in sand"
   #   }
 
-  # ## Option 2: Separate object from context
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "bridge",
-  #   context: "large brown bridge over the river"
-  #   # context: "large brown over the river"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "bridge",
-  #   context: "small white bridge in the woods"
-  #   # context: "small white in the woods"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "playground",
-  #   context: "playground in sand"
-  #   # context: "in sand"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "garbage",
-  #   context: "garbage in the parking lot"
-  #   # context: "in the parking lot"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "garbage",
-  #   context: "garbage by the red building"
-  #   # context: "by the red building"
-  # }
+  ## Option 2: Separate object from context
+  - {start_node: 162, # Place node ID for the starting point
+    object: "underpass",
+    context: "in the underpass"
+    # context: "go in"
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "honey bucket",
+    context: "blue honey bucket"
+    # context: "blue"
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "trailer",
+    context: "trailer behind the truck"
+    # context: "behind the truck"
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "dumpster",
+    context: "dumpster by the brick building"
+    # context: "by the brick building"
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "playground",
+    context: "playground in sand"
+    # context: "in sand"
+  }
   
