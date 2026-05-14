@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 from terra_utils import load_terra
 import numpy as np
+import pickle as pkl
 
 
 '''
@@ -112,7 +113,7 @@ class GPS_utils:
 	def geo2enu(self, lat, lon, height):
 		ecef = self.geo2ecef(lat, lon, height)
 		
-		return self.ecef2enu(ecef.item(0), ecef.item(1), ecef.item(2))
+		return self.ecef2enu(ecef.item(0), ecef.item(1), ecef.item(2)), (1, 3)
 	
 	def ecef2geo(self, x, y, z):
 		p = np.sqrt(x*x + y*y)
@@ -158,7 +159,7 @@ class GPS_utils:
 	def enu2geo(self, x, y, z):
 		ecef = self.enu2ecef(x, y, z)
 		
-		return self.ecef2geo(ecef.item(0), ecef.item(1), ecef.item(2)) 
+		return self.ecef2geo(ecef.item(0), ecef.item(1), ecef.item(2)), (1, 3)
 
 
 class Node_With_GPS:
@@ -178,22 +179,32 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     with open(args.params, 'rb') as f:
-        params = list(yaml.safe_load_all(f))
+        params = yaml.safe_load(f)
+
 
     terra = load_terra(params['terra'])
     nodes_with_gps = params['nodes_with_GPS']  # List of nodes with GPS coordinates from the config file
 
 	# Initialize GPS utilities and set the ENU origin based on the first node with GPS coordinates
     gps_utils = GPS_utils()
-    node_1 = Node_With_GPS(node_id=nodes_with_gps[0]['node_id'], GPS=nodes_with_gps[0]['GPS'], pc_xy=terra.terra_3DSG.nodes[nodes_with_gps[0]['node_id']]['pos'], ENU=(0, 0, 0))
+    node_1 = Node_With_GPS(node_id=nodes_with_gps[0]['node_id'], GPS=nodes_with_gps[0]['GPS'], pc_xy=terra.terra_3dsg.nodes[nodes_with_gps[0]['node_id']]['pos'], ENU=np.array([0, 0, 0]))
     gps_utils.setENUorigin(node_1.GPS[0], node_1.GPS[1], 0)
 
-    node_2 = Node_With_GPS(node_id=nodes_with_gps[1]['node_id'], GPS=nodes_with_gps[1]['GPS'], pc_xy=terra.terra_3DSG.nodes[nodes_with_gps[1]['node_id']]['pos'])
-    node_2.ENU = gps_utils.geo2enu(node_2.GPS[0], node_2.GPS[1], 0)
+    node_2 = Node_With_GPS(node_id=nodes_with_gps[1]['node_id'], GPS=nodes_with_gps[1]['GPS'], pc_xy=terra.terra_3dsg.nodes[nodes_with_gps[1]['node_id']]['pos'])
+    node_2.ENU = np.ravel(gps_utils.geo2enu(node_2.GPS[0], node_2.GPS[1], 0)[0])  # Get ENU coordinates for the second node with GPS coordinates
+
+    print(f"Node {node_1.node_id} - GPS: {node_1.GPS}, Point Cloud XY: {node_1.pc_xy}, ENU: {node_1.ENU}")
+    print(f"Node {node_2.node_id} - GPS: {node_2.GPS}, Point Cloud XY: {node_2.pc_xy}, ENU: {node_2.ENU}")
 
     # Create transformation from point cloud coordinates to ENU coordinates using the two nodes with GPS coordinates
     v_pc = np.array(node_2.pc_xy) - np.array(node_1.pc_xy)  # Vector in point cloud space
-    v_enu = np.array(node_2.ENU).flatten() - np.array(node_1.ENU).flatten()  # Corresponding vector in ENU space
+    v_enu = node_2.ENU - node_1.ENU
+    # v_enu = v_enu[0:2]  # Corresponding vector in ENU space
+
+    print("v_pc:", v_pc)
+    print("V_pc shape:", v_pc.shape)
+    print("v_enu:", v_enu)
+    print("v_enu shape:", v_enu.shape)
     
     # Compute rotation
     theta = (
@@ -201,17 +212,25 @@ if __name__ == '__main__':
         - np.arctan2(v_pc[1], v_pc[0])
     )
 
+    print("Theta (radians):", theta)
+    print("Theta (degrees):", np.degrees(theta))
+
     # Rotation matrix
     R = np.array([
         [np.cos(theta), -np.sin(theta)],
         [np.sin(theta),  np.cos(theta)]
     ])
 
+    print("Rotation matrix:\n", R)
+
     # Compute scale
-    scale = np.linalg.norm(v_enu) / np.linalg.norm(v_pc)
+    # scale = np.linalg.norm(v_enu) / np.linalg.norm(v_pc)
+    scale = 1.0  # For now, just set scale to 1
+
+    print("Scale:\n", scale)
 
     # Compute translation
-    t = node_1.ENU - scale * R @ node_1.pc_xy
+    t = node_1.ENU[0:2] - scale * R @ node_1.pc_xy
 
     # Function to transform any point
     def pc_to_enu(point):
@@ -225,28 +244,68 @@ if __name__ == '__main__':
     node_enu_dict[node_1.node_id] = node_1.ENU
     node_enu_dict[node_2.node_id] = node_2.ENU
 
-    for node in terra.terra_3DSG.nodes:
+
+    place_nodes = [
+        n for n, d in terra.terra_3dsg.nodes(data=True)
+        if d["level"] == 1
+    ]
+    print(f"Total number of place nodes: {len(place_nodes)}")
+    for node in place_nodes:
         if node in node_gps_dict:
            pass  # GPS coordinates already added for this node
         else:
             #Compute GPS coordinaters for this node based on its location and the GPS coordinates of the specified nodes
-            pc_xy = terra.terra_3DSG.nodes[node]['pos']
+            pc_xy = terra.terra_3dsg.nodes[node]['pos']
             enu = pc_to_enu(pc_xy)
-            gps = gps_utils.enu2geo(enu[0], enu[1], 0)
+            gps = np.ravel(gps_utils.enu2geo(enu[0], enu[1], 0)[0])[0:2]
             node_gps_dict[node] = gps.flatten().tolist()  # Store GPS coordinates in the dictionary
             node_enu_dict[node] = enu.flatten().tolist()  # Store ENU coordinates in the dictionary
 			
+    # Save the dictionaries and transformation to a pickle file
+    name = "provo_river"
+    with open(f'node_gps_dict_{name}.pkl', 'wb') as f:
+        pkl.dump(node_gps_dict, f)
+    with open(f'node_enu_dict_{name}.pkl', 'wb') as f:
+        pkl.dump(node_enu_dict, f)
+    with open(f'pc_to_enu_transformation_{name}.pkl', 'wb') as f:
+        pkl.dump({'rotation': R, 'scale': scale, 'translation': t}, f)
+        
+
+    # Print out all the GPS coordinates for each node
+    for node_id, gps in node_gps_dict.items():
+        print(gps[0], ", ", gps[1])
+
+
+
+    #Plot two plots, pc space on left, ENU on left
+    plt.figure(figsize=(20, 10))
+    plt.subplot(1, 2, 1)
+    pc_xs = []
+    pc_ys = []
+    for node_id, gps in node_gps_dict.items():
+        pc_xy = terra.terra_3dsg.nodes[node_id]['pos']
+        pc_xs.append(pc_xy[0])
+        pc_ys.append(pc_xy[1])
     
+    plt.scatter(pc_xs, pc_ys, s=5)
+    plt.title("Place Nodes with GPS Coordinates in Point Cloud Space")
+    plt.xlabel("Point Cloud X")
+    plt.ylabel("Point Cloud Y")
+    plt.grid()
+
 
     # Plot the nodes with GPS coordinates in the ENU space
-    plt.figure(figsize=(10, 10))
+    plt.subplot(1, 2, 2)
+    enu_x = []
+    enu_y = []
     for node_id, gps in node_gps_dict.items():
         enu = node_enu_dict[node_id]
-        plt.scatter(enu[0], enu[1], label=f'Node {node_id} (GPS: {gps})')
+        enu_x.append(enu[0])
+        enu_y.append(enu[1])
+    plt.scatter(enu_x, enu_y, s=5)
+    plt.title('Place Nodes with GPS Coordinates in ENU Space')
     plt.xlabel('ENU X')
     plt.ylabel('ENU Y')
-    plt.title('Place Nodes with GPS Coordinates in ENU Space')
-    plt.legend()
     plt.grid()
     plt.show() 
             
