@@ -19,8 +19,8 @@ terrain_preferences:
     # 0: 1.0
     # 1: 5.0
 
-# [1-short, 1-long, object+context]
-unique_object_approach: "object+context"
+# [1_short, 1_long, object_context]
+unique_object_approach: "object_context"
 gamma_obj: 0.7
 # start_nodes: []
 start_nodes: [[40.237309, -111.739510], # init parking lot ()

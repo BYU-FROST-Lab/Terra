@@ -19,26 +19,26 @@ terrain_preferences:
     # 0: 1.0
     # 1: 5.0
 
-unique_object_approach: "object+context" # [1-short, 1-long, object+context]
+unique_object_approach: "1_short" # [1_short, 1_long, object_context]
 gamma_obj: 0.7
 # start_nodes: [193,1170,892]
 start_nodes: [[40.238981, -111.735399], # init parking lot (193)
               [40.240126, -111.739242], # mid parking lot (1170)
               [40.237298, -111.738474]] # end parking lot (892)
 tasks:
-  # ## Option 1.1: 1 prompt-short
-  # - {
-  #   query_destination: "dumpster" # at end of the road
-  #   }
-  # - {
-  #   query_destination: "stop sign"
-  #   }
-  # - {
-  #   query_destination: "fire hydrant" 
-  #   }
-  # - {
-  #   query_destination: "dumpster" # by white fence
-  #   }
+  ## Option 1.1: 1 prompt-short
+  - {
+    query_destination: "dumpster" # at end of the road
+    }
+  - {
+    query_destination: "stop sign"
+    }
+  - {
+    query_destination: "fire hydrant" 
+    }
+  - {
+    query_destination: "dumpster" # by white fence
+    }
   
   # ## Option 1.2: 1 prompt-long
   # - {
@@ -54,24 +54,24 @@ tasks:
   #   query_destination: "go to the dumpster in white fence by tree"
   #   }
 
-  ## Option 2: Separate object from context
-  - {
-    object: "dumpster",
-    # context: "dumpster near the end of a road by rocks and water"
-    context: "near the end of a road by rocks and water"
-  }
-  - {
-    object: "stop sign",
-    # context: "stop sign by road"
-    context: "by road"
-  }
-  - {
-    object: "fire hydrant",
-    # context: "fire hydrant on grass in RV park"
-    context: "on grass in RV park"
-  }
-  - {
-    object: "dumpster",
-    # context: "dumpster in white fence by tree"
-    context: "in white fence by tree"
-  }
+  # ## Option 2: Separate object from context
+  # - {
+  #   object: "dumpster",
+  #   # context: "dumpster near the end of a road by rocks and water"
+  #   context: "near the end of a road by rocks and water"
+  # }
+  # - {
+  #   object: "stop sign",
+  #   # context: "stop sign by road"
+  #   context: "by road"
+  # }
+  # - {
+  #   object: "fire hydrant",
+  #   # context: "fire hydrant on grass in RV park"
+  #   context: "on grass in RV park"
+  # }
+  # - {
+  #   object: "dumpster",
+  #   # context: "dumpster in white fence by tree"
+  #   context: "in white fence by tree"
+  # }

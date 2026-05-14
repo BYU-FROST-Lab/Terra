@@ -78,11 +78,11 @@ def one_prompt(clip_model, terra, path_planning_params):
             input_task_mod,
             method=path_planning_params["prediction_method"],
             topk=topk
-        )[0]
+        )
         if 0 not in selected_nodes or len(selected_nodes[0]) == 0:
             print("NO DETECTED OBJECT!!")
             continue
-        dest_nodes[t_idx] = selected_nodes
+        dest_nodes[t_idx] = selected_nodes[0]
     return dest_nodes
 
 def separate_object_context(clip_model, terra, path_planning_params, gamma_obj=0.7):
@@ -259,14 +259,14 @@ if __name__ == '__main__':
         print("\n\nStart node:",start_node)
     
         ## Identify top-k destination nodes per task
-        if path_planning_params["unique_object_approach"] == "1-short" or path_planning_params["unique_object_approach"] == "1-long":
+        if path_planning_params["unique_object_approach"] == "1_short" or path_planning_params["unique_object_approach"] == "1_long":
             dest_nodes = one_prompt(
                 clip_model, 
                 terra,
                 path_planning_params
             ) # {task_idx: [node_id_0, ...]}
             task_names_dict = [task["query_destination"] for task in path_planning_params['tasks']]
-        elif path_planning_params["unique_object_approach"] == "object+context":
+        elif path_planning_params["unique_object_approach"] == "object_context":
             dest_nodes = separate_object_context(
                 clip_model, 
                 terra,
@@ -274,7 +274,10 @@ if __name__ == '__main__':
                 path_planning_params["gamma_obj"]
             ) # {task_idx: [node_id_0, ...]}
             task_names_dict = [task["object"]+": "+task["context"] for task in path_planning_params['tasks']]
-
+        else:
+            print("Unrecognized object approach")
+            exit()
+            
         ## Plan paths
         planned_paths = {}
         for t_idx in dest_nodes.keys():
@@ -314,8 +317,8 @@ if __name__ == '__main__':
         ## Save GPS coordinates of the predicted path to the destination for each task
         output_dir = os.path.dirname(path_planning_params["place_nodes_gps"])
         orig_name = os.path.basename(path_planning_params["place_nodes_gps"])
-        new_gps_name = "path_gps_" + str(start_node) + "initnode" + orig_name[8:]
-        new_enu_name = "path_enu_" + str(start_node) + "initnode" + orig_name[8:]
+        new_gps_name = "path_gps_" + path_planning_params["unique_object_approach"] + "_" + str(start_node) + "initnode" + orig_name[8:]
+        new_enu_name = "path_enu_" + path_planning_params["unique_object_approach"] + "_" + str(start_node) + "initnode" + orig_name[8:]
         
         with open(os.path.join(output_dir,new_gps_name), 'wb') as f:
             pkl.dump(gps_dict, f) # {0: {"task": "...", 0: [[40,-111.3], ...], ...}, 1: ...}
