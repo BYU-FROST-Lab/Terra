@@ -19,30 +19,30 @@ terrain_preferences:
     # 0: 1.0
     # 1: 5.0
 
-# [1-short, 1-long, object+context]
-unique_object_approach: "object+context"
+# [1_short, 1_long, object_context]
+unique_object_approach: "1_short"
 gamma_obj: 0.7
-# start_nodes: []
-start_nodes: [[40.336725, -111.612252], # init parking lot ()
-              [40.337650, -111.609428], # end parking lot ()
-              [40.335959, -111.612645]] # base of main bldg stairs ()
+# start_nodes: [331,531,237]
+start_nodes: [[40.336725, -111.612252], # init parking lot (331)
+              [40.337650, -111.609428], # end parking lot (531)
+              [40.335959, -111.612645]] # base of main bldg stairs (237)
 tasks:
-  # ## Option 1.1: 1 prompt-short
-  # - {
-  #   query_destination: "underpass" # in underpass
-  #   }
-  # - {
-  #   query_destination: "honey bucket" # n/a
-  #   }
-  # - {
-  #   query_destination: "trailer" # truck trailer 
-  #   }
-  # - {
-  #   query_destination: "dumpster" # by brick building 
-  #   }
-  # - {
-  #   query_destination: "playground" # in sand 
-  #   }
+  ## Option 1.1: 1 prompt-short
+  - {
+    query_destination: "underpass" # in underpass
+    }
+  - {
+    query_destination: "honey bucket" # n/a
+    }
+  - {
+    query_destination: "trailer" # truck trailer 
+    }
+  - {
+    query_destination: "dumpster" # by brick building 
+    }
+  - {
+    query_destination: "playground" # in sand 
+    }
   
   # ## Option 1.2: 1 prompt-long
   # - {
@@ -61,30 +61,30 @@ tasks:
   #   query_destination: "go to the playground in sand"
   #   }
 
-  ## Option 2: Separate object from context
-  - {
-    object: "underpass",
-    # context: "in the underpass"
-    context: "go in" # no obj
-  }
-  - {
-    object: "honey bucket",
-    # context: "blue honey bucket"
-    context: "blue" # no obj
-  }
-  - {
-    object: "trailer",
-    # context: "trailer behind the truck"
-    context: "behind the truck" # no obj
-  }
-  - {
-    object: "dumpster",
-    # context: "dumpster by the brick building"
-    context: "by the brick building" # no obj
-  }
-  - {
-    object: "playground",
-    # context: "playground in sand"
-    context: "in sand" # no obj
-  }
+  # ## Option 2: Separate object from context
+  # - {
+  #   object: "underpass",
+  #   # context: "in the underpass"
+  #   context: "go in" # no obj
+  # }
+  # - {
+  #   object: "honey bucket",
+  #   # context: "blue honey bucket"
+  #   context: "blue" # no obj
+  # }
+  # - {
+  #   object: "trailer",
+  #   # context: "trailer behind the truck"
+  #   context: "behind the truck" # no obj
+  # }
+  # - {
+  #   object: "dumpster",
+  #   # context: "dumpster by the brick building"
+  #   context: "by the brick building" # no obj
+  # }
+  # - {
+  #   object: "playground",
+  #   # context: "playground in sand"
+  #   context: "in sand" # no obj
+  # }
   

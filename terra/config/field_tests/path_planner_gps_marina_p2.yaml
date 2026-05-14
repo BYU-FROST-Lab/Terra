@@ -20,23 +20,23 @@ terrain_preferences:
     # 1: 5.0
 
 # [1_short, 1_long, object_context]
-unique_object_approach: "object_context"
+unique_object_approach: "1_short"
 gamma_obj: 0.7
-# start_nodes: []
-start_nodes: [[40.237309, -111.739510], # init parking lot ()
-              [40.238687, -111.740057], # peninsula ()
-              [40.237031, -111.743206]] # dirt road elbow ()
+# start_nodes: [380,147,692]
+start_nodes: [[40.237309, -111.739510], # init parking lot (380)
+              [40.238687, -111.740057], # peninsula (147)
+              [40.237031, -111.743206]] # dirt road elbow (692)
 tasks:
-  # ## Option 1.1: 1 prompt-short
-  # - {
-  #   query_destination: "building" # brick, green roof
-  #   }
-  # - {
-  #   query_destination: "dumpsters" # n/a
-  #   }
-  # - {
-  #   query_destination: "buoy" # white round, on road, says SLOW NO WAKE 
-  #   }
+  ## Option 1.1: 1 prompt-short
+  - {
+    query_destination: "building" # brick, green roof
+    }
+  - {
+    query_destination: "dumpsters" # n/a
+    }
+  - {
+    query_destination: "buoy" # white round, on road, says SLOW NO WAKE 
+    }
   
   # ## Option 1.2: 1 prompt-long
   # - {
@@ -49,20 +49,20 @@ tasks:
   #   query_destination: "go to the white round buoy on road that says SLOW NO WAKE"
   #   }
 
-  ## Option 2: Separate object from context
-  - {
-    object: "building",
-    # context: "brick building with a green roof"
-    context: "brick with a green roof" # no obj
-  }
-  - {
-    object: "dumpsters",
-    # context: "dumpsters by building"
-    context: "by building" # no obj
-  }
-  - {
-    object: "buoy",
-    # context: "white round buoy on road that says SLOW NO WAKE"
-    context: "white round on road that says SLOW NO WAKE" # no obj
-  }
+  # ## Option 2: Separate object from context
+  # - {
+  #   object: "building",
+  #   # context: "brick building with a green roof"
+  #   context: "brick with a green roof" # no obj
+  # }
+  # - {
+  #   object: "dumpsters",
+  #   # context: "dumpsters by building"
+  #   context: "by building" # no obj
+  # }
+  # - {
+  #   object: "buoy",
+  #   # context: "white round buoy on road that says SLOW NO WAKE"
+  #   context: "white round on road that says SLOW NO WAKE" # no obj
+  # }
   

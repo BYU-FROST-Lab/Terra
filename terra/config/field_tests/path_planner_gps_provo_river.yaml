@@ -19,30 +19,30 @@ terrain_preferences:
     # 0: 1.0
     # 1: 5.0
 
-# [1-short, 1-long, object+context, ensemble]
-unique_object_approach: "object+context"
+# [1_short, 1_long, object_context]
+unique_object_approach: "1_short"
 gamma_obj: 0.7
-# start_nodes: []
-start_nodes: [[40.241050, -111.685218], # init parking lot ()
-              [40.241836, -111.685585], # grass open area by large pav ()
-              [40.241668, -111.687042]] # grass area near end pav ()
+# start_nodes: [103,462,145]
+start_nodes: [[40.241050, -111.685218], # init parking lot (103)
+              [40.241836, -111.685585], # grass open area by large pav (462)
+              [40.241668, -111.687042]] # grass area near end pav (145)
 tasks:
-  # ## Option 1.1: 1 prompt-short
-  # - {
-  #   query_destination: "bridge" # brown, over river
-  #   }
-  # - {
-  #   query_destination: "bridge" # white, curved
-  #   }
-  # - {
-  #   query_destination: "playground" 
-  #   }
-  # - {
-  #   query_destination: "garbage" # parking lot 
-  #   }
-  # - {
-  #   query_destination: "garbage" # red bldg, bathrooms 
-  #   }
+  ## Option 1.1: 1 prompt-short
+  - {
+    query_destination: "bridge" # brown, over river
+    }
+  - {
+    query_destination: "bridge" # white, curved
+    }
+  - {
+    query_destination: "playground" 
+    }
+  - {
+    query_destination: "garbage" # parking lot 
+    }
+  - {
+    query_destination: "garbage" # red bldg, bathrooms 
+    }
   
   # ## Option 1.2: 1 prompt-long
   # - {
@@ -61,30 +61,30 @@ tasks:
   #   query_destination: "go to the garbage by the red building"
   #   }
 
-  ## Option 2: Separate object from context
-  - {
-    object: "bridge",
-    # context: "large brown bridge over the river"
-    context: "large brown over the river" # no obj
-  }
-  - {
-    object: "bridge",
-    # context: "small white bridge in the woods"
-    context: "small white in the woods" # no obj
-  }
-  - {
-    object: "playground",
-    # context: "playground in sand"
-    context: "in sand" # no obj
-  }
-  - {
-    object: "garbage",
-    # context: "garbage in the parking lot"
-    context: "in the parking lot" # no obj
-  }
-  - {
-    object: "garbage",
-    # context: "garbage by the red building"
-    context: "by the red building" # no obj
-  }
+  # ## Option 2: Separate object from context
+  # - {
+  #   object: "bridge",
+  #   # context: "large brown bridge over the river"
+  #   context: "large brown over the river" # no obj
+  # }
+  # - {
+  #   object: "bridge",
+  #   # context: "small white bridge in the woods"
+  #   context: "small white in the woods" # no obj
+  # }
+  # - {
+  #   object: "playground",
+  #   # context: "playground in sand"
+  #   context: "in sand" # no obj
+  # }
+  # - {
+  #   object: "garbage",
+  #   # context: "garbage in the parking lot"
+  #   context: "in the parking lot" # no obj
+  # }
+  # - {
+  #   object: "garbage",
+  #   # context: "garbage by the red building"
+  #   context: "by the red building" # no obj
+  # }
   
