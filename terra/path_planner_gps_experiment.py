@@ -5,6 +5,7 @@ import torch
 import pickle as pkl
 import numpy as np
 from scipy.spatial import KDTree
+from math import radians, sin, cos, sqrt, atan2
 
 import clip
 
@@ -26,10 +27,39 @@ Example usage:
     python3 path_planner_gps_experiment.py --params /path/to/path_planning.yaml
 '''
 
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Compute distance in meters between two GPS coordinates.
+    """
+    R = 6371000  # Earth radius in meters
 
-def one_prompt(clip_model, terra, path_planning_params, gps_place_nodes):
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1))
+        * cos(radians(lat2))
+        * sin(dlon / 2) ** 2
+    )
+
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
+
+def place_node_from_gps(gps_coord, gps_place_node_dict):
+    target_lat, target_lon = gps_coord
+    
+    closest_id = None
+    min_dist = float("inf")
+    for pid, (lat,lon) in gps_place_node_dict.items():
+        dist = haversine_distance(target_lat, target_lon, lat, lon)
+        if dist < min_dist:
+            min_dist = dist
+            closest_id = pid
+    return closest_id
+
+def one_prompt(clip_model, terra, path_planning_params):
     tasks = [task["query_destination"] for task in path_planning_params['tasks']]
-    start_nodes = [task["start_node"] for task in path_planning_params['tasks']]
     topk = path_planning_params.get("topk", 1)   
     
     # Encode prompts with CLIP
@@ -40,70 +70,25 @@ def one_prompt(clip_model, terra, path_planning_params, gps_place_nodes):
     print("\nCollected destination task(s):\n", tasks)
     
     # Select n-best place nodes
-    planned_paths = {}
+    dest_nodes = {}
     for t_idx in range(len(path_planning_params['tasks'])):
-        print("\nRunning task:", tasks[terra.num_terrain+t_idx])
         input_task_mod = input_task_clip_tensor[:(terra.num_terrain+1),:]
         input_task_mod[-1,:] = input_task_clip_tensor[terra.num_terrain+t_idx,:]
         selected_nodes = terra._select_best_place_nodes(
             input_task_mod,
             method=path_planning_params["prediction_method"],
             topk=topk
-        )
-        print("\nRunning task:", tasks[terra.num_terrain+t_idx])
+        )[0]
         if 0 not in selected_nodes or len(selected_nodes[0]) == 0:
             print("NO DETECTED OBJECT!!")
             continue
-        for k_idx, pid in enumerate(selected_nodes[0]):
-            start_node_id = 0
-            end_node_id = 0
-            if k_idx == 0:
-                start_node_id = start_nodes[t_idx]
-                end_node_id = pid
-            else:
-                start_node_id = selected_nodes[0][k_idx-1]
-                end_node_id = pid
-            
-            try:
-                print(f"Start place node {start_node_id} with GPS {gps_place_nodes[start_node_id]}")
-                print(f"Destination place node {end_node_id} with GPS {gps_place_nodes[end_node_id]}")                       
-            except KeyError as e:
-                print(f"Error: Place node {e} not found in GPS dictionary")
+        dest_nodes[t_idx] = selected_nodes
+    return dest_nodes
 
-            terra._plan_path_astar(
-                start_node=start_node_id,
-                dest_node=end_node_id,
-                terrain_preferences=path_planning_params["terrain_preferences"]
-            )
-            terra.display_path() # black = start, red = destination
-                        
-            chosen_place_nodes = terra.path_node_list # list of place node ids
-
-            if t_idx not in planned_paths:
-                planned_paths[t_idx] = []
-            planned_paths[t_idx].append(chosen_place_nodes)
-            terra.path_node_list = [] # reset path for next destination query
-        
-            # Check if GT object detected
-            while True:
-                answer = input("Is this correct? (y/n): ").strip().lower()
-                if answer == 'y':
-                    print("Correct")
-                    break
-                elif answer == 'n':
-                    print("Incorrect")
-                    break
-                else:
-                    print("Please enter 'y' or 'n'")
-            if answer == 'y':
-                break
-    return planned_paths
-
-def separate_object_context(clip_model, terra, path_planning_params, gps_place_nodes, gamma_obj=0.7):
-    print("Chose gamma:",gamma_obj)
+def separate_object_context(clip_model, terra, path_planning_params, gamma_obj=0.7):
+    print("gamma_obj:",gamma_obj)
     
     tasks = [task["object"] for task in path_planning_params['tasks']]
-    start_nodes = [task["start_node"] for task in path_planning_params['tasks']]
     topk = path_planning_params.get("topk", 1)   
     
     # Encode prompts with CLIP
@@ -147,7 +132,11 @@ def separate_object_context(clip_model, terra, path_planning_params, gps_place_n
         print(f"Predicted {len(terra.objects)} objects")
         if len(terra.objects) == 0:
             continue
-        # terra.display_terra(display_pc=True,plot_objects_on_ground=True,color_pc_clip=False)
+        # terra.display_terra(
+        #     display_pc=True,
+        #     plot_objects_on_ground=True,
+        #     color_pc_clip=False
+        # )
         
         place_scores = tensor_cosine_similarity(
             place_embeddings, 
@@ -160,33 +149,18 @@ def separate_object_context(clip_model, terra, path_planning_params, gps_place_n
             obb_center = obb.center[:2]
             dist, pn_idx = kdt.query(obb_center)
             
-            # print("No weight")
-            # pn_score = place_scores[pn_idx, 0]
-            
-            # print("Weight @ gamma:",gamma_obj)
             pn_score = gamma_obj * o_score + (1 - gamma_obj) * place_scores[pn_idx, 0]
-            
-            context_idx = torch.argmax(place_scores[pn_idx, :])
-            
+                        
             if t_idx not in pairs:
                 pairs[t_idx] = []
-            # pairs[t_idx].append({
-            #     "object_idx": o_idx,
-            #     "place_node_idx": pn_idx,
-            #     "place_node_id": place_nodes[pn_idx],
-            #     "place_node_score": pn_score.item(),
-            #     "context_idx": context_idx.item()
-            # })
             pairs[t_idx].append({
                 "place_node_id": place_nodes[pn_idx],
                 "place_node_score": pn_score.item()
             })
     
     # Select object per object task with highest place node context score
-    planned_paths = {}
-    for t_idx in pairs.keys():
-        print("\nRunning task:", tasks[terra.num_terrain+t_idx], "with context:",contexts[t_idx])
-        
+    dest_nodes = {}
+    for t_idx in pairs.keys():        
         k = min(topk, len(pairs[t_idx]))
         
         # Sort list by context score
@@ -196,139 +170,55 @@ def separate_object_context(clip_model, terra, path_planning_params, gps_place_n
             reverse=True
         )[:k]
         
-        for k_idx, pair_dict in enumerate(pairs[t_idx]):
-            pid = pair_dict["place_node_id"]
-            
-            start_node_id = 0
-            end_node_id = 0
-            if k_idx == 0:
-                start_node_id = start_nodes[t_idx]
-                end_node_id = pid
-            else:
-                start_node_id = pairs[t_idx][k_idx-1]["place_node_id"]
-                end_node_id = pid
-            
-            try:
-                print(f"Start place node {start_node_id} with GPS {gps_place_nodes[start_node_id]}")
-                print(f"Destination place node {end_node_id} with GPS {gps_place_nodes[end_node_id]}")                       
-            except KeyError as e:
-                print(f"Error: Place node {e} not found in GPS dictionary")
+        dest_nodes[t_idx] = [pair_dict["place_node_id"] for pair_dict in pairs[t_idx]]
+        
+    return dest_nodes
 
-            terra._plan_path_astar(
-                start_node=start_node_id,
-                dest_node=end_node_id,
-                terrain_preferences=path_planning_params["terrain_preferences"]
-            )
-            terra.display_path() # black = start, red = destination
-                        
-            chosen_place_nodes = terra.path_node_list # list of place node ids
 
-            if t_idx not in planned_paths:
-                planned_paths[t_idx] = []
-            planned_paths[t_idx].append(chosen_place_nodes)
-            terra.path_node_list = [] # reset path for next destination query 
-            
-            # Check if GT object detected
-            while True:
-                answer = input("Is this correct? (y/n): ").strip().lower()
-                if answer == 'y':
-                    print("Correct")
-                    break
-                elif answer == 'n':
-                    print("Incorrect")
-                    break
-                else:
-                    print("Please enter 'y' or 'n'")
-            if answer == 'y':
-                break
-    return planned_paths
+def plan_paths(terra, terrain_preferences, start_node, dest_nodes):
+    planned_paths = []
+    for k_idx, pid in enumerate(dest_nodes):
+        start_node_id = 0
+        end_node_id = 0
+        if k_idx == 0:
+            start_node_id = start_node
+            end_node_id = pid
+        else:
+            start_node_id = dest_nodes[k_idx-1]
+            end_node_id = pid
+        
+        try:
+            print(f"Start place node {start_node_id}")
+            print(f"Destination place node {end_node_id}")                       
+        except KeyError as e:
+            print(f"Error: Place node {e} not found in GPS dictionary")
 
-def ensemble_of_prompts(clip_model, terra, path_planning_params, gps_place_nodes):
-    task_dict = {}
-    for task_idx, task in enumerate(path_planning_params['tasks']):
-        task_dict[task_idx] = {}
-        task_dict[task_idx]["start_node"] = task["start_node"]
-        task_prompts = []
-        for p in task["prompts"]:
-            task_prompts.append(p)
-        task_dict[task_idx]["prompts"] = task_prompts
-    topk = path_planning_params.get("topk", 1)   
+        terra._plan_path_astar(
+            start_node=start_node_id,
+            dest_node=end_node_id,
+            terrain_preferences=terrain_preferences
+        )
+        terra.display_path() # black = start, red = destination
+                    
+        chosen_place_nodes = terra.path_node_list # list of place node ids
+
+        planned_paths.append(chosen_place_nodes)
+        terra.path_node_list = [] # reset path for next destination query
     
-    planned_paths = {}
-    for task_idx in task_dict.keys():
-        tasks = task_dict[task_idx]["prompts"]
-        num_prompts = len(tasks)
-        
-        # Encode prompts with CLIP
-        tasks[:0] = terra.terrain_names # Add terrain to front of tasks
-        input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in tasks]
-        input_task_clip_tensor = torch.vstack(input_task_clip_embs) # (num_input_classes, 512)
-        input_task_clip_tensor.div_(input_task_clip_tensor.norm(dim=-1,keepdim=True))
-        print("\nCollected destination task(s):\n", tasks)
-        
-        place_nodes = [
-            n for n, d in terra.terra_3dsg.nodes(data=True)
-            if d["level"] == 1
-        ]
-        pidx2pnid = {idx: id for idx, id in enumerate(terra.terra_3dsg.nodes)} 
-        place_embeddings = torch.vstack([terra.terra_3dsg.nodes[n]["embedding"] for n in place_nodes])
-        place_scores = tensor_cosine_similarity(
-            place_embeddings, 
-            input_task_clip_tensor[terra.num_terrain:,:]
-        ) # (num_place_nodes, num_tasks)
-        place_score_ens = place_scores.sum(dim=1) / num_prompts # num_place_nodes
-        place_score_ens_mask = place_score_ens > path_planning_params["alpha"]
-        place_score_ens_filt = place_score_ens[place_score_ens_mask]
-        masked_indices = torch.nonzero(place_score_ens_mask)
-        
-        k = min(topk, torch.count_nonzero(place_score_ens_mask).item())
-        
-        top_vals, top_indices = torch.topk(place_score_ens_filt,k=k)
-        dest_place_nodes = [pidx2pnid[masked_indices[top_idx.item()].item()] for top_idx in top_indices]
-        
-        for k_idx, k_pnid in enumerate(dest_place_nodes):
-            start_node_id = 0
-            end_node_id = 0
-            if k_idx == 0:
-                start_node_id = task_dict[task_idx]["start_node"]
-                end_node_id = k_pnid
-            else:
-                start_node_id = dest_place_nodes[k_idx-1]
-                end_node_id = k_pnid
-            
-            try:
-                print(f"Start place node {start_node_id} with GPS {gps_place_nodes[start_node_id]}")
-                print(f"Destination place node {end_node_id} with GPS {gps_place_nodes[end_node_id]}")                       
-            except KeyError as e:
-                print(f"Error: Place node {e} not found in GPS dictionary")
-
-            terra._plan_path_astar(
-                start_node=start_node_id,
-                dest_node=end_node_id,
-                terrain_preferences=path_planning_params["terrain_preferences"]
-            )
-            terra.display_path() # black = start, red = destination
-                        
-            chosen_place_nodes = terra.path_node_list # list of place node ids
-
-            if task_idx not in planned_paths:
-                planned_paths[task_idx] = []
-            planned_paths[task_idx].append(chosen_place_nodes)
-            terra.path_node_list = [] # reset path for next destination query 
-            
-            # Check if GT object detected
-            while True:
-                answer = input("Is this correct? (y/n): ").strip().lower()
-                if answer == 'y':
-                    print("Correct")
-                    break
-                elif answer == 'n':
-                    print("Incorrect")
-                    break
-                else:
-                    print("Please enter 'y' or 'n'")
+        # Check if GT object detected
+        while True:
+            answer = input("Is this correct? (y/n): ").strip().lower()
             if answer == 'y':
+                print("Correct")
                 break
+            elif answer == 'n':
+                print("Incorrect")
+                break
+            else:
+                print("Please enter 'y' or 'n'")
+        if answer == 'y':
+            break
+        
     return planned_paths
 
 
@@ -361,64 +251,75 @@ if __name__ == '__main__':
     terra.alpha = path_planning_params["alpha"]
     
     print("Running", path_planning_params["unique_object_approach"], "approach")
-    if path_planning_params["unique_object_approach"] == "1-short" or path_planning_params["unique_object_approach"] == "1-long":
-        planned_paths = one_prompt(
-            clip_model, 
-            terra,
-            path_planning_params,
-            gps_place_nodes
-        ) # {task_idx: [[...], ...]}
-        task_names_dict = [task["query_destination"] for task in path_planning_params['tasks']]
-    elif path_planning_params["unique_object_approach"] == "object+context":
-        planned_paths = separate_object_context(
-            clip_model, 
-            terra,
-            path_planning_params,
-            gps_place_nodes,
-            path_planning_params["gamma_obj"]
-        )
-        task_names_dict = [task["object"]+": "+task["context"] for task in path_planning_params['tasks']]
-    # elif path_planning_params["unique_object_approach"] == "ensemble":
-    #     planned_paths = ensemble_of_prompts(
-    #         clip_model,
-    #         terra,
-    #         path_planning_params,
-    #         gps_place_nodes
-    #     )
     
-    gps_dict = {}
-    enu_dict = {}
-    for task_idx in planned_paths.keys():
-        gps_dict[task_idx] = {}
-        gps_dict[task_idx]["task"] = task_names_dict[task_idx]
-        enu_dict[task_idx] = {}
-        enu_dict[task_idx]["task"] = task_names_dict[task_idx]
-        print("\n\nTask:",gps_dict[task_idx]["task"])
-        
-        correct_k = len(planned_paths[task_idx])
-        for k in range(correct_k):
-            print(f"\nPlace node path for k={k}")
-            place_node_ids = planned_paths[task_idx][k]   
-            
-            gps_dict[task_idx][k] = []
-            enu_dict[task_idx][k] = []
-            for pid in place_node_ids:
-                gps = gps_place_nodes[pid][:2] # (lat, lon)
-                print(gps)
-                enu = enu_place_nodes[pid][:2] # (x_east,y_north)
-                gps_dict[task_idx][k].append(gps)
-                enu_dict[task_idx][k].append(enu)
-            # print("GPS coords:\n",gps_dict[task_idx][k])
-            
-    # Save GPS coordinates of the predicted path to the destination for each task
-    output_dir = os.path.dirname(path_planning_params["place_nodes_gps"])
-    orig_name = os.path.basename(path_planning_params["place_nodes_gps"])
-    new_gps_name = "path_gps" + orig_name[8:]
-    new_enu_name = "path_enu" + orig_name[8:]
+    for start_node in path_planning_params["start_nodes"]:
+        if isinstance(start_node, list):
+            selected_place_node = place_node_from_gps(start_node, gps_place_nodes)
+            start_node = selected_place_node
+        print("\n\nStart node:",start_node)
     
-    with open(os.path.join(output_dir,new_gps_name), 'wb') as f:
-        pkl.dump(gps_dict, f) # {0: {"task": "...", 0: [[40,-111.3], ...], ...}, 1: ...}
-    with open(os.path.join(output_dir,new_enu_name), 'wb') as f:
-        pkl.dump(enu_dict, f) # {0: {"task": "...", 0: [[1001.1,-1101.3], ...], ...}, 1: ...}
+        ## Identify top-k destination nodes per task
+        if path_planning_params["unique_object_approach"] == "1-short" or path_planning_params["unique_object_approach"] == "1-long":
+            dest_nodes = one_prompt(
+                clip_model, 
+                terra,
+                path_planning_params
+            ) # {task_idx: [node_id_0, ...]}
+            task_names_dict = [task["query_destination"] for task in path_planning_params['tasks']]
+        elif path_planning_params["unique_object_approach"] == "object+context":
+            dest_nodes = separate_object_context(
+                clip_model, 
+                terra,
+                path_planning_params,
+                path_planning_params["gamma_obj"]
+            ) # {task_idx: [node_id_0, ...]}
+            task_names_dict = [task["object"]+": "+task["context"] for task in path_planning_params['tasks']]
+
+        ## Plan paths
+        planned_paths = {}
+        for t_idx in dest_nodes.keys():
+            print("\nRunning task:", task_names_dict[t_idx])
+            planned_paths[t_idx] = plan_paths(
+                terra, 
+                path_planning_params["terrain_preferences"], 
+                start_node, 
+                dest_nodes[t_idx]
+            )
+
+        ## Convert place node ids to GPS/ENU coords
+        gps_dict = {}
+        enu_dict = {}
+        for task_idx in planned_paths.keys():
+            gps_dict[task_idx] = {}
+            gps_dict[task_idx]["task"] = task_names_dict[task_idx]
+            enu_dict[task_idx] = {}
+            enu_dict[task_idx]["task"] = task_names_dict[task_idx]
+            print("\n\nTask:",gps_dict[task_idx]["task"])
+            
+            correct_k = len(planned_paths[task_idx])
+            for k in range(correct_k):
+                print(f"\nPlace node path for k={k}")
+                place_node_ids = planned_paths[task_idx][k]   
+                
+                gps_dict[task_idx][k] = []
+                enu_dict[task_idx][k] = []
+                for pid in place_node_ids:
+                    gps = gps_place_nodes[pid][:2] # (lat, lon)
+                    print(gps)
+                    enu = enu_place_nodes[pid][:2] # (x_east,y_north)
+                    gps_dict[task_idx][k].append(gps)
+                    enu_dict[task_idx][k].append(enu)
+                # print("GPS coords:\n",gps_dict[task_idx][k])
+                
+        ## Save GPS coordinates of the predicted path to the destination for each task
+        output_dir = os.path.dirname(path_planning_params["place_nodes_gps"])
+        orig_name = os.path.basename(path_planning_params["place_nodes_gps"])
+        new_gps_name = "path_gps_" + str(start_node) + "initnode" + orig_name[8:]
+        new_enu_name = "path_enu_" + str(start_node) + "initnode" + orig_name[8:]
         
-    print("Saved GPS/ENU coordinates of path planner")
+        with open(os.path.join(output_dir,new_gps_name), 'wb') as f:
+            pkl.dump(gps_dict, f) # {0: {"task": "...", 0: [[40,-111.3], ...], ...}, 1: ...}
+        with open(os.path.join(output_dir,new_enu_name), 'wb') as f:
+            pkl.dump(enu_dict, f) # {0: {"task": "...", 0: [[1001.1,-1101.3], ...], ...}, 1: ...}
+        
+    print("\nSaved GPS/ENU coordinates of path planner\n")

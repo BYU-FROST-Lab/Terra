@@ -19,88 +19,59 @@ terrain_preferences:
     # 0: 1.0
     # 1: 5.0
 
-unique_object_approach: "object+context" # [1-short, 1-long, object+context, ensemble]
+unique_object_approach: "object+context" # [1-short, 1-long, object+context]
 gamma_obj: 0.7
+# start_nodes: [193,1170,892]
+start_nodes: [[40.238981, -111.735399], # init parking lot (193)
+              [40.240126, -111.739242], # mid parking lot (1170)
+              [40.237298, -111.738474]] # end parking lot (892)
 tasks:
   # ## Option 1.1: 1 prompt-short
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "dumpster" # at end of the road
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "stop sign" y
+  # - {
+  #   query_destination: "stop sign"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "fire hydrant" 
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "dumpster" # by white fence
   #   }
   
   # ## Option 1.2: 1 prompt-long
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the dumpster at end of road by rocks and water"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the stop sign"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the fire hydrant"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the dumpster in white fence by tree"
   #   }
 
   ## Option 2: Separate object from context
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "dumpster",
     # context: "dumpster near the end of a road by rocks and water"
     context: "near the end of a road by rocks and water"
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "stop sign",
     # context: "stop sign by road"
     context: "by road"
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "fire hydrant",
     # context: "fire hydrant on grass in RV park"
     context: "on grass in RV park"
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "dumpster",
     # context: "dumpster in white fence by tree"
     context: "in white fence by tree"
   }
-  
-  # ## Option 3: Ensemble of prompts
-  # - start_node: 162 # Place node ID for the starting point
-  #   prompts: 
-  #     - "dumpster" # object
-  #     - "garbage" # object synonym
-  #     - "go to the dumpster" # go to + object
-  #     - "dumpster near the end of a road by rocks and water" # object + context
-  #     - "go to the dumpster at end of road by rocks and water" # full task description
-  
-  # - start_node: 162 # Place node ID for the starting point
-  #   prompts: 
-  #     - "stop sign" # object
-  #     - "red road sign" # object synonym
-  #     - "go to the stop sign" # go to + object
-  #     - "stop sign by road" # object + context
-  #     - "go to the stop sign by road" # full task description
-  
-  # - start_node: 162 # Place node ID for the starting point
-  #   prompts: 
-  #     - "fire hydrant" # object
-  #     - "fireplug" # object synonym
-  #     - "go to the fire hydrant" # go to + object
-  #     - "fire hydrant on grass in RV park" # object + context
-  #     - "go to the fire hydrant on grass in RV park" # full task description
-
-  # - start_node: 162 # Place node ID for the starting point
-  #   prompts: 
-  #     - "dumpster" # object
-  #     - "garbage" # object synonym
-  #     - "go to the dumpster" # go to + object
-  #     - "dumpster in the white fence by tree" # object + context
-  #     - "go to the dumpster in white fence by tree" # full task description

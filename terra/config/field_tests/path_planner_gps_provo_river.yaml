@@ -22,63 +22,67 @@ terrain_preferences:
 # [1-short, 1-long, object+context, ensemble]
 unique_object_approach: "object+context"
 gamma_obj: 0.7
+# start_nodes: []
+start_nodes: [[40.241050, -111.685218], # init parking lot ()
+              [40.241836, -111.685585], # grass open area by large pav ()
+              [40.241668, -111.687042]] # grass area near end pav ()
 tasks:
   # ## Option 1.1: 1 prompt-short
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "bridge" # brown, over river
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "bridge" # white, curved
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "playground" 
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "garbage" # parking lot 
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "garbage" # red bldg, bathrooms 
   #   }
   
   # ## Option 1.2: 1 prompt-long
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the large brown bridge over the river"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the small white bridge in the woods"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the playground"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the garbage in the parking lot"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the garbage by the red building"
   #   }
 
   ## Option 2: Separate object from context
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "bridge",
     # context: "large brown bridge over the river"
     context: "large brown over the river" # no obj
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "bridge",
     # context: "small white bridge in the woods"
     context: "small white in the woods" # no obj
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "playground",
     # context: "playground in sand"
     context: "in sand" # no obj
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "garbage",
     # context: "garbage in the parking lot"
     context: "in the parking lot" # no obj
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "garbage",
     # context: "garbage by the red building"
     context: "by the red building" # no obj

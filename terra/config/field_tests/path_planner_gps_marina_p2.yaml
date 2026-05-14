@@ -19,44 +19,48 @@ terrain_preferences:
     # 0: 1.0
     # 1: 5.0
 
-# [1-short, 1-long, object+context, ensemble]
+# [1-short, 1-long, object+context]
 unique_object_approach: "object+context"
 gamma_obj: 0.7
+# start_nodes: []
+start_nodes: [[40.237309, -111.739510], # init parking lot ()
+              [40.238687, -111.740057], # peninsula ()
+              [40.237031, -111.743206]] # dirt road elbow ()
 tasks:
   # ## Option 1.1: 1 prompt-short
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "building" # brick, green roof
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "dumpsters" # n/a
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "buoy" # white round, on road, says SLOW NO WAKE 
   #   }
   
   # ## Option 1.2: 1 prompt-long
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the brick building with a green roof"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the dumpsters"
   #   }
-  # - {start_node: 162, # Place node ID for the starting point
+  # - {
   #   query_destination: "go to the white round buoy on road that says SLOW NO WAKE"
   #   }
 
   ## Option 2: Separate object from context
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "building",
     # context: "brick building with a green roof"
     context: "brick with a green roof" # no obj
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "dumpsters",
     # context: "dumpsters by building"
     context: "by building" # no obj
   }
-  - {start_node: 162, # Place node ID for the starting point
+  - {
     object: "buoy",
     # context: "white round buoy on road that says SLOW NO WAKE"
     context: "white round on road that says SLOW NO WAKE" # no obj
