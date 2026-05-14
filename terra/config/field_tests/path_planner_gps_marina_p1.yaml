@@ -20,14 +20,14 @@ terrain_preferences:
     # 1: 5.0
 
 unique_object_approach: "object+context" # [1-short, 1-long, object+context, ensemble]
-
+gamma_obj: 0.7
 tasks:
   # ## Option 1.1: 1 prompt-short
   # - {start_node: 162, # Place node ID for the starting point
   #   query_destination: "dumpster" # at end of the road
   #   }
   # - {start_node: 162, # Place node ID for the starting point
-  #   query_destination: "stop sign" 
+  #   query_destination: "stop sign" y
   #   }
   # - {start_node: 162, # Place node ID for the starting point
   #   query_destination: "fire hydrant" 
@@ -53,19 +53,23 @@ tasks:
   ## Option 2: Separate object from context
   - {start_node: 162, # Place node ID for the starting point
     object: "dumpster",
-    context: "dumpster near the end of a road by rocks and water"
+    # context: "dumpster near the end of a road by rocks and water"
+    context: "near the end of a road by rocks and water"
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "stop sign",
-    context: "stop sign by road"
+    # context: "stop sign by road"
+    context: "by road"
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "fire hydrant",
-    context: "fire hydrant on grass in RV park"
+    # context: "fire hydrant on grass in RV park"
+    context: "on grass in RV park"
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "dumpster",
-    context: "dumpster in white fence by tree"
+    # context: "dumpster in white fence by tree"
+    context: "in white fence by tree"
   }
   
   # ## Option 3: Ensemble of prompts

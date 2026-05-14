@@ -1,3 +1,4 @@
+import os
 from argparse import ArgumentParser
 import yaml
 import torch
@@ -83,16 +84,23 @@ def one_prompt(clip_model, terra, path_planning_params, gps_place_nodes):
             planned_paths[t_idx].append(chosen_place_nodes)
             terra.path_node_list = [] # reset path for next destination query
         
-        # # Display top-k paths for this task
-        # terra.visualizer.display_multi_paths(
-        #     terra.terra_3dsg,
-        #     planned_paths[t_idx], 
-        #     terra.pc
-        # )
-    pass
+            # Check if GT object detected
+            while True:
+                answer = input("Is this correct? (y/n): ").strip().lower()
+                if answer == 'y':
+                    print("Correct")
+                    break
+                elif answer == 'n':
+                    print("Incorrect")
+                    break
+                else:
+                    print("Please enter 'y' or 'n'")
+            if answer == 'y':
+                break
+    return planned_paths
 
-def separate_object_context(clip_model, terra, path_planning_params, gps_place_nodes):
-    gamma_obj = 0.7 # weighting factor for object score vs place node context score in the final scoring of place nodes for path planning
+def separate_object_context(clip_model, terra, path_planning_params, gps_place_nodes, gamma_obj=0.7):
+    print("Chose gamma:",gamma_obj)
     
     tasks = [task["object"] for task in path_planning_params['tasks']]
     start_nodes = [task["start_node"] for task in path_planning_params['tasks']]
@@ -219,7 +227,21 @@ def separate_object_context(clip_model, terra, path_planning_params, gps_place_n
                 planned_paths[t_idx] = []
             planned_paths[t_idx].append(chosen_place_nodes)
             terra.path_node_list = [] # reset path for next destination query 
-    pass
+            
+            # Check if GT object detected
+            while True:
+                answer = input("Is this correct? (y/n): ").strip().lower()
+                if answer == 'y':
+                    print("Correct")
+                    break
+                elif answer == 'n':
+                    print("Incorrect")
+                    break
+                else:
+                    print("Please enter 'y' or 'n'")
+            if answer == 'y':
+                break
+    return planned_paths
 
 def ensemble_of_prompts(clip_model, terra, path_planning_params, gps_place_nodes):
     task_dict = {}
@@ -292,8 +314,22 @@ def ensemble_of_prompts(clip_model, terra, path_planning_params, gps_place_nodes
             if task_idx not in planned_paths:
                 planned_paths[task_idx] = []
             planned_paths[task_idx].append(chosen_place_nodes)
-            terra.path_node_list = [] # reset path for next destination query   
-    pass
+            terra.path_node_list = [] # reset path for next destination query 
+            
+            # Check if GT object detected
+            while True:
+                answer = input("Is this correct? (y/n): ").strip().lower()
+                if answer == 'y':
+                    print("Correct")
+                    break
+                elif answer == 'n':
+                    print("Incorrect")
+                    break
+                else:
+                    print("Please enter 'y' or 'n'")
+            if answer == 'y':
+                break
+    return planned_paths
 
 
 if __name__ == '__main__':
@@ -326,27 +362,63 @@ if __name__ == '__main__':
     
     print("Running", path_planning_params["unique_object_approach"], "approach")
     if path_planning_params["unique_object_approach"] == "1-short" or path_planning_params["unique_object_approach"] == "1-long":
-        one_prompt(
+        planned_paths = one_prompt(
             clip_model, 
             terra,
             path_planning_params,
             gps_place_nodes
-        )
+        ) # {task_idx: [[...], ...]}
+        task_names_dict = [task["query_destination"] for task in path_planning_params['tasks']]
     elif path_planning_params["unique_object_approach"] == "object+context":
-        separate_object_context(
+        planned_paths = separate_object_context(
             clip_model, 
             terra,
             path_planning_params,
-            gps_place_nodes
+            gps_place_nodes,
+            path_planning_params["gamma_obj"]
         )
-    elif path_planning_params["unique_object_approach"] == "ensemble":
-        ensemble_of_prompts(
-            clip_model,
-            terra,
-            path_planning_params,
-            gps_place_nodes
-        )
+        task_names_dict = [task["object"]+": "+task["context"] for task in path_planning_params['tasks']]
+    # elif path_planning_params["unique_object_approach"] == "ensemble":
+    #     planned_paths = ensemble_of_prompts(
+    #         clip_model,
+    #         terra,
+    #         path_planning_params,
+    #         gps_place_nodes
+    #     )
     
-    # TODO: Save GPS coordinates of the predicted path to the destination for each task
-
-    print("Finished")
+    gps_dict = {}
+    enu_dict = {}
+    for task_idx in planned_paths.keys():
+        gps_dict[task_idx] = {}
+        gps_dict[task_idx]["task"] = task_names_dict[task_idx]
+        enu_dict[task_idx] = {}
+        enu_dict[task_idx]["task"] = task_names_dict[task_idx]
+        print("\n\nTask:",gps_dict[task_idx]["task"])
+        
+        correct_k = len(planned_paths[task_idx])
+        for k in range(correct_k):
+            print(f"\nPlace node path for k={k}")
+            place_node_ids = planned_paths[task_idx][k]   
+            
+            gps_dict[task_idx][k] = []
+            enu_dict[task_idx][k] = []
+            for pid in place_node_ids:
+                gps = gps_place_nodes[pid][:2] # (lat, lon)
+                print(gps)
+                enu = enu_place_nodes[pid][:2] # (x_east,y_north)
+                gps_dict[task_idx][k].append(gps)
+                enu_dict[task_idx][k].append(enu)
+            # print("GPS coords:\n",gps_dict[task_idx][k])
+            
+    # Save GPS coordinates of the predicted path to the destination for each task
+    output_dir = os.path.dirname(path_planning_params["place_nodes_gps"])
+    orig_name = os.path.basename(path_planning_params["place_nodes_gps"])
+    new_gps_name = "path_gps" + orig_name[8:]
+    new_enu_name = "path_enu" + orig_name[8:]
+    
+    with open(os.path.join(output_dir,new_gps_name), 'wb') as f:
+        pkl.dump(gps_dict, f) # {0: {"task": "...", 0: [[40,-111.3], ...], ...}, 1: ...}
+    with open(os.path.join(output_dir,new_enu_name), 'wb') as f:
+        pkl.dump(enu_dict, f) # {0: {"task": "...", 0: [[1001.1,-1101.3], ...], ...}, 1: ...}
+        
+    print("Saved GPS/ENU coordinates of path planner")

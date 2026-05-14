@@ -1,7 +1,6 @@
 ---
-# TODO: remember to change path of place node GPS coordinates to this dataset
-place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
-place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/node_gps_dict_provo_river.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/node_enu_dict_provo_river.pkl
 
 terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
@@ -22,7 +21,7 @@ terrain_preferences:
 
 # [1-short, 1-long, object+context, ensemble]
 unique_object_approach: "object+context"
-
+gamma_obj: 0.7
 tasks:
   # ## Option 1.1: 1 prompt-short
   # - {start_node: 162, # Place node ID for the starting point
@@ -58,30 +57,30 @@ tasks:
   #   query_destination: "go to the garbage by the red building"
   #   }
 
-  # ## Option 2: Separate object from context
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "bridge",
-  #   context: "large brown bridge over the river"
-  #   # context: "large brown over the river"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "bridge",
-  #   context: "small white bridge in the woods"
-  #   # context: "small white in the woods"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "playground",
-  #   context: "playground in sand"
-  #   # context: "in sand"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "garbage",
-  #   context: "garbage in the parking lot"
-  #   # context: "in the parking lot"
-  # }
-  # - {start_node: 162, # Place node ID for the starting point
-  #   object: "garbage",
-  #   context: "garbage by the red building"
-  #   # context: "by the red building"
-  # }
+  ## Option 2: Separate object from context
+  - {start_node: 162, # Place node ID for the starting point
+    object: "bridge",
+    # context: "large brown bridge over the river"
+    context: "large brown over the river" # no obj
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "bridge",
+    # context: "small white bridge in the woods"
+    context: "small white in the woods" # no obj
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "playground",
+    # context: "playground in sand"
+    context: "in sand" # no obj
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "garbage",
+    # context: "garbage in the parking lot"
+    context: "in the parking lot" # no obj
+  }
+  - {start_node: 162, # Place node ID for the starting point
+    object: "garbage",
+    # context: "garbage by the red building"
+    context: "by the red building" # no obj
+  }
   

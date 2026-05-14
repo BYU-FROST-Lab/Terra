@@ -1,7 +1,6 @@
 ---
-# TODO: remember to change path of place node GPS coordinates to this dataset
-place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
-place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_gps_dict_marina_p2.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_enu_dict_marina_p2.pkl
 
 terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
@@ -22,7 +21,7 @@ terrain_preferences:
 
 # [1-short, 1-long, object+context, ensemble]
 unique_object_approach: "object+context"
-
+gamma_obj: 0.7
 tasks:
   # ## Option 1.1: 1 prompt-short
   # - {start_node: 162, # Place node ID for the starting point
@@ -49,17 +48,17 @@ tasks:
   ## Option 2: Separate object from context
   - {start_node: 162, # Place node ID for the starting point
     object: "building",
-    context: "brick building with a green roof"
-    # context: "brick with a green roof"
+    # context: "brick building with a green roof"
+    context: "brick with a green roof" # no obj
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "dumpsters",
-    context: "dumpsters by building"
-    # context: "by building"
+    # context: "dumpsters by building"
+    context: "by building" # no obj
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "buoy",
-    context: "white round buoy on road that says SLOW NO WAKE"
-    # context: "white round on road that says SLOW NO WAKE"
+    # context: "white round buoy on road that says SLOW NO WAKE"
+    context: "white round on road that says SLOW NO WAKE" # no obj
   }
   

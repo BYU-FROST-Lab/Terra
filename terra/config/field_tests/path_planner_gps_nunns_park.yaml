@@ -1,7 +1,6 @@
 ---
-# TODO: remember to change path of place node GPS coordinates to this dataset
-place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
-place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/node_gps_dict_nunns_park.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/node_enu_dict_nunns_park.pkl
 
 terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
 alpha: 0.26
@@ -22,7 +21,7 @@ terrain_preferences:
 
 # [1-short, 1-long, object+context, ensemble]
 unique_object_approach: "object+context"
-
+gamma_obj: 0.7
 tasks:
   # ## Option 1.1: 1 prompt-short
   # - {start_node: 162, # Place node ID for the starting point
@@ -61,27 +60,27 @@ tasks:
   ## Option 2: Separate object from context
   - {start_node: 162, # Place node ID for the starting point
     object: "underpass",
-    context: "in the underpass"
-    # context: "go in"
+    # context: "in the underpass"
+    context: "go in" # no obj
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "honey bucket",
-    context: "blue honey bucket"
-    # context: "blue"
+    # context: "blue honey bucket"
+    context: "blue" # no obj
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "trailer",
-    context: "trailer behind the truck"
-    # context: "behind the truck"
+    # context: "trailer behind the truck"
+    context: "behind the truck" # no obj
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "dumpster",
-    context: "dumpster by the brick building"
-    # context: "by the brick building"
+    # context: "dumpster by the brick building"
+    context: "by the brick building" # no obj
   }
   - {start_node: 162, # Place node ID for the starting point
     object: "playground",
-    context: "playground in sand"
-    # context: "in sand"
+    # context: "playground in sand"
+    context: "in sand" # no obj
   }
   
