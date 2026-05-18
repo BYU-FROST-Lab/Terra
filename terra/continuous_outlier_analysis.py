@@ -291,8 +291,8 @@ if __name__ == '__main__':
 
         gidx_2_avg_dist[g_idx] = compute_avgdistance(X, w=None)
         
-        # num_outliers = count_outliers_meanmedian(X, std_dev=3.5)
-        num_outliers = count_outliers_geomedian(X, std_dev=3.5)
+        num_outliers = count_outliers_meanmedian(X, std_dev=3.5)
+        # num_outliers = count_outliers_geomedian(X, std_dev=3.5)
         # num_outliers = count_outliers(X, w, threshold=0.3)
 
         gidx_2_outlier_counts[g_idx] = num_outliers.detach().cpu().item()
@@ -320,38 +320,67 @@ if __name__ == '__main__':
             max_ratio = ratio        
         gidx_2_outlier_ratio[g_idx] = ratio
 
-    # Sort by ratio (descending)
-    sorted_items = sorted(gidx_2_outlier_ratio.items(), key=lambda x: x[1], reverse=True)
+    # Sort by ratio (ascending)
+    sorted_items = sorted(gidx_2_outlier_ratio.items(), key=lambda x: x[1], reverse=False)
     sorted_idx = [x[0] for x in sorted_items]
     sorted_ratios = [x[1] for x in sorted_items]
-    
-    print("\nGlobal Outlier Ratio:", num / den,"\n")
-    print("Min Outlier Ratio:", min_ratio)
-    print("Max Outlier Ratio:", max_ratio)
-    ratios = np.array(sorted_ratios)
-    print("Mean:", ratios.mean())
-    print("Std:", ratios.std())
-    print("Median:", np.median(ratios))
-    # Top-k concentration
-    sorted_outliers = np.array([gidx_2_outlier_counts[i] for i in sorted_idx])
-    sorted_totals = np.array([gidx_2_total_counts[i] for i in sorted_idx])
-    top_10 = int(0.1 * len(sorted_outliers))
-    top_outliers = sorted_outliers[:top_10].sum()
-    total_outliers = sorted_outliers.sum()
-    print("Top 10% contribution (correct):", top_outliers / total_outliers)
-    
-    cum_outliers = np.cumsum(sorted_outliers) / sorted_outliers.sum()
-    half_idx = np.searchsorted(cum_outliers, 0.5)
-    print("Fraction of points that account for 50% of outliers:", half_idx / len(cum_outliers))
-    
-    plt.figure(figsize=(6,4))
-    plt.plot(np.linspace(0, 1, len(cum_outliers)), cum_outliers)
-    plt.xlabel("Fraction of points (sorted)")
-    plt.ylabel("Fraction of total outliers")
-    plt.title("Outlier Concentration Curve")
-    plt.grid(True)
+    sorted_obs = [gidx_2_total_counts[i] for i in sorted_idx]
+
+    x = np.linspace(0, 1, len(sorted_ratios))
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1,
+        figsize=(7,6),
+        sharex=True
+    )
+
+    # Top plot: outlier ratio
+    ax1.plot(x, sorted_ratios)
+    ax1.set_ylabel("Outlier Ratio")
+    ax1.set_title("Point Cloud Outlier Presence")
+    ax1.grid(True)
+
+    # Bottom plot: number of observations
+    ax2.plot(x, sorted_obs)
+    ax2.set_xlabel("Point Index (sorted by outlier ratio)")
+    ax2.set_ylabel("Num Observations")
+    ax2.grid(True)
+
     plt.tight_layout()
     plt.show()
+
+
+    # # Sort by ratio (descending)
+    # sorted_items = sorted(gidx_2_outlier_ratio.items(), key=lambda x: x[1], reverse=True)
+    # sorted_idx = [x[0] for x in sorted_items]
+    # sorted_ratios = [x[1] for x in sorted_items]
+    
+    # print("\nGlobal Outlier Ratio:", num / den,"\n")
+    # print("Min Outlier Ratio:", min_ratio)
+    # print("Max Outlier Ratio:", max_ratio)
+    # ratios = np.array(sorted_ratios)
+    # print("Mean:", ratios.mean())
+    # print("Std:", ratios.std())
+    # print("Median:", np.median(ratios))
+    # # Top-k concentration
+    # sorted_outliers = np.array([gidx_2_outlier_counts[i] for i in sorted_idx])
+    # sorted_totals = np.array([gidx_2_total_counts[i] for i in sorted_idx])
+    # top_10 = int(0.1 * len(sorted_outliers))
+    # top_outliers = sorted_outliers[:top_10].sum()
+    # total_outliers = sorted_outliers.sum()
+    # print("Top 10% contribution (correct):", top_outliers / total_outliers)
+    
+    # cum_outliers = np.cumsum(sorted_outliers) / sorted_outliers.sum()
+    # half_idx = np.searchsorted(cum_outliers, 0.5)
+    # print("Fraction of points that account for 50% of outliers:", half_idx / len(cum_outliers))
+    
+    # plt.figure(figsize=(6,4))
+    # plt.plot(np.linspace(0, 1, len(cum_outliers)), cum_outliers)
+    # plt.xlabel("Fraction of points (sorted)")
+    # plt.ylabel("Fraction of total outliers")
+    # plt.title("Outlier Concentration Curve")
+    # plt.grid(True)
+    # plt.tight_layout()
+    # plt.show()
     
     
     plt.figure(figsize=(10, 4))
@@ -406,46 +435,46 @@ if __name__ == '__main__':
     # vis.run()
     # vis.destroy_window()
     
-    ## Use average distance from mean as score instead of outlier count
-    # Display point cloud colored by outliers
-    vals = np.array(list(gidx_2_avg_dist.values()))
+    # ## Use average distance from mean as score instead of outlier count
+    # # Display point cloud colored by outliers
+    # vals = np.array(list(gidx_2_avg_dist.values()))
     
-    plt.figure(figsize=(7, 5))
-    plt.hist(vals, bins=50)
-    plt.xlabel("Average distance from mean embedding")
-    plt.ylabel("Frequency")
-    plt.title("Distribution of CLIP Average Distances per Point")
-    plt.grid(True, alpha=0.3)
-    plt.show()
+    # plt.figure(figsize=(7, 5))
+    # plt.hist(vals, bins=50)
+    # plt.xlabel("Average distance from mean embedding")
+    # plt.ylabel("Frequency")
+    # plt.title("Distribution of CLIP Average Distances per Point")
+    # plt.grid(True, alpha=0.3)
+    # plt.show()
 
-    vmin = np.percentile(vals, 5)
-    vmax = np.percentile(vals, 95)
+    # vmin = np.percentile(vals, 5)
+    # vmax = np.percentile(vals, 95)
     
-    pc = np.load(args.global_pc) # (num_pts,4)
-    all_points = pc[:, :3].astype(np.float64)
-    all_colors = np.zeros((pc.shape[0], 3), dtype=np.float64)
-    for g_idx, cid_2_cnt in gidx_2_clipcounts.items():
-        pts = pc[g_idx,:3]
-        # normalize score
-        if g_idx in gidx_2_avg_dist:
-            score = gidx_2_avg_dist[g_idx]
-        else:
-            score = vmin
-        t = (score - vmin) / (vmax - vmin + 1e-8)
-        t = np.clip(t, 0, 1)
-        # t = t ** 0.5 # contrast boosting for better visualization
-        color = jet_colormap(np.array([t]))[0]  # RGB
-        all_colors[g_idx] = color
-    all_points = np.asarray(all_points, dtype=np.float64).reshape(-1, 3)
-    all_colors = np.asarray(all_colors, dtype=np.float64).reshape(-1, 3)
+    # pc = np.load(args.global_pc) # (num_pts,4)
+    # all_points = pc[:, :3].astype(np.float64)
+    # all_colors = np.zeros((pc.shape[0], 3), dtype=np.float64)
+    # for g_idx, cid_2_cnt in gidx_2_clipcounts.items():
+    #     pts = pc[g_idx,:3]
+    #     # normalize score
+    #     if g_idx in gidx_2_avg_dist:
+    #         score = gidx_2_avg_dist[g_idx]
+    #     else:
+    #         score = vmin
+    #     t = (score - vmin) / (vmax - vmin + 1e-8)
+    #     t = np.clip(t, 0, 1)
+    #     # t = t ** 0.5 # contrast boosting for better visualization
+    #     color = jet_colormap(np.array([t]))[0]  # RGB
+    #     all_colors[g_idx] = color
+    # all_points = np.asarray(all_points, dtype=np.float64).reshape(-1, 3)
+    # all_colors = np.asarray(all_colors, dtype=np.float64).reshape(-1, 3)
 
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(all_points)
-    pcd.colors = o3d.utility.Vector3dVector(all_colors)
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.add_geometry(pcd)
-    render_opt = vis.get_render_option()
-    render_opt.point_size = 4.0  # smaller points
-    vis.run()
-    vis.destroy_window()
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = o3d.utility.Vector3dVector(all_points)
+    # pcd.colors = o3d.utility.Vector3dVector(all_colors)
+    # vis = o3d.visualization.Visualizer()
+    # vis.create_window()
+    # vis.add_geometry(pcd)
+    # render_opt = vis.get_render_option()
+    # render_opt.point_size = 4.0  # smaller points
+    # vis.run()
+    # vis.destroy_window()

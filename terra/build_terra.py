@@ -901,9 +901,9 @@ class TerraBuilder:
                         self.terra_graph.add_edge(g_id,parent_id,weight=wij)
             
     def save_terra(self):
-        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma100auto{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/terra_nxgraph_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.terra_graph, f)
-        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_beta1gamma100auto{self.region_method}cluster.pkl", "wb") as f:
+        with open(self.output_folder+f"/map_nodeid2imgidx_nodist1img_{self.region_method}cluster.pkl", "wb") as f:
             pkl.dump(self.map_nodeid2imgidx, f)
         
         terra = Terra(
@@ -923,7 +923,7 @@ class TerraBuilder:
         )
         save_terra(
             terra, 
-            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_beta1gamma100auto{self.region_method}cluster.pkl"
+            self.output_folder+f"/Terra_{self.cam2pt_dist_thresh}mimgembs_nodist1img_{self.region_method}cluster.pkl"
         )
         print("Finished! Terra Saved!")
         if self.DEBUG_MODE:
