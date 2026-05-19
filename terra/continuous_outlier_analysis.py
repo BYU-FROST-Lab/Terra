@@ -350,6 +350,9 @@ if __name__ == '__main__':
 
     plt.tight_layout()
     plt.show()
+    
+    ## Spatial & Semantic Distance graph
+    
 
 
     # # Sort by ratio (descending)
@@ -385,15 +388,15 @@ if __name__ == '__main__':
     # plt.tight_layout()
     # plt.show()
     
-    
-    plt.figure(figsize=(10, 4))
-    plt.bar(range(len(sorted_ratios)), sorted_ratios)
-    plt.xlabel("Points (sorted by outlier ratio)", fontsize=15)
-    plt.ylabel("Outlier ratio", fontsize=15)
-    plt.title("Sorted Outlier Ratios per Point", fontsize=18)
-    plt.tick_params(axis='both', labelsize=15)
-    plt.tight_layout()
-    plt.show()
+    # plt.figure(figsize=(10, 4))
+    # plt.bar(range(len(sorted_ratios)), sorted_ratios)
+    # plt.xlabel("Point Index", fontsize=15)
+    # plt.ylabel("Outlier ratio", fontsize=15)
+    # plt.title("Sorted Outlier Ratios per Point", fontsize=18)
+    # plt.tick_params(axis='both', labelsize=15)
+    # plt.tick_params(axis='x', labelrotation=45)
+    # plt.tight_layout()
+    # plt.show()
 
     # # Display point cloud colored by outliers
     # vals = np.array(list(gidx_2_outlier_counts.values()))

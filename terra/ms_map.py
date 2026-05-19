@@ -618,13 +618,12 @@ class MSMap:
         best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
         for start, scores in chunked_tensor_cosine_similarity(
-            clip_embs_tensor,          # (num_masks, D)
             self.clip_segs,          # (num_existing, D)
+            clip_embs_tensor,          # (num_masks, D)
             chunk_size=8192
         ): # scores: (num_masks, chunk)
-
-            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-            chunk_max_ids += start  # convert local → global clip id
+            chunk_max_scores, chunk_max_ids = scores.max(dim=0)
+            chunk_max_ids += start  # convert chunk → full clip id
 
             better = chunk_max_scores > best_scores
             best_scores[better] = chunk_max_scores[better]

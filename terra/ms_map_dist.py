@@ -148,7 +148,8 @@ class MSMap:
 
             #Initialize data structures
             self.clip_segs = torch.vstack(yolo_clip_embs) # (num_classes, 512)
-            self.gidx2clipcounts_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
+            self.gidx2clipcounts_dict = {}  # {point_index: {clip_id: count}}
+            self.gidx2clipdists_dict = {}  # {point_index: {clip_id: dist}}
             self.num_scans = 0
             self.last_scan_idx = 0
             self.clip_imgs = []
@@ -432,7 +433,15 @@ class MSMap:
                     y_indices, x_indices = np.where(filtered_lidar_img > 0)
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
-                        self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                        if g_idx in self.gidx2clipcounts_dict:
+                            if cls_id in self.gidx2clipcounts_dict[g_idx]:
+                                self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                            else:
+                                self.gidx2clipcounts_dict[g_idx][cls_id] = 1
+                            self.gidx2clipdists_dict[g_idx][cls_id] = self.map_globalidx2pldist[g_idx]
+                        else:
+                            self.gidx2clipcounts_dict[g_idx] = {cls_id: 1}
+                            self.gidx2clipdists_dict[g_idx] = {cls_id: self.map_globalidx2pldist[g_idx]}
                         if g_idx in self.map_globalidx2pldist:
                             self.clipid2distances[cls_id].append(
                                 self.map_globalidx2pldist[g_idx]
@@ -628,13 +637,12 @@ class MSMap:
         best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
         for start, scores in chunked_tensor_cosine_similarity(
-            clip_embs_tensor,          # (num_masks, D)
             self.clip_segs,          # (num_existing, D)
+            clip_embs_tensor,          # (num_masks, D)
             chunk_size=8192
         ): # scores: (num_masks, chunk)
-
-            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-            chunk_max_ids += start  # convert local → global clip id
+            chunk_max_scores, chunk_max_ids = scores.max(dim=0)
+            chunk_max_ids += start  # convert chunk → full clip id
 
             better = chunk_max_scores > best_scores
             best_scores[better] = chunk_max_scores[better]
@@ -643,14 +651,25 @@ class MSMap:
             del scores  # free GPU memory
         
         for mask_idx in range(num_masks):
-            if best_scores[mask_idx] > self.theta_cos_sim:
-                max_clip_id = best_clip_ids[mask_idx].item()
-            else:
-                self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-                max_clip_id = self.clip_segs.shape[0] - 1
+            # if best_scores[mask_idx] > self.theta_cos_sim:
+            #     max_clip_id = best_clip_ids[mask_idx].item()
+            # else:
+            #     self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+            #     max_clip_id = self.clip_segs.shape[0] - 1
+            self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+            max_clip_id = self.clip_segs.shape[0] - 1
 
             for g_idx in global_idxs[mask_idx]:
-                self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                if g_idx in self.gidx2clipcounts_dict:
+                    if max_clip_id in self.gidx2clipcounts_dict[g_idx]:
+                        self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                    else:
+                        self.gidx2clipcounts_dict[g_idx][max_clip_id] = 1
+                    self.gidx2clipdists_dict[g_idx][max_clip_id] = self.map_globalidx2pldist[g_idx]
+                else:
+                    self.gidx2clipcounts_dict[g_idx] = {max_clip_id: 1}
+                    self.gidx2clipdists_dict[g_idx] = {max_clip_id: self.map_globalidx2pldist[g_idx]}
+
                 if g_idx in self.map_globalidx2pldist:
                     self.clipid2distances[max_clip_id].append(
                         self.map_globalidx2pldist[g_idx]
@@ -674,6 +693,8 @@ class MSMap:
             
         with open(self.output_folder+f"/clipid2distances_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.clipid2distances, f)
+        with open(self.output_folder+f"/gidx2clipdists_dict_itr{itr}.pkl", "wb") as f:
+            pkl.dump(self.gidx2clipdists_dict, f)
 
         print(f"\nSaved gidx2clipcounts_dict and clip_segs at iteration {itr}\n")
        
@@ -798,6 +819,8 @@ class MSMap:
         
         with open(self.output_folder+f"/clipid2distances_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.clipid2distances = pkl.load(f)
+        with open(self.output_folder+f"/gidx2clipdists_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+            self.gidx2clipdists_dict = pkl.load(f)
         
         self.num_scans = self.last_scan_idx + 1
 
