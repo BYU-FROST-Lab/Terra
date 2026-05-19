@@ -326,7 +326,7 @@ if __name__ == '__main__':
     sorted_ratios = [x[1] for x in sorted_items]
     sorted_obs = [gidx_2_total_counts[i] for i in sorted_idx]
 
-    x = np.linspace(0, 1, len(sorted_ratios))
+    # x = np.linspace(0, 1, len(sorted_ratios))
     fig, (ax1, ax2) = plt.subplots(
         2, 1,
         figsize=(7,6),
@@ -334,15 +334,18 @@ if __name__ == '__main__':
     )
 
     # Top plot: outlier ratio
-    ax1.plot(x, sorted_ratios)
-    ax1.set_ylabel("Outlier Ratio")
-    ax1.set_title("Point Cloud Outlier Presence")
+    ax1.plot(range(len(sorted_ratios)), sorted_ratios)
+    ax1.set_ylabel("Outlier Ratio",fontsize=15)
+    ax1.set_title("Point Cloud Outlier Presence",fontsize=18)
+    ax1.tick_params(axis='y', labelsize=15)
     ax1.grid(True)
 
     # Bottom plot: number of observations
-    ax2.plot(x, sorted_obs)
-    ax2.set_xlabel("Point Index (sorted by outlier ratio)")
-    ax2.set_ylabel("Num Observations")
+    ax2.plot(range(len(sorted_ratios)), sorted_obs)
+    ax2.set_xlabel("Point Index",fontsize=15)
+    ax2.set_ylabel("Observation Count",fontsize=15)
+    ax2.tick_params(axis='both', labelsize=15)
+    ax2.tick_params(axis='x', labelrotation=45)
     ax2.grid(True)
 
     plt.tight_layout()
@@ -385,9 +388,10 @@ if __name__ == '__main__':
     
     plt.figure(figsize=(10, 4))
     plt.bar(range(len(sorted_ratios)), sorted_ratios)
-    plt.xlabel("Points (sorted by outlier ratio)")
-    plt.ylabel("Outlier ratio")
-    plt.title("Sorted Outlier Ratios per Point")
+    plt.xlabel("Points (sorted by outlier ratio)", fontsize=15)
+    plt.ylabel("Outlier ratio", fontsize=15)
+    plt.title("Sorted Outlier Ratios per Point", fontsize=18)
+    plt.tick_params(axis='both', labelsize=15)
     plt.tight_layout()
     plt.show()
 

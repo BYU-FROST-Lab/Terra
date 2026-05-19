@@ -701,7 +701,7 @@ if __name__ == '__main__':
     tv.display_regions(terra_3dsg, plot_ids=True)
     
     # Display Places
-    # tv.display_places(terra_3dsg)
+    tv.display_places(terra_3dsg)
     
     # Display full 3DSG with point cloud
     geo = tv.display_3dsg(terra_3dsg, return_geo=True)
