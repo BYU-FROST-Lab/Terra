@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 import pickle as pkl
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -210,7 +212,7 @@ def count_outliers_meanmedian(X, w=None, std_dev=3):
 #     # Count outliers
 #     return outliers.count_nonzero()
 
-def compute_avgdistance(X, w=None):
+def compute_mean_distance(X, w=None):
     N = X.shape[0]
 
     # Normalize embeddings
@@ -231,6 +233,29 @@ def compute_avgdistance(X, w=None):
 
     return dist.mean().item()
 
+def compute_distances_from_median(X, w=None):
+    N = X.shape[0]
+
+    # Normalize embeddings
+    X = X / X.norm(dim=1, keepdim=True)
+
+    # Compute center (weighted mean)
+    if w is None:
+        mu = X.mean(dim=0)
+    else:
+        w = w / w.sum()
+        mu = (X * w.unsqueeze(1)).sum(dim=0)
+
+    mu = mu / mu.norm()
+
+    # Cosine distance
+    sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    dist = 1 - sim
+    
+    med = dist.median()        
+    dists_from_med = torch.abs(dist - med)
+    return dists_from_med.cpu().detach().numpy()
+
 def jet_colormap(t):
     # t in [0,1]
     r = np.clip(1.5 - np.abs(4*t - 3), 0, 1)
@@ -243,6 +268,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip_segs', type=str, required=True, help="Tensor of segment CLIP embeddings.")
     parser.add_argument('--gidx2clipcounts', type=str, required=True, help="Dictionary mapping global indices to clip counts")
     parser.add_argument('--global_pc', type=str, required=True, help="Global point cloud file")
+    parser.add_argument('--gidx2clipdists', type=str, help="Dictionary mapping global indices to clip_ids with LiDAR distances")
     # parser.add_argument('--clip_imgs', type=str, help="Tensor of image CLIP embeddings")
     # parser.add_argument('--gidx2imgs', type=str, help="Dictionary mapping global indices to image indices within distance")
     # parser.add_argument('--img_names', type=str, help="List of image names corresponding to clip_imgs")
@@ -256,14 +282,22 @@ if __name__ == '__main__':
         clip_ids = torch.load(f)
     with open(args.gidx2clipcounts, "rb") as f:
         gidx_2_clipcounts = pkl.load(f)
-    
+    with open(args.gidx2clipdists, "rb") as f:
+        gidx_2_clipdists = pkl.load(f)
+
     max_outliers = -1
     chosen_gidx = None
     clipid_2_counts = None
     
     gidx_2_outlier_counts = {}
     gidx_2_total_counts = {}
-    gidx_2_avg_dist = {}
+    # gidx_2_avg_dist = {}
+    gidx_2_dists_from_med = {}
+    gidx_2_dists_from_lidar = {}
+    max_obsv = 0
+    # count_cutoff = 1000
+    # count = 0
+    gidx_list = []
     for g_idx, cid_2_cnt in tqdm(gidx_2_clipcounts.items(),desc="Selecting point with most outliers"):
         # # if g_idx not in terrain_gidxs:
         # if g_idx in terrain_gidxs:
@@ -281,15 +315,22 @@ if __name__ == '__main__':
             if clip_id < 7: # Assuming terrain clip IDs are 0-6, adjust if needed
                 del cid_2_cnt[clip_id]
         
+        gidx_list.append(g_idx)
+        
         # Build X
         X = torch.zeros((len(cid_2_cnt), 512), device=device)
-
+        dists = []
         for i, (clip_id, count) in enumerate(cid_2_cnt.items()):
             # if clip_id < terra.num_terrain:
             #     print(f"Error: clip_id {clip_id} is less than num_terrain {terra.num_terrain}")
             X[i,:] = clip_ids[clip_id,:]
-
-        gidx_2_avg_dist[g_idx] = compute_avgdistance(X, w=None)
+            dists.append(gidx_2_clipdists[g_idx][clip_id])
+        if len(dists) > max_obsv:
+            max_obsv = len(dists)
+            
+        # gidx_2_avg_dist[g_idx] = compute_mean_distance(X, w=None)
+        gidx_2_dists_from_med[g_idx] = compute_distances_from_median(X, w=None)
+        gidx_2_dists_from_lidar[g_idx] = dists
         
         num_outliers = count_outliers_meanmedian(X, std_dev=3.5)
         # num_outliers = count_outliers_geomedian(X, std_dev=3.5)
@@ -303,6 +344,10 @@ if __name__ == '__main__':
             chosen_gidx = g_idx
             clipid_2_counts = cid_2_cnt
             print("New max number of outliers",max_outliers)
+        
+        # count += 1
+        # if count >= count_cutoff:
+        #     break
 
     # Compute Global Outlier Ratio
     num = 0.0
@@ -351,8 +396,216 @@ if __name__ == '__main__':
     plt.tight_layout()
     plt.show()
     
-    ## Spatial & Semantic Distance graph
+    ####################################################
+    ## FULL POINT CLOUD SPATIAL v. SEMANTIC DISTANCES ##
+    ####################################################
+    gidx_sampled = np.random.choice(gidx_list, size=min(300, len(gidx_list)), replace=False)
+    max_obsv = max([len(gidx_2_clipcounts[g_idx]) for g_idx in gidx_sampled])
     
+    fig, ax = plt.subplots(figsize=(8, 6))
+    for g_idx in gidx_sampled:
+        # curr_ratio = gidx_2_outlier_ratio[g_idx]
+        # # if curr_ratio < 0.1:
+        # #     continue
+        # t = np.clip(curr_ratio / 0.5, 0, 1)
+        # color = jet_colormap(np.array([t]))[0]  # RGB
+        
+        # Color by number of observations
+        t = np.clip(len(gidx_2_dists_from_med[g_idx]) / max_obsv, 0, 1)
+        color = jet_colormap(np.array([t]))[0]
+        
+        xs = []
+        ys = []
+        for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
+            xs.append(lidar_dist)
+            ys.append(med_dist)
+
+        ax.scatter(
+            xs,
+            ys,
+            marker='o',
+            # color='k',
+            color=color,
+            s=30,
+            alpha=0.5
+        )
+    
+    norm = mcolors.Normalize(vmin=0.0, vmax=max_obsv)#0.5)
+    cmap = cm.jet
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax)
+    # cbar.set_label("Outlier Ratio", fontsize=15)
+    cbar.set_label("Number of Observations", fontsize=15)
+    cbar.ax.tick_params(labelsize=15)
+
+    ax.set_title("Semantic vs Geometric Distances", fontsize=18)
+    ax.set_xlabel("Distance from LiDAR", fontsize=15)
+    ax.set_ylabel("Distance from Median", fontsize=15)
+
+    ax.grid(True)
+    ax.tick_params(axis='both', labelsize=15)
+
+    plt.tight_layout()
+    plt.show()
+    
+    fig, ax = plt.subplots(figsize=(8, 6))
+    for g_idx in gidx_sampled:
+        curr_ratio = gidx_2_outlier_ratio[g_idx]
+        t = np.clip(curr_ratio / 0.5, 0, 1)
+        
+        xs = []
+        ys = []
+        for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
+            xs.append(lidar_dist)
+            ys.append(med_dist)
+
+        ax.scatter(
+            xs,
+            ys,
+            marker='o',
+            color='k',
+            s=50,
+            alpha=0.2
+        )
+
+    ax.set_title("Semantic vs Geometric Distances", fontsize=18)
+    ax.set_xlabel("Distance from LiDAR", fontsize=15)
+    ax.set_ylabel("Distance from Median", fontsize=15)
+
+    ax.grid(True)
+    ax.tick_params(axis='both', labelsize=15)
+
+    plt.tight_layout()
+    plt.show()
+    
+    # ## Spatial & Semantic Distance graph
+    # # Select 3 random inlier points and 3 random outlier points for visualization
+    # np.random.seed(42)
+    # num_samples = 3
+    # high_ratio_points = np.array([
+    #     g_idx for g_idx, ratio in gidx_2_outlier_ratio.items()
+    #     if ratio > 0.3 and len(gidx_2_clipcounts[g_idx]) > 10
+    # ])
+    # low_ratio_points = np.array([
+    #     g_idx for g_idx, ratio in gidx_2_outlier_ratio.items()
+    #     if ratio < 0.1 and len(gidx_2_clipcounts[g_idx]) > 10
+    # ])
+    # # Randomly select up to 3 from each group
+    # selected_high = np.random.choice(
+    #     high_ratio_points,
+    #     size=min(num_samples, len(high_ratio_points)),
+    #     replace=False
+    # )
+    # selected_low = np.random.choice(
+    #     low_ratio_points,
+    #     size=min(num_samples, len(low_ratio_points)),
+    #     replace=False
+    # )
+    
+    # labels = []
+    
+    # print("High ratio points (>0.3):", selected_high)
+    # dists_from_med_high = []
+    # dists_from_lidar_high = []
+    # for g_idx in selected_high:
+    #     print(f"Point {g_idx} - Outlier Ratio: {gidx_2_outlier_ratio[g_idx]:.2f}")
+    #     print(f"  Number of outliers: {gidx_2_outlier_counts[g_idx]}, Number of observations: {gidx_2_total_counts[g_idx]}\n")
+    #     labels.append(f"Ratio {gidx_2_outlier_counts[g_idx]}/{gidx_2_total_counts[g_idx]}")
+    #     X = torch.zeros((0, 512), device=device)
+    #     dists_from_lidar = []
+    #     for cid, dist in gidx_2_clipdists[g_idx].items():
+    #         if cid < 7: # Assuming terrain clip IDs are 0-6, adjust if needed
+    #             continue
+    #         # print(f"  Clip ID {cid} - LiDAR Distance: {dist:.2f}")
+    #         X = torch.cat((X, clip_ids[cid,:].unsqueeze(0)), dim=0)
+    #         dists_from_lidar.append(dist)
+        
+    #     # Normalize embeddings
+    #     X = X / X.norm(dim=1, keepdim=True)
+
+    #     mu = X.mean(dim=0)
+    #     mu = mu / mu.norm()
+
+    #     sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    #     dists = 1 - sim
+
+    #     med = dists.median()        
+    #     dists_from_med = torch.abs(dists - med)
+    #     # dists_from_med = dists
+        
+    #     dists_from_med_high.append(dists_from_med.cpu().detach().numpy())
+    #     dists_from_lidar_high.append(dists_from_lidar)
+    
+    # print("Low ratio points (<0.1):", selected_low)
+    # dists_from_med_low = []
+    # dists_from_lidar_low = []
+    # for g_idx in selected_low:
+    #     print(f"Point {g_idx} - Outlier Ratio: {gidx_2_outlier_ratio[g_idx]:.2f}")
+    #     print(f"  Number of outliers: {gidx_2_outlier_counts[g_idx]}, Number of observations: {gidx_2_total_counts[g_idx]}\n")
+    #     labels.append(f"Ratio {gidx_2_outlier_counts[g_idx]}/{gidx_2_total_counts[g_idx]}")
+    #     X = torch.zeros((0, 512), device=device)
+    #     dists_from_lidar = []
+    #     for cid, dist in gidx_2_clipdists[g_idx].items():
+    #         if cid < 7: # Assuming terrain clip IDs are 0-6, adjust if needed
+    #             continue
+    #         # print(f"  Clip ID {cid} - LiDAR Distance: {dist:.2f}")
+    #         X = torch.cat((X, clip_ids[cid,:].unsqueeze(0)), dim=0)
+    #         dists_from_lidar.append(dist)
+        
+    #     # Normalize embeddings
+    #     X = X / X.norm(dim=1, keepdim=True)
+
+    #     mu = X.mean(dim=0)
+    #     mu = mu / mu.norm()
+
+    #     sim = tensor_cosine_similarity(X, mu.unsqueeze(0))
+    #     dists = 1 - sim
+
+    #     med = dists.median()        
+    #     dists_from_med = torch.abs(dists - med)
+    #     # dists_from_med = dists
+        
+    #     dists_from_med_low.append(dists_from_med.cpu().detach().numpy())
+    #     dists_from_lidar_low.append(dists_from_lidar)
+    
+    
+    # fig, ax = plt.subplots(figsize=(8, num_samples*2))
+    # marker_styles = ['o', 's', '^', 'D', 'P', 'X']
+    # colors = ['red', 'blue', 'green', 'purple', 'orange', 'cyan']
+    # # labels = [
+    # #     'High Ratio 1', 'High Ratio 2', 'High Ratio 3',
+    # #     'Low Ratio 1', 'Low Ratio 2', 'Low Ratio 3'
+    # # ]
+    # for i in range(num_samples*2):
+    #     if i < len(dists_from_med_high):
+    #         x = dists_from_lidar_high[i]
+    #         y = dists_from_med_high[i]
+    #     else:
+    #         x = dists_from_lidar_low[i - num_samples]
+    #         y = dists_from_med_low[i - num_samples]
+        
+    #     ax.scatter(
+    #         x,
+    #         y,
+    #         marker=marker_styles[i],
+    #         color=colors[i],
+    #         s=80,
+    #         alpha=0.8,
+    #         label=labels[i]
+    #     )
+
+    # ax.set_title("Semantic vs Geometric Distances", fontsize=18)
+    # ax.set_xlabel("Distance from LiDAR", fontsize=15)
+    # ax.set_ylabel("Distance from Median", fontsize=15)
+    # # ax.set_ylabel("Distance from Mean", fontsize=15)
+
+    # ax.legend(fontsize=15)
+    # ax.grid(True)
+    # ax.tick_params(axis='both', labelsize=15)
+
+    # plt.tight_layout()
+    # plt.show()
 
 
     # # Sort by ratio (descending)
