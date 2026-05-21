@@ -75,12 +75,14 @@ def clean_name(name):
 
 def plot_k_graphs(configs, k_values, method="micro"):
     #Plot grid of 2 by num_configs/2 plots of F1 vs K with best Alpha for each configuration
-    fig, axs = plt.subplots(1, 2, figsize=(12, 10))
-    fig.suptitle(f'F1 vs K for Different Configurations - {method.capitalize()}')
+    fig, axs = plt.subplots(1, 2, figsize=(15, 10))
+    # fig.suptitle(f'F1-{method.capitalize()} vs K', fontsize=18)
 
     sums_f1s_for_k = [0.0 for _ in k_values]
     spectral_sums_f1s_for_k = [0.0 for _ in k_values]
     agglomerative_sums_f1s_for_k = [0.0 for _ in k_values]
+
+    print(f"\n\nPrec, Rec, F1 for each config- {method}:")
 
     for config in configs:
         if config.prediction_method == "aib":
@@ -94,82 +96,114 @@ def plot_k_graphs(configs, k_values, method="micro"):
             ax = axs[0]
     
         if method == "micro":
-            f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.f1_scores) if a == config.best_alpha]
+            f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.micro_f1_scores) if a == config.best_alpha]
+            precisions_for_k = [prec for a, k, prec in zip(config.alphas, config.ks, config.micro_precisions) if a == config.best_alpha]
+            recalls_for_k = [rec for a, k, rec in zip(config.alphas, config.ks, config.micro_recalls) if a == config.best_alpha]
         elif method == "macro":
             f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.macro_f1s) if a == config.best_alpha]
-            f1_stds_for_k = [std for a, k, std in zip(config.alphas, config.ks, config.macro_f1_stds) if a == config.best_alpha]
+            precisions_for_k = [prec for a, k, prec in zip(config.alphas, config.ks, config.macro_precisions) if a == config.best_alpha]
+            recalls_for_k = [rec for a, k, rec in zip(config.alphas, config.ks, config.macro_recalls) if a == config.best_alpha]
+            # f1_stds_for_k = [std for a, k, std in zip(config.alphas, config.ks, config.macro_f1_stds) if a == config.best_alpha]
 
-        for k, f1 in zip(config.ks, config.f1_scores):
-            idx = np.where(k_values == k)[0][0]
-            sums_f1s_for_k[idx] += f1
-            if "spectral" in config.name.lower():
-                spectral_sums_f1s_for_k[idx] += f1
-            else:
-                agglomerative_sums_f1s_for_k[idx] += f1
+        # for k, f1 in zip(config.ks, config.f1_scores):
+        #     idx = np.where(k_values == k)[0][0]
+        #     sums_f1s_for_k[idx] += f1
+        #     if "spectral" in config.name.lower():
+        #         spectral_sums_f1s_for_k[idx] += f1
+        #     else:
+        #         agglomerative_sums_f1s_for_k[idx] += f1
 
         ax.plot(k_values, f1s_for_k, marker='o', label=clean_name(config.name))
-        if method == "macro":
-            # ax.errorbar(k_values, f1s_for_k, yerr=f1_stds_for_k, fmt='o', alpha=0.5)
-            ax.fill_between(k_values, [f1-std for f1, std in zip(f1s_for_k, f1_stds_for_k)], [f1+std for f1, std in zip(f1s_for_k, f1_stds_for_k)], alpha=0.2, color=ax.get_lines()[-1].get_color())
-            #Plot the std deviation as a dotted line above and below the f1 scores keeping the same color as the f1 score line
-            ax.plot(k_values, [f1+std for f1, std in zip(f1s_for_k, f1_stds_for_k)], linestyle='dotted', alpha=0.7, color=ax.get_lines()[-1].get_color())
-            ax.plot(k_values, [f1-std for f1, std in zip(f1s_for_k, f1_stds_for_k)], linestyle='dotted', alpha=0.7, color=ax.get_lines()[-1].get_color())
+
+        # Calculate the average F1, precision, and recall for each configuration (dataset) averaging over k values
+        avg_f1 = np.mean(f1s_for_k)
+        std_f1 = np.std(f1s_for_k)
+        avg_prec = np.mean(precisions_for_k)
+        std_prec = np.std(precisions_for_k)
+        avg_rec = np.mean(recalls_for_k)
+        std_rec = np.std(recalls_for_k)
+        cluster_type = "Spectral" if "spectral" in config.name.lower() else "Agglomerative"
+        # print(f"{clean_name(config.name)}({cluster_type}) - Avg Prec: {avg_prec:.4f}\(\pm {std_prec:.4f}\), Avg Rec: {avg_rec:.4f}\(\pm {std_rec:.4f}\), Avg F1: {avg_f1:.4f}\(\pm {std_f1:.4f}\)")
+        print(f"{clean_name(config.name)}({cluster_type}) - "
+            f"Avg Prec: {avg_prec:.4f} ± {std_prec:.4f}, "
+            f"Avg Rec: {avg_rec:.4f} ± {std_rec:.4f}, "
+            f"Avg F1: {avg_f1:.4f} ± {std_f1:.4f}")
+
+        # if method == "macro":
+        #     # ax.errorbar(k_values, f1s_for_k, yerr=f1_stds_for_k, fmt='o', alpha=0.5)
+        #     ax.fill_between(k_values, [f1-std for f1, std in zip(f1s_for_k, f1_stds_for_k)], [f1+std for f1, std in zip(f1s_for_k, f1_stds_for_k)], alpha=0.2, color=ax.get_lines()[-1].get_color())
+        #     #Plot the std deviation as a dotted line above and below the f1 scores keeping the same color as the f1 score line
+        #     ax.plot(k_values, [f1+std for f1, std in zip(f1s_for_k, f1_stds_for_k)], linestyle='dotted', alpha=0.7, color=ax.get_lines()[-1].get_color())
+        #     ax.plot(k_values, [f1-std for f1, std in zip(f1s_for_k, f1_stds_for_k)], linestyle='dotted', alpha=0.7, color=ax.get_lines()[-1].get_color())
         
         # else:
         #     ax.plot(k_values, f1s_for_k, marker='o', label=clean_name(config.name))
 
+   
+        axs[0].set_title(f'F1-{method.capitalize()} vs K - Agglomerative', fontsize=18)
+        axs[0].tick_params(axis='both', labelsize=15)
+        axs[1].set_title(f'F1-{method.capitalize()} vs K - Spectral', fontsize=18)
+        axs[1].tick_params(axis='both', labelsize=15)
 
-
-            
-        axs[0].set_title('F1 vs K - Agglomerative')
-        axs[1].set_title('F1 vs K - Spectral')
-        ax.set_xlabel('K')
-        ax.set_ylabel('F1 Score')
+        #Set scale of y axis to be from 0 to 1
+        ax.set_ylim(0, 1)
+        ax.set_xlabel('K', fontsize=15)
+        ax.set_ylabel('F1 Score', fontsize=15)
         ax.grid(True)
         ax.legend(loc='best')
-    plt.show()
-
-    # Display average F1 vs K for agglomerative and spectral separately
-    average_agglomerative_f1s_for_k = [s / (len(configs)/2) for s in agglomerative_sums_f1s_for_k]
-    average_spectral_f1s_for_k = [s / (len(configs)/2) for s in spectral_sums_f1s_for_k]
-    fig, axs = plt.subplots(1, 2, figsize=(12, 10))
-    fig.suptitle(f'Average F1 vs K for Agglomerative and Spectral - {method.capitalize()}')
-    axs[0].plot(k_values, average_agglomerative_f1s_for_k, marker='o', label='Agglomerative Average')
-    axs[0].set_title('Average F1 vs K - Agglomerative')
-    axs[0].set_xlabel('K')
-    axs[0].set_ylabel('Average F1 Score')
-    axs[0].grid(True)
-    axs[0].legend(loc='best')
-    axs[1].plot(k_values, average_spectral_f1s_for_k, marker='o', label='Spectral Average')
-    axs[1].set_title('Average F1 vs K - Spectral')
-    axs[1].set_xlabel('K')
-    axs[1].set_ylabel('Average F1 Score')
-    axs[1].grid(True)
-    axs[1].legend(loc='best')
+    plt.tight_layout()
     plt.show()
 
 
-    # Display average F1 vs K across configurations
-    average_f1s_for_k = [s / len(configs) for s in sums_f1s_for_k]
-    plt.figure(figsize=(8, 6))
-    plt.title(f'Average F1 vs K across Configurations - {method.capitalize()}')
-    plt.plot(k_values, average_f1s_for_k, marker='o')
-    plt.xlabel('K')
-    plt.ylabel('Average F1 Score')
-    plt.grid(True)
-    plt.show()
+    
+
+
+    # # Display average F1 vs K for agglomerative and spectral separately
+    # average_agglomerative_f1s_for_k = [s / (len(configs)/2) for s in agglomerative_sums_f1s_for_k]
+    # average_spectral_f1s_for_k = [s / (len(configs)/2) for s in spectral_sums_f1s_for_k]
+    # fig, axs = plt.subplots(1, 2, figsize=(12, 10))
+    # fig.suptitle(f'Average F1-{method.capitalize()}')
+    # axs[0].plot(k_values, average_agglomerative_f1s_for_k, marker='o', label='Agglomerative Average')
+    # axs[0].set_title('Average F1 vs K - Agglomerative', fontsize=18)
+    # axs[0].set_xlabel('K', fontsize=15)
+    # axs[0].set_ylabel('Average F1 Score', fontsize=15)
+    # axs[0].grid(True)
+    # axs[0].legend(loc='best')
+    # axs[0].tick_params(axis='both', labelsize=15)
+    # axs[1].plot(k_values, average_spectral_f1s_for_k, marker='o', label='Spectral Average')
+    # axs[1].set_title('Average F1 vs K - Spectral', fontsize=18)
+    # axs[1].set_xlabel('K', fontsize=15)
+    # axs[1].set_ylabel('Average F1 Score', fontsize=15)
+    # axs[1].grid(True)
+    # axs[1].legend(loc='best')
+    # axs[1].tick_params(axis='both', labelsize=15)
+    # plt.show()
+
+    
+
+    # # Display average F1 vs K across configurations
+    # average_f1s_for_k = [s / len(configs) for s in sums_f1s_for_k]
+    # plt.figure(figsize=(8, 6))
+    # plt.title(f'Average F1 vs K across Configurations - {method.capitalize()}')
+    # plt.plot(k_values, average_f1s_for_k, marker='o')
+    # plt.xlabel('K', fontsize=15)
+    # plt.ylabel('Average F1 Score', fontsize=15)
+    # plt.grid(True)
+    # plt.show()
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="Region Monitoring Test")
     parser.add_argument(
         '--params_1cam',
         type=str,
-        help="/path/to/1cam_region_querying.yaml file of region monitoring tasks"
+        help="/path/to/1cam_region_querying.yaml file of region monitoring tasks",
+        default="config/field_tests/region_querying_1_cam.yaml"
     )
     parser.add_argument(
         '--params_3cam',
         type=str,
-        help="/path/to/3cam_region_querying.yaml file of region monitoring tasks"
+        help="/path/to/3cam_region_querying.yaml file of region monitoring tasks",
+        default="config/field_tests/region_querying_3_cam.yaml"
     )
     args = parser.parse_args()
     
@@ -190,7 +224,9 @@ if __name__ == '__main__':
             self.terra = load_terra(terra_path)
             self.region_tasks = region_tasks
             self.prediction_method = prediction_method
-            self.f1_scores = []
+            self.micro_f1_scores = []
+            self.micro_precisions = []
+            self.micro_recalls = []
             self.alphas = []
             self.ks = []
             self.best_f1 = 0.0
@@ -217,7 +253,7 @@ if __name__ == '__main__':
     for config_1cam, config_3cam in zip(configs_1cam, configs_3cam):
         #Take the name after synced/ and before output in the terra path to be the config name
         name_1cam = config_1cam["terra"].split("/synced/")[1].split("/output")[0]
-        name_3cam = config_3cam["terra"].split("/synced/")[1].split("/output")[0]
+        name_3cam = config_3cam["terra"].split("/sem_avg_fixed/")[1].split("/output")[0]
         print(f"\nProcessing configs: {name_1cam} and {name_3cam}")
 
         # agg_1cam_config = RegionQueryingConfig(
@@ -317,7 +353,9 @@ if __name__ == '__main__':
    
                 if k > len(overall_region_nodes):
                     # Use the numbers from the previous k since we can't predict more regions than exist in the graph
-                    config.f1_scores.append(config.f1_scores[-1])
+                    config.micro_f1_scores.append(config.micro_f1_scores[-1])
+                    config.micro_precisions.append(config.micro_precisions[-1])
+                    config.micro_recalls.append(config.micro_recalls[-1])
                     config.alphas.append(alpha)
                     config.ks.append(k)
                     config.task_metrics.append(config.task_metrics[-1])
@@ -340,8 +378,10 @@ if __name__ == '__main__':
 
                 pred_places = config.terra.task_relevant_place_nodes
 
-                precision, recall, f1, task_metrics, macro_prec, macro_rec, macro_f1, macro_f1_std = compute_region_metrics(pred_places, config.place_nodes_dict)
-                config.f1_scores.append(f1)
+                micro_prec, micro_recall, f1, task_metrics, macro_prec, macro_rec, macro_f1, macro_f1_std = compute_region_metrics(pred_places, config.place_nodes_dict)
+                config.micro_f1_scores.append(f1)
+                config.micro_precisions.append(micro_prec)
+                config.micro_recalls.append(micro_recall)
                 config.alphas.append(alpha)
                 config.ks.append(k)
                 config.task_metrics.append(task_metrics)
@@ -349,15 +389,15 @@ if __name__ == '__main__':
                 config.macro_recalls.append(macro_rec)
                 config.macro_f1s.append(macro_f1)
                 config.macro_f1_stds.append(macro_f1_std)
-                print(f"Alpha: {alpha:0.2f}, K: {k} => Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
+                print(f"Alpha: {alpha:0.2f}, K: {k} => Precision: {micro_prec:.4f}, Recall: {micro_recall:.4f}, F1: {f1:.4f}")
                 
                 # Update best parameters
                 if f1 > config.best_f1:
                     config.best_f1 = f1
                     config.best_alpha = alpha
                     config.best_k = k
-                    config.best_precision = precision
-                    config.best_recall = recall
+                    config.best_precision = micro_prec
+                    config.best_recall = micro_recall
 
                 if macro_f1 > config.macro_best_f1:
                     config.macro_best_f1 = macro_f1

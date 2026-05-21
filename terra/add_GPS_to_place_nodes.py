@@ -262,20 +262,29 @@ if __name__ == '__main__':
             node_enu_dict[node] = enu.flatten().tolist()  # Store ENU coordinates in the dictionary
 			
     # Save the dictionaries and transformation to a pickle file
-    name = "provo_river"
+    name = "rock_canyon"
     with open(f'node_gps_dict_{name}.pkl', 'wb') as f:
         pkl.dump(node_gps_dict, f)
     with open(f'node_enu_dict_{name}.pkl', 'wb') as f:
         pkl.dump(node_enu_dict, f)
     with open(f'pc_to_enu_transformation_{name}.pkl', 'wb') as f:
-        pkl.dump({'rotation': R, 'scale': scale, 'translation': t}, f)
-        
+        pkl.dump({'rotation': R, 'scale': scale, 'translation': t, 'enu_origin_node_id': node_1.node_id}, f)
+    
+
 
     # Print out all the GPS coordinates for each node
     for node_id, gps in node_gps_dict.items():
         print(gps[0], ", ", gps[1])
 
 
+    # Testing
+    test_gps = [40.24807342801511, -111.64880441828616]
+    test_enu = np.ravel(gps_utils.geo2enu(test_gps[0], test_gps[1], 0)[0]).flatten()
+    converted_gps = np.ravel(gps_utils.enu2geo(test_enu[0], test_enu[1], test_enu[2])[0]).flatten()
+    print("Test GPS:", test_gps)
+    print("Converted to ENU:", test_enu)
+    print("Converted back to GPS:", converted_gps)
+    print("Starting init node id:", node_1.node_id)
 
     #Plot two plots, pc space on left, ENU on left
     plt.figure(figsize=(20, 10))
