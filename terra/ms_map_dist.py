@@ -150,7 +150,7 @@ class MSMap:
             self.clip_segs = torch.vstack(yolo_clip_embs) # (num_classes, 512)
             self.gidx2clipcounts_dict = {}  # {point_index: {clip_id: count}}
             self.gidx2clipdists_dict = {}  # {point_index: {clip_id: dist}}
-            self.gidx2clipmaskidx_dict = {}  # {point_index: {clip_id: [mask_indices]}}
+            self.gidx2clipmaskidx_dict = {}  # {point_index: {clip_id: [mask_indices]}} # TODO: new
             self.num_scans = 0
             self.last_scan_idx = 0
             self.clip_imgs = []
@@ -353,6 +353,12 @@ class MSMap:
 
             # LiDAR → global (N,3)
             p_Gs = points_xyz @ self.transform_lidar_to_global[:3, :3].T + self.transform_lidar_to_global[:3, 3]
+            
+            ## TODO: debugging
+            # display point cloud grey and also a pcd of p_Gs colored red
+            g_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(self.global_pc[:, :3])).paint_uniform_color([0.5, 0.5, 0.5])
+            p_Gs_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(p_Gs)).paint_uniform_color([1.0, 0.0, 0.0])
+            o3d.visualization.draw_geometries([g_pcd, p_Gs_pcd])
 
             # Batch KD-tree query
             dists, g_indices = self.global_kdtree.query(p_Gs)
@@ -606,6 +612,10 @@ class MSMap:
             candidate_global_idxs = candidate_global_idxs[candidate_global_idxs >= 0]
             if candidate_global_idxs.size == 0:
                 continue
+            
+            ## TODO: debugging
+            if 62799 in candidate_global_idxs:
+                self.display_image(f"mask{len(self.fastsam_masks)}",cropped_bb)
 
             # --- DBSCAN per-mask (reverted to original behavior) ---
             if self.use_dbscan:
@@ -625,6 +635,12 @@ class MSMap:
                 largest_global_pt_indices = candidate_global_idxs[labels == largest_label].tolist()
             else:
                 largest_global_pt_indices = candidate_global_idxs.tolist()
+            
+            # TODO: debug: color largest_global_pt_indices in red on global point cloud and visualize with open3d to verify correct associations
+            if 62799 in largest_global_pt_indices:
+                global_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(self.global_pc[:, :3])).paint_uniform_color([0.5, 0.5, 0.5])
+                largest_pts_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(self.global_pc[largest_global_pt_indices, :3])).paint_uniform_color([1.0, 0.0, 0.0])
+                o3d.visualization.draw_geometries([global_pcd, largest_pts_pcd])   
 
             if not largest_global_pt_indices:
                 continue

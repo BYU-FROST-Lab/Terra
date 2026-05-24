@@ -6,6 +6,7 @@ import matplotlib.cm as cm
 import torch
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 
 import open3d as o3d
 
@@ -263,12 +264,93 @@ def jet_colormap(t):
     b = np.clip(1.5 - np.abs(4*t - 1), 0, 1)
     return np.stack([r, g, b], axis=-1)
 
+def display_gidx(g_idx, pc):
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(pc[:,:3])
+    colors = np.ones_like(pc[:,:3]) * 0.5
+    colors[g_idx] = np.array([1.0, 0.0, 0.0]) # Highlight the point in red
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+    # Add sphere at gidx point
+    sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5)
+    sphere.translate(pc[g_idx, :3])
+    sphere.paint_uniform_color([1.0, 0.0, 0.0]) # Set base color to gray
+    o3d.visualization.draw_geometries([pcd] + [sphere])
+
+def plot_dist(title, g_idx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar):
+    fig, ax = plt.subplots(figsize=(8, 6))
+    curr_ratio = gidx_2_outlier_ratio[g_idx]
+    
+    xs = []
+    ys = []
+    for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
+        xs.append(lidar_dist)
+        ys.append(med_dist)
+    colors = np.arange(len(xs))
+    scatter = ax.scatter(
+        xs,
+        ys,
+        marker='o',
+        c=colors,
+        cmap='jet',
+        s=50,
+        alpha=0.5
+    )
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label("Observation Index", fontsize=15)
+    cbar.ax.tick_params(labelsize=12)
+    ax.set_title(title, fontsize=18)
+    ax.set_xlabel("Distance from LiDAR", fontsize=15)
+    ax.set_ylabel("Distance from Median", fontsize=15)
+    ax.grid(True)
+    ax.tick_params(axis='both', labelsize=15)
+    plt.tight_layout()
+    plt.show()
+
+def plot_fastsam_masks(g_idx, mask_idxs, fsam_mask_names, output_dir):
+    mask_names = [fsam_mask_names[idx] for idx in mask_idxs]
+    imgs_per_fig = 9
+    num_plots = 0
+    for start_idx in range(0, len(mask_names), imgs_per_fig):
+        curr_mask_names = mask_names[start_idx:start_idx + imgs_per_fig]
+        fig, axes = plt.subplots(3, 3, figsize=(12, 12))
+        axes = axes.flatten()
+        for ax_idx, ax in enumerate(axes):
+            # Hide unused axes
+            if ax_idx >= len(curr_mask_names):
+                ax.axis("off")
+                continue
+            mask_path = output_dir.parent.parent / curr_mask_names[ax_idx]
+
+            # Load image
+            mask_idx = int(start_idx) + int(ax_idx)
+            # print(f"Loading mask {mask_idx}: {mask_path}")
+            img = plt.imread(mask_path)
+            ax.imshow(img)
+            ax.set_title(
+                f"{mask_idx}:{Path(mask_path).stem}",
+                fontsize=8
+            )
+            ax.axis("off")
+        fig.suptitle(
+            f"FastSAM Masks for Global Index {g_idx}",
+            fontsize=18
+        )
+        fig.tight_layout()
+        num_plots += 1
+        if num_plots > 40:
+            break
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == '__main__':
     parser = ArgumentParser()
+    parser.add_argument('--output_dir', type=str, required=True, help="Directory to load the saved msmap output files.")
     parser.add_argument('--clip_segs', type=str, required=True, help="Tensor of segment CLIP embeddings.")
     parser.add_argument('--gidx2clipcounts', type=str, required=True, help="Dictionary mapping global indices to clip counts")
     parser.add_argument('--global_pc', type=str, required=True, help="Global point cloud file")
     parser.add_argument('--gidx2clipdists', type=str, help="Dictionary mapping global indices to clip_ids with LiDAR distances")
+    parser.add_argument('--gidx2clipmaskidx', type=str, help="Dictionary mapping global indices to clip_ids with mask indices")
+    parser.add_argument('--fsam_mask_names', type=str, help="List of mask names corresponding to clipmaskidx")
     # parser.add_argument('--clip_imgs', type=str, help="Tensor of image CLIP embeddings")
     # parser.add_argument('--gidx2imgs', type=str, help="Dictionary mapping global indices to image indices within distance")
     # parser.add_argument('--img_names', type=str, help="List of image names corresponding to clip_imgs")
@@ -278,13 +360,19 @@ if __name__ == '__main__':
     print("Device:", device)
     
     # Load CLIP Segment data
-    with open(args.clip_segs, "rb") as f:
+    output_dir = Path(args.output_dir)
+    with open(output_dir / args.clip_segs, "rb") as f:
         clip_ids = torch.load(f)
-    with open(args.gidx2clipcounts, "rb") as f:
+    with open(output_dir / args.gidx2clipcounts, "rb") as f:
         gidx_2_clipcounts = pkl.load(f)
-    with open(args.gidx2clipdists, "rb") as f:
+    with open(output_dir / args.gidx2clipdists, "rb") as f:
         gidx_2_clipdists = pkl.load(f)
-
+    with open(output_dir / args.gidx2clipmaskidx, "rb") as f:
+        gidx_2_clipmaskidx = pkl.load(f)
+    with open(output_dir / args.fsam_mask_names, "rb") as f:
+        fsam_mask_names = pkl.load(f)
+    pc = np.load(args.global_pc) # (num_pts,4)
+    
     max_outliers = -1
     chosen_gidx = None
     clipid_2_counts = None
@@ -296,7 +384,7 @@ if __name__ == '__main__':
     gidx_2_dists_from_lidar = {}
     max_obsv = 0
     # count_cutoff = 1000
-    # count = 0
+    # count_idx = 0
     gidx_list = []
     for g_idx, cid_2_cnt in tqdm(gidx_2_clipcounts.items(),desc="Selecting point with most outliers"):
         # # if g_idx not in terrain_gidxs:
@@ -345,8 +433,8 @@ if __name__ == '__main__':
             clipid_2_counts = cid_2_cnt
             print("New max number of outliers",max_outliers)
         
-        # count += 1
-        # if count >= count_cutoff:
+        # count_idx += 1
+        # if count_idx >= count_cutoff:
         #     break
 
     # Compute Global Outlier Ratio
@@ -396,27 +484,169 @@ if __name__ == '__main__':
     plt.tight_layout()
     plt.show()
     
-    ####################################################
-    ## FULL POINT CLOUD SPATIAL v. SEMANTIC DISTANCES ##
-    ####################################################
-    gidx_sampled = np.random.choice(gidx_list, size=min(300, len(gidx_list)), replace=False)
-    max_obsv = max([len(gidx_2_clipcounts[g_idx]) for g_idx in gidx_sampled])
+    # ####################################################
+    # ## FULL POINT CLOUD SPATIAL v. SEMANTIC DISTANCES ##
+    # ####################################################
+    # gidx_sampled = np.random.choice(gidx_list, size=min(10, len(gidx_list)), replace=False)
+    # max_obsv = max([len(gidx_2_clipcounts[g_idx]) for g_idx in gidx_sampled])
     
+    # fig, ax = plt.subplots(figsize=(8, 6))
+    # for g_idx in gidx_sampled:
+    #     curr_ratio = gidx_2_outlier_ratio[g_idx]
+    #     # if curr_ratio < 0.1:
+    #     #     continue
+    #     t = np.clip(curr_ratio / 0.5, 0, 1)
+    #     color = jet_colormap(np.array([t]))[0]  # RGB
+        
+    #     # # Color by number of observations
+    #     # t = np.clip(len(gidx_2_dists_from_med[g_idx]) / max_obsv, 0, 1)
+    #     # color = jet_colormap(np.array([t]))[0]
+        
+    #     xs = []
+    #     ys = []
+    #     for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
+    #         xs.append(lidar_dist)
+    #         ys.append(med_dist)
+
+    #     ax.scatter(
+    #         xs,
+    #         ys,
+    #         marker='o',
+    #         # color='k',
+    #         color=color,
+    #         s=30,
+    #         alpha=0.5
+    #     )
+    
+    # norm = mcolors.Normalize(vmin=0.0, vmax=max_obsv)#0.5)
+    # cmap = cm.jet
+    # sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+    # sm.set_array([])
+    # cbar = plt.colorbar(sm, ax=ax)
+    # # cbar.set_label("Outlier Ratio", fontsize=15)
+    # cbar.set_label("Number of Observations", fontsize=15)
+    # cbar.ax.tick_params(labelsize=15)
+
+    # ax.set_title("Semantic vs Geometric Distances", fontsize=18)
+    # ax.set_xlabel("Distance from LiDAR", fontsize=15)
+    # ax.set_ylabel("Distance from Median", fontsize=15)
+
+    # ax.grid(True)
+    # ax.tick_params(axis='both', labelsize=15)
+
+    # plt.tight_layout()
+    # plt.show()
+    
+    # fig, ax = plt.subplots(figsize=(8, 6))
+    # for g_idx in gidx_sampled:
+    #     curr_ratio = gidx_2_outlier_ratio[g_idx]
+    #     t = np.clip(curr_ratio / 0.5, 0, 1)
+        
+    #     xs = []
+    #     ys = []
+    #     for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
+    #         xs.append(lidar_dist)
+    #         ys.append(med_dist)
+
+    #     ax.scatter(
+    #         xs,
+    #         ys,
+    #         marker='o',
+    #         color='k',
+    #         s=50,
+    #         alpha=0.2
+    #     )
+
+    # ax.set_title("Semantic vs Geometric Distances", fontsize=18)
+    # ax.set_xlabel("Distance from LiDAR", fontsize=15)
+    # ax.set_ylabel("Distance from Median", fontsize=15)
+
+    # ax.grid(True)
+    # ax.tick_params(axis='both', labelsize=15)
+
+    # plt.tight_layout()
+    # plt.show()
+    
+    ##################################
+    ## FastSAM Masks (with >2 Obsv) ##
+    ##################################
+    spread_geomtrically = {}
+    spread_semantically = {}
+    for g_idx in gidx_list:
+        if len(gidx_2_clipcounts[g_idx]) <= 2:
+            continue
+        spread_geomtrically[g_idx] = np.max(gidx_2_dists_from_lidar[g_idx]) - np.min(gidx_2_dists_from_lidar[g_idx])
+        spread_semantically[g_idx] = np.max(gidx_2_dists_from_med[g_idx]) - np.min(gidx_2_dists_from_med[g_idx])
+    gidxs = np.array(list(spread_geomtrically.keys()))
+    geom_spreads = np.array([spread_geomtrically[g] for g in gidxs])
+    sem_spreads  = np.array([spread_semantically[g] for g in gidxs])
+    geom_norm = (geom_spreads - geom_spreads.min()) / (
+        geom_spreads.max() - geom_spreads.min()
+    )
+    sem_norm = (sem_spreads - sem_spreads.min()) / (
+        sem_spreads.max() - sem_spreads.min()
+    )
+    
+    # Select a point with the largest spread geometrically and semantically
+    score_lgls = geom_norm + sem_norm
+    lgls_gidx = gidxs[np.argmax(score_lgls)]  
+    display_gidx(lgls_gidx, pc)
+    # mask_idxs = list(set().union(*gidx_2_clipmaskidx[lgls_gidx].values())) # changes order. BAD!
+    mask_idxs = []
+    for mask_idx_set in gidx_2_clipmaskidx[lgls_gidx].values():
+        mask_idxs.extend(list(mask_idx_set))
+    plot_fastsam_masks(lgls_gidx, mask_idxs, fsam_mask_names, output_dir)
+    plot_dist("Large Geom + Large Sem", lgls_gidx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+    
+    # Select a point with the largest spread geometrically but smallest semantically
+    score_lgss = geom_norm - sem_norm
+    lgss_gidx = gidxs[np.argmax(score_lgss)]
+    display_gidx(lgss_gidx, pc)
+    mask_idxs = []
+    for mask_idx_set in gidx_2_clipmaskidx[lgss_gidx].values():
+        mask_idxs.extend(list(mask_idx_set))
+    plot_fastsam_masks(lgss_gidx, mask_idxs, fsam_mask_names, output_dir)
+    plot_dist("Large Geom + Small Sem", lgss_gidx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+    
+    # Select a point with the largest spread semantically but smallest geometrically
+    score_lssl = sem_norm - geom_norm
+    sgls_gidx = gidxs[np.argmax(score_lssl)]
+    display_gidx(sgls_gidx, pc)
+    mask_idxs = []
+    for mask_idx_set in gidx_2_clipmaskidx[sgls_gidx].values():
+        mask_idxs.extend(list(mask_idx_set))
+    plot_fastsam_masks(sgls_gidx, mask_idxs, fsam_mask_names, output_dir)
+    plot_dist("Small Geom + Large Sem", sgls_gidx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+    
+    # Select a point with the smallest spread semantically and geometrically
+    score_ss = sem_norm + geom_norm
+    sgss_gidx = gidxs[np.argmin(score_ss)]
+    display_gidx(sgss_gidx, pc)
+    mask_idxs = []
+    for mask_idx_set in gidx_2_clipmaskidx[sgss_gidx].values():
+        mask_idxs.extend(list(mask_idx_set))
+    plot_fastsam_masks(sgss_gidx, mask_idxs, fsam_mask_names, output_dir)
+    plot_dist("Small Geom + Small Sem", sgss_gidx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+
+    ## Plot 4 selected points
     fig, ax = plt.subplots(figsize=(8, 6))
-    for g_idx in gidx_sampled:
-        # curr_ratio = gidx_2_outlier_ratio[g_idx]
-        # # if curr_ratio < 0.1:
-        # #     continue
-        # t = np.clip(curr_ratio / 0.5, 0, 1)
-        # color = jet_colormap(np.array([t]))[0]  # RGB
-        
-        # Color by number of observations
-        t = np.clip(len(gidx_2_dists_from_med[g_idx]) / max_obsv, 0, 1)
-        color = jet_colormap(np.array([t]))[0]
-        
+
+    gidx_infos = [
+        (lgls_gidx, "Large Geom + Large Sem", "red"),
+        (lgss_gidx, "Large Geom + Small Sem", "blue"),
+        (sgls_gidx, "Small Geom + Large Sem", "green"),
+        (sgss_gidx, "Small Geom + Small Sem", "purple"),
+    ]
+
+    for g_idx, label, color in gidx_infos:
+
         xs = []
         ys = []
-        for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
+
+        for (med_dist, lidar_dist) in zip(
+            gidx_2_dists_from_med[g_idx],
+            gidx_2_dists_from_lidar[g_idx]
+        ):
             xs.append(lidar_dist)
             ys.append(med_dist)
 
@@ -424,49 +654,10 @@ if __name__ == '__main__':
             xs,
             ys,
             marker='o',
-            # color='k',
             color=color,
-            s=30,
-            alpha=0.5
-        )
-    
-    norm = mcolors.Normalize(vmin=0.0, vmax=max_obsv)#0.5)
-    cmap = cm.jet
-    sm = cm.ScalarMappable(norm=norm, cmap=cmap)
-    sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax)
-    # cbar.set_label("Outlier Ratio", fontsize=15)
-    cbar.set_label("Number of Observations", fontsize=15)
-    cbar.ax.tick_params(labelsize=15)
-
-    ax.set_title("Semantic vs Geometric Distances", fontsize=18)
-    ax.set_xlabel("Distance from LiDAR", fontsize=15)
-    ax.set_ylabel("Distance from Median", fontsize=15)
-
-    ax.grid(True)
-    ax.tick_params(axis='both', labelsize=15)
-
-    plt.tight_layout()
-    plt.show()
-    
-    fig, ax = plt.subplots(figsize=(8, 6))
-    for g_idx in gidx_sampled:
-        curr_ratio = gidx_2_outlier_ratio[g_idx]
-        t = np.clip(curr_ratio / 0.5, 0, 1)
-        
-        xs = []
-        ys = []
-        for (med_dist, lidar_dist) in zip(gidx_2_dists_from_med[g_idx], gidx_2_dists_from_lidar[g_idx]):
-            xs.append(lidar_dist)
-            ys.append(med_dist)
-
-        ax.scatter(
-            xs,
-            ys,
-            marker='o',
-            color='k',
             s=50,
-            alpha=0.2
+            alpha=0.4,
+            label=label
         )
 
     ax.set_title("Semantic vs Geometric Distances", fontsize=18)
@@ -475,6 +666,16 @@ if __name__ == '__main__':
 
     ax.grid(True)
     ax.tick_params(axis='both', labelsize=15)
+
+    # Prevent duplicate legend entries
+    handles, labels = ax.get_legend_handles_labels()
+    unique = dict(zip(labels, handles))
+
+    ax.legend(
+        unique.values(),
+        unique.keys(),
+        fontsize=12
+    )
 
     plt.tight_layout()
     plt.show()
