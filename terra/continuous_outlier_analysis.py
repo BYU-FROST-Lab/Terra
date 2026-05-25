@@ -402,6 +402,8 @@ if __name__ == '__main__':
         for i, (clip_id, count) in enumerate(cid_2_cnt_old.items()):
             if clip_id < 7: # Assuming terrain clip IDs are 0-6, adjust if needed
                 del cid_2_cnt[clip_id]
+                del gidx_2_clipdists[g_idx][clip_id]
+                del gidx_2_clipmaskidx[g_idx][clip_id]
         
         gidx_list.append(g_idx)
         
@@ -454,10 +456,14 @@ if __name__ == '__main__':
         gidx_2_outlier_ratio[g_idx] = ratio
 
     # Sort by ratio (ascending)
-    sorted_items = sorted(gidx_2_outlier_ratio.items(), key=lambda x: x[1], reverse=False)
-    sorted_idx = [x[0] for x in sorted_items]
-    sorted_ratios = [x[1] for x in sorted_items]
+    sorted_ratio_items = sorted(gidx_2_outlier_ratio.items(), key=lambda x: x[1], reverse=False)
+    sorted_idx = [x[0] for x in sorted_ratio_items]
+    sorted_ratios = [x[1] for x in sorted_ratio_items]
     sorted_obs = [gidx_2_total_counts[i] for i in sorted_idx]
+    
+    sorted_outlier_counts_items = sorted(gidx_2_outlier_counts.items(), key=lambda x: x[1], reverse=False)
+    sorted_gidx_by_outliers = [x[0] for x in sorted_outlier_counts_items]
+    sorted_outlier_counts = [x[1] for x in sorted_outlier_counts_items]
 
     # x = np.linspace(0, 1, len(sorted_ratios))
     fig, (ax1, ax2) = plt.subplots(
@@ -680,6 +686,85 @@ if __name__ == '__main__':
     plt.tight_layout()
     plt.show()
     
+    ## Displaying by outliers
+    valid_gidxs = (
+        set(gidx_2_clipmaskidx.keys())
+        & set(gidx_2_outlier_ratio.keys())
+        & set(gidx_2_dists_from_med.keys())
+        & set(gidx_2_dists_from_lidar.keys())
+        & set(gidx_2_outlier_counts.keys())
+    )
+    filtered_ratio_pairs = [
+        (g_idx, ratio)
+        for g_idx, ratio in zip(sorted_idx, sorted_ratios)
+        if g_idx in valid_gidxs
+    ]
+    filtered_count_pairs = [
+        (g_idx, count)
+        for g_idx, count in zip(sorted_gidx_by_outliers, sorted_outlier_counts)
+        if g_idx in valid_gidxs
+    ]
+    topk = 5
+    
+    min_or_pairs = filtered_ratio_pairs[:topk]
+    max_or_pairs = filtered_ratio_pairs[-topk:]
+
+    min_or_gidxs = [x[0] for x in min_or_pairs]
+    min_outlier_ratios = [x[1] for x in min_or_pairs]
+
+    max_or_gidxs = [x[0] for x in max_or_pairs]
+    max_outlier_ratios = [x[1] for x in max_or_pairs]
+
+    # ---------------------------------------------------------
+    # Count selections (filtered)
+    # ---------------------------------------------------------
+    min_oc_pairs = filtered_count_pairs[:topk]
+    max_oc_pairs = filtered_count_pairs[-topk:]
+
+    min_oc_gidxs = [x[0] for x in min_oc_pairs]
+    min_outlier_counts = [x[1] for x in min_oc_pairs]
+
+    max_oc_gidxs = [x[0] for x in max_oc_pairs]
+    max_outlier_counts = [x[1] for x in max_oc_pairs]
+    
+    # Display top-k by outlier ratio
+    for i, g_idx in enumerate(max_or_gidxs):
+        print(f"Top-{topk - i} High Outlier Ratio Global Index:", g_idx)
+        display_gidx(g_idx, pc)
+        mask_idxs = []
+        for mask_idx_set in gidx_2_clipmaskidx[g_idx].values():
+            mask_idxs.extend(list(mask_idx_set))
+        plot_fastsam_masks(g_idx, mask_idxs, fsam_mask_names, output_dir)
+        plot_dist(f"High Outlier Ratio {gidx_2_outlier_ratio[g_idx]:.2f}", g_idx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+    
+    for i, g_idx in enumerate(min_or_gidxs):
+        print(f"Top-{i+1} Low Outlier Ratio Global Index:", g_idx)
+        display_gidx(g_idx, pc)
+        mask_idxs = []
+        for mask_idx_set in gidx_2_clipmaskidx[g_idx].values():
+            mask_idxs.extend(list(mask_idx_set))
+        plot_fastsam_masks(g_idx, mask_idxs, fsam_mask_names, output_dir)
+        plot_dist(f"Low Outlier Ratio {gidx_2_outlier_ratio[g_idx]:.2f}", g_idx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+    
+    # Display top-k by outlier count
+    for i, g_idx in enumerate(max_oc_gidxs):
+        print(f"Top-{topk - i} High Outlier Count Global Index:", g_idx)
+        display_gidx(g_idx, pc)
+        mask_idxs = []
+        for mask_idx_set in gidx_2_clipmaskidx[g_idx].values():
+            mask_idxs.extend(list(mask_idx_set))
+        plot_fastsam_masks(g_idx, mask_idxs, fsam_mask_names, output_dir)
+        plot_dist(f"High Outlier Count {gidx_2_outlier_counts[g_idx]}", g_idx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+    
+    for i, g_idx in enumerate(min_oc_gidxs):
+        print(f"Top-{i+1} Low Outlier Count Global Index:", g_idx)
+        display_gidx(g_idx, pc)
+        mask_idxs = []
+        for mask_idx_set in gidx_2_clipmaskidx[g_idx].values():
+            mask_idxs.extend(list(mask_idx_set))
+        plot_fastsam_masks(g_idx, mask_idxs, fsam_mask_names, output_dir)
+        plot_dist(f"Low Outlier Count {gidx_2_outlier_counts[g_idx]}", g_idx, gidx_2_outlier_ratio, gidx_2_dists_from_med, gidx_2_dists_from_lidar)
+
     # ## Spatial & Semantic Distance graph
     # # Select 3 random inlier points and 3 random outlier points for visualization
     # np.random.seed(42)
