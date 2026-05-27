@@ -1,4 +1,5 @@
 ---
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25
 place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_gps_dict_marina_p2.pkl
 place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_enu_dict_marina_p2.pkl
 

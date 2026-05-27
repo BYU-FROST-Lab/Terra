@@ -2,10 +2,13 @@ import os
 from argparse import ArgumentParser
 import yaml
 import torch
+import re
 import pickle as pkl
 import numpy as np
 from scipy.spatial import KDTree
 from math import radians, sin, cos, sqrt, atan2
+import cv2
+import matplotlib.pyplot as plt
 
 import clip
 
@@ -174,8 +177,74 @@ def separate_object_context(clip_model, terra, path_planning_params, gamma_obj=0
         
     return dest_nodes
 
+def display_destination_place_node_imgs(dest_node_id, terra, data_folder, num_cams=3):
+    cam_image_folders = [os.path.join(data_folder, f"camera{i}_images") for i in range(1,num_cams+1)]
+    
+    # Images that see this node
+    img_indices = terra.nodeid_2_img_idx[dest_node_id]
 
-def plan_paths(terra, terrain_preferences, start_node, dest_nodes):
+    shown = 0
+    img_buffer = []
+    
+    for img_idx in img_indices:
+        if shown >= 27:
+            break
+        img_path = terra.img_names[img_idx]
+        cam_id, timestamp = parse_camera_and_timestamp(img_path)
+
+        img_full_path = os.path.join(
+            cam_image_folders[cam_id],
+            os.path.basename(img_path)
+        )
+        if not os.path.exists(img_full_path):
+            continue
+
+        dist_img = cv2.imread(img_full_path)
+        dist_img = cv2.cvtColor(dist_img, cv2.COLOR_BGR2RGB)
+        
+        title = f"{os.path.basename(img_path)} | place {dest_node_id}"
+        img_buffer.append((dist_img, title))
+
+        shown += 1
+        
+        if len(img_buffer) == 9:
+            show_image_batch(img_buffer)
+            img_buffer.clear()
+    
+    if img_buffer:
+        show_image_batch(img_buffer)
+    plt.show()
+
+def show_image_batch(img_buffer):
+    """
+    Display up to 9 images in a 3x3 subplot figure.
+    """
+    fig, axes = plt.subplots(3, 3, figsize=(10, 15))
+    axes = axes.flatten()
+    for ax, (img, title) in zip(axes, img_buffer):
+        ax.imshow(img)
+        ax.set_title(title, fontsize=9)
+        ax.axis("off")
+    # Hide unused subplots
+    for ax in axes[len(img_buffer):]:
+        ax.axis("off")
+    # fig.suptitle(
+    #     title,
+    #     fontsize=14
+    # )
+    fig.tight_layout(rect=[0, 0, 1, 1])
+
+def parse_camera_and_timestamp(img_path):
+    img_name = os.path.basename(img_path)
+    m = re.match(r"cam(\d+)_img_([0-9]+\.[0-9]+)", img_name)
+    if m is None:
+        raise ValueError(f"Cannot parse {img_name}")
+    cam_id = int(m.group(1)) - 1  # 0-indexed
+    timestamp = float(m.group(2))
+    return cam_id, timestamp
+
+
+def plan_paths(terra, terrain_preferences, start_node, dest_nodes, data_folder=None):
     planned_paths = []
     for k_idx, pid in enumerate(dest_nodes):
         start_node_id = 0
@@ -199,7 +268,8 @@ def plan_paths(terra, terrain_preferences, start_node, dest_nodes):
             terrain_preferences=terrain_preferences
         )
         terra.display_path() # black = start, red = destination
-                    
+        display_destination_place_node_imgs(end_node_id, terra, data_folder)
+        
         chosen_place_nodes = terra.path_node_list # list of place node ids
 
         planned_paths.append(chosen_place_nodes)
@@ -286,7 +356,8 @@ if __name__ == '__main__':
                 terra, 
                 path_planning_params["terrain_preferences"], 
                 start_node, 
-                dest_nodes[t_idx]
+                dest_nodes[t_idx],
+                path_planning_params["data_folder"]
             )
 
         ## Convert place node ids to GPS/ENU coords
