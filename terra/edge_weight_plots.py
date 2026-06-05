@@ -77,7 +77,8 @@ def clean_name(name):
 
 def plot_k_graphs(configs, k_values, method="micro"):
     #Plot grid of 2 by num_configs/2 plots of F1 vs K with best Alpha for each configuration
-    fig, axs = plt.subplots(2, 1, figsize=(8, 12))
+    # fig, axs = plt.subplots(2, 1, figsize=(8, 12))
+    fig, axs = plt.subplots(1, 1, figsize=(8, 10))
     # fig.suptitle(f'F1-{method.capitalize()} vs K', fontsize=18)
 
     sums_f1s_for_k = [0.0 for _ in k_values]
@@ -85,29 +86,39 @@ def plot_k_graphs(configs, k_values, method="micro"):
     agglomerative_sums_f1s_for_k = [0.0 for _ in k_values]
 
     print(f"\n\nPrec, Rec, F1 for each config- {method}:")
+    colors = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
 
-    overall_spectral_f1s_for_k, overall_spectral_precs, overall_spectral_recs = [], [], []
-    overall_agglomerative_f1s_for_k, overall_agglomerative_precs, overall_agglomerative_recs = [], [], []
-    for config in configs:
-        if config.prediction_method == "aib":
-            continue  # Skip AIB for K plots since it doesn't vary with alpha
+    for iconfig, config in enumerate(configs):
+        #plot a different color per config
+        color = colors[iconfig % len(colors)]
+        markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h']
+
+        # Plot per task
+        for task_idx, task in enumerate(config.region_tasks):
+            task_f1s_for_k = [task_metrics[task_idx][2] for a, k, task_metrics in zip(config.alphas, config.ks, config.task_metrics) if a == config.best_alpha]
+            marker = markers[task_idx % len(markers)]
+            # if method == "micro":
+            #     task_f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.micro_f1_scores) if a == config.best_alpha]
+            # else: # method == "macro"
+                
+            #     task_f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.macro_f1s) if a == config.macro_best_alpha]
+
+            
+
+        # if config.prediction_method == "aib":
+        #     continue  # Skip AIB for K plots since it doesn't vary with alpha
         
-        if "spectral" in config.name.lower():
-            #plot on bottom
-            ax = axs[1]
-        else: # "agglomerative"
-            #plot on top
-            ax = axs[0]
+
     
-        if method == "micro":
-            f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.micro_f1_scores) if a == config.best_alpha]
-            precisions_for_k = [prec for a, k, prec in zip(config.alphas, config.ks, config.micro_precisions) if a == config.best_alpha]
-            recalls_for_k = [rec for a, k, rec in zip(config.alphas, config.ks, config.micro_recalls) if a == config.best_alpha]
-        elif method == "macro":
-            f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.macro_f1s) if a == config.best_alpha]
-            precisions_for_k = [prec for a, k, prec in zip(config.alphas, config.ks, config.macro_precisions) if a == config.best_alpha]
-            recalls_for_k = [rec for a, k, rec in zip(config.alphas, config.ks, config.macro_recalls) if a == config.best_alpha]
-            # f1_stds_for_k = [std for a, k, std in zip(config.alphas, config.ks, config.macro_f1_stds) if a == config.best_alpha]
+        # if method == "micro":
+        #     f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.micro_f1_scores) if a == config.best_alpha]
+        #     precisions_for_k = [prec for a, k, prec in zip(config.alphas, config.ks, config.micro_precisions) if a == config.best_alpha]
+        #     recalls_for_k = [rec for a, k, rec in zip(config.alphas, config.ks, config.micro_recalls) if a == config.best_alpha]
+        # elif method == "macro":
+        #     f1s_for_k = [f1 for a, k, f1 in zip(config.alphas, config.ks, config.macro_f1s) if a == config.best_alpha]
+        #     precisions_for_k = [prec for a, k, prec in zip(config.alphas, config.ks, config.macro_precisions) if a == config.best_alpha]
+        #     recalls_for_k = [rec for a, k, rec in zip(config.alphas, config.ks, config.macro_recalls) if a == config.best_alpha]
+        #     # f1_stds_for_k = [std for a, k, std in zip(config.alphas, config.ks, config.macro_f1_stds) if a == config.best_alpha]
 
         # for k, f1 in zip(config.ks, config.f1_scores):
         #     idx = np.where(k_values == k)[0][0]
@@ -117,32 +128,21 @@ def plot_k_graphs(configs, k_values, method="micro"):
         #     else:
         #         agglomerative_sums_f1s_for_k[idx] += f1
 
-        ax.plot(k_values, f1s_for_k, marker='o', label=clean_name(config.name))
+            axs.plot(k_values, task_f1s_for_k, marker=marker, label=clean_name(config.name) + f" - {task_idx}", color=color)
 
         # Calculate the average F1, precision, and recall for each configuration (dataset) averaging over k values
-        avg_f1 = np.mean(f1s_for_k)
-        std_f1 = np.std(f1s_for_k)
-        avg_prec = np.mean(precisions_for_k)
-        std_prec = np.std(precisions_for_k)
-        avg_rec = np.mean(recalls_for_k)
-        std_rec = np.std(recalls_for_k)
-        cluster_type = "Spectral" if "spectral" in config.name.lower() else "Agglomerative"
-        # print(f"{clean_name(config.name)}({cluster_type}) - Avg Prec: {avg_prec:.4f}\(\pm {std_prec:.4f}\), Avg Rec: {avg_rec:.4f}\(\pm {std_rec:.4f}\), Avg F1: {avg_f1:.4f}\(\pm {std_f1:.4f}\)")
-        print(f"{clean_name(config.name)}({cluster_type}) - "
-            f"Avg Prec: {avg_prec:.4f} ± {std_prec:.4f}, "
-            f"Avg Rec: {avg_rec:.4f} ± {std_rec:.4f}, "
-            f"Avg F1: {avg_f1:.4f} ± {std_f1:.4f}")
-        
-
-        #Update overall spectral and agglomerative f1s for k values to be able to see if there is a difference in agglomerative vs spectral across k values
-        if "spectral" in config.name.lower():
-            overall_spectral_f1s_for_k.extend(f1s_for_k)
-            overall_spectral_precs.extend(precisions_for_k)
-            overall_spectral_recs.extend(recalls_for_k)
-        elif "agglomerative" in config.name.lower():
-            overall_agglomerative_f1s_for_k.extend(f1s_for_k)
-            overall_agglomerative_precs.extend(precisions_for_k)
-            overall_agglomerative_recs.extend(recalls_for_k)
+        # avg_f1 = np.mean(f1s_for_k)
+        # std_f1 = np.std(f1s_for_k)
+        # avg_prec = np.mean(precisions_for_k)
+        # std_prec = np.std(precisions_for_k)
+        # avg_rec = np.mean(recalls_for_k)
+        # std_rec = np.std(recalls_for_k)
+        # cluster_type = "Spectral" if "spectral" in config.name.lower() else "Agglomerative"
+        # # print(f"{clean_name(config.name)}({cluster_type}) - Avg Prec: {avg_prec:.4f}\(\pm {std_prec:.4f}\), Avg Rec: {avg_rec:.4f}\(\pm {std_rec:.4f}\), Avg F1: {avg_f1:.4f}\(\pm {std_f1:.4f}\)")
+        # print(f"{clean_name(config.name)}({cluster_type}) - "
+        #     f"Avg Prec: {avg_prec:.4f} ± {std_prec:.4f}, "
+        #     f"Avg Rec: {avg_rec:.4f} ± {std_rec:.4f}, "
+        #     f"Avg F1: {avg_f1:.4f} ± {std_f1:.4f}")
 
         # if method == "macro":
         #     # ax.errorbar(k_values, f1s_for_k, yerr=f1_stds_for_k, fmt='o', alpha=0.5)
@@ -155,40 +155,22 @@ def plot_k_graphs(configs, k_values, method="micro"):
         #     ax.plot(k_values, f1s_for_k, marker='o', label=clean_name(config.name))
 
    
-        axs[0].set_title(f'F1-{method.capitalize()} vs K - Agglomerative', fontsize=18)
-        axs[0].tick_params(axis='both', labelsize=15)
-        axs[1].set_title(f'F1-{method.capitalize()} vs K - Spectral', fontsize=18)
-        axs[1].tick_params(axis='both', labelsize=15)
+            axs.set_title(f'F1-{method.capitalize()} vs K - Agglomerative', fontsize=18)
+            axs.tick_params(axis='both', labelsize=15)
 
-        #Set scale of y axis to be from 0 to 1
-        ax.set_ylim(0, 1)
-        ax.set_xlim(k_values[0]-1, k_values[-1]+1)
-        ax.set_xlabel('K', fontsize=17)
-        ax.set_ylabel('F1 Score', fontsize=17)
-        ax.grid(True)
-        ax.legend(loc='best', fontsize=13)
+            #Set scale of y axis to be from 0 to 1
+            axs.set_ylim(0, 1)
+            axs.set_xlim(k_values[0]-1, k_values[-1]+1)
+            axs.set_xlabel('K', fontsize=17)
+            axs.set_ylabel('F1 Score', fontsize=17)
+            axs.grid(True)
+            axs.legend(loc='best', fontsize=13)
     plt.tight_layout()
     plt.show()
 
-    overall_avg_spectral_f1s_for_k = np.mean(overall_spectral_f1s_for_k, axis=0)
-    overall_std_spectral_f1s_for_k = np.std(overall_spectral_f1s_for_k, axis=0)
-    overall_avg_spectral_precs_for_k = np.mean(overall_spectral_precs, axis=0)
-    overall_std_spectral_precs_for_k = np.std(overall_spectral_precs, axis=0)
-    overall_avg_spectral_recs_for_k = np.mean(overall_spectral_recs, axis=0)
-    overall_std_spectral_recs_for_k = np.std(overall_spectral_recs, axis=0)
-    overall_avg_agglomerative_f1s_for_k = np.mean(overall_agglomerative_f1s_for_k, axis=0)
-    overall_std_agglomerative_f1s_for_k = np.std(overall_agglomerative_f1s_for_k, axis=0)
-    overall_avg_agglomerative_precs_for_k = np.mean(overall_agglomerative_precs, axis=0)
-    overall_std_agglomerative_precs_for_k = np.std(overall_agglomerative_precs, axis=0)
-    overall_avg_agglomerative_recs_for_k = np.mean(overall_agglomerative_recs, axis=0)
-    overall_std_agglomerative_recs_for_k = np.std(overall_agglomerative_recs, axis=0)
 
-    print(f"\n\nOverall Spectral - Avg F1s for K: {overall_avg_spectral_f1s_for_k}, ± {overall_std_spectral_f1s_for_k}")
-    print(f"Overall Spectral - Avg Precisions for K: {overall_avg_spectral_precs_for_k}, ± {overall_std_spectral_precs_for_k}")
-    print(f"Overall Spectral - Avg Recalls for K: {overall_avg_spectral_recs_for_k}, ± {overall_std_spectral_recs_for_k}")
-    print(f"\n\nOverall Agglomerative - Avg F1s for K: {overall_avg_agglomerative_f1s_for_k}, ± {overall_std_agglomerative_f1s_for_k}")
-    print(f"Overall Agglomerative - Avg Precisions for K: {overall_avg_agglomerative_precs_for_k}, ± {overall_std_agglomerative_precs_for_k}")
-    print(f"Overall Agglomerative - Avg Recalls for K: {overall_avg_agglomerative_recs_for_k}, ± {overall_std_agglomerative_recs_for_k}")
+    
+
 
     # # Display average F1 vs K for agglomerative and spectral separately
     # average_agglomerative_f1s_for_k = [s / (len(configs)/2) for s in agglomerative_sums_f1s_for_k]
@@ -223,83 +205,17 @@ def plot_k_graphs(configs, k_values, method="micro"):
     # plt.grid(True)
     # plt.show()
 
-def print_all_score_comparison_results(configs):
-    # Get overall percentages of gt region nodes and non gt region nodes with scores higher than all children
-    # all_score_comparison_results is a list of list of tuples (task_idx, gt_percentage_higher, count_gt_region_higher, gt_count_total, non_gt_percentage_higher, count_non_gt_region_higher, non_gt_count_total)
-    count_gt_region_higher_total = 0
-    gt_count_overall_total = 0
-    count_non_gt_region_higher_total = 0
-    non_gt_count_overall_total = 0
-    gt_percentages = []
-    non_gt_percentages = []
-    for config in configs:
-        print(f"\n\nScore Comparison Results for {config.name.upper()}:")
-        count_gt_region_higher_total_for_config = 0
-        gt_count_total_for_config = 0
-        count_non_gt_region_higher_total_for_config = 0
-        non_gt_count_total_for_config = 0
-        gt_percentages_for_config = []
-        non_gt_percentages_for_config = []
-        # print("\n\nOverall Score Comparison Results:")
-        for result in config.score_comparison_results:
-            for task_idx, gt_percentage_higher, count_gt_region_higher, gt_count_total, non_gt_percentage_higher, count_non_gt_region_higher, non_gt_count_total in result:
-                print(f"Task Index: {task_idx}, GT Higher: {gt_percentage_higher:.2f} ({count_gt_region_higher}/{gt_count_total}), Non-GT Higher: {non_gt_percentage_higher:.2f} ({count_non_gt_region_higher}/{non_gt_count_total})")
-                count_gt_region_higher_total_for_config += count_gt_region_higher
-                gt_count_total_for_config += gt_count_total
-                count_non_gt_region_higher_total_for_config += count_non_gt_region_higher
-                non_gt_count_total_for_config += non_gt_count_total
-                gt_percentages_for_config.append(gt_percentage_higher)
-                non_gt_percentages_for_config.append(non_gt_percentage_higher)
-
-        overall_gt_percentage_higher = count_gt_region_higher_total_for_config / gt_count_total_for_config if gt_count_total_for_config > 0 else 0.0
-        overall_non_gt_percentage_higher = count_non_gt_region_higher_total_for_config / non_gt_count_total_for_config if non_gt_count_total_for_config > 0 else 0.0
-        print(f"Overall GT Higher: {overall_gt_percentage_higher:.2f} ({count_gt_region_higher_total_for_config}/{gt_count_total_for_config}), Overall Non-GT Higher: {overall_non_gt_percentage_higher:.2f} ({count_non_gt_region_higher_total_for_config}/{non_gt_count_total_for_config})")
-
-        gt_percentages_mean = np.mean(gt_percentages_for_config)
-        gt_percentages_std = np.std(gt_percentages_for_config)
-        non_gt_percentages_mean = np.mean(non_gt_percentages_for_config)
-        non_gt_percentages_std = np.std(non_gt_percentages_for_config)
-        print(f"GT Higher Percentages - Mean: {gt_percentages_mean:.2f}, Std: {gt_percentages_std:.2f}")
-        print(f"Non-GT Higher Percentages - Mean: {non_gt_percentages_mean:.2f}, Std: {non_gt_percentages_std:.2f}")
-
-        # Update overall totals
-        count_gt_region_higher_total += count_gt_region_higher_total_for_config
-        gt_count_overall_total += gt_count_total_for_config
-        count_non_gt_region_higher_total += count_non_gt_region_higher_total_for_config
-        non_gt_count_overall_total += non_gt_count_total_for_config
-        gt_percentages.extend(gt_percentages_for_config)
-        non_gt_percentages.extend(non_gt_percentages_for_config)
-    
-    overall_gt_percentage_higher = count_gt_region_higher_total / gt_count_overall_total if gt_count_overall_total > 0 else 0.0
-    overall_non_gt_percentage_higher = count_non_gt_region_higher_total / non_gt_count_overall_total if non_gt_count_overall_total > 0 else 0.0
-    print(f"\n\nOverall GT Higher: {overall_gt_percentage_higher:.2f} ({count_gt_region_higher_total}/{gt_count_overall_total}), Overall Non-GT Higher: {overall_non_gt_percentage_higher:.2f} ({count_non_gt_region_higher_total}/{non_gt_count_overall_total})")
-    gt_percentages_mean = np.mean(gt_percentages)
-    gt_percentages_std = np.std(gt_percentages)
-    non_gt_percentages_mean = np.mean(non_gt_percentages)
-    non_gt_percentages_std = np.std(non_gt_percentages)
-    print(f"Overall GT Higher Percentages - Mean: {gt_percentages_mean:.2f}, Std: {gt_percentages_std:.2f}")
-    print(f"Overall Non-GT Higher Percentages - Mean: {non_gt_percentages_mean:.2f}, Std: {non_gt_percentages_std:.2f}")
-
 if __name__ == '__main__':
     parser = ArgumentParser(description="Region Monitoring Test")
     parser.add_argument(
-        '--params_1cam',
-        type=str,
-        help="/path/to/1cam_region_querying.yaml file of region monitoring tasks",
-        default="config/field_tests/region_querying_1_cam.yaml"
-    )
-    parser.add_argument(
-        '--params_3cam',
+        '--params',
         type=str,
         help="/path/to/3cam_region_querying.yaml file of region monitoring tasks",
         default="config/field_tests/region_querying_3_cam.yaml"
     )
     args = parser.parse_args()
     
-    with open(args.params_1cam, 'rb') as f:
-        configs_1cam= list(yaml.safe_load_all(f))
-    
-    with open(args.params_3cam, 'rb') as f:
+    with open(args.params, 'rb') as f:
         configs_3cam = list(yaml.safe_load_all(f))
 
     # Load CLIP
@@ -342,69 +258,23 @@ if __name__ == '__main__':
             self.macro_f1_stds = []
             self.macrod_prec_stds = []
             self.macro_rec_stds = []
-            self.score_comparison_results = []
 
     configs = []
-    for config_1cam, config_3cam in zip(configs_1cam, configs_3cam):
-        #Take the name after synced/ and before output in the terra path to be the config name
-        name_1cam = config_1cam["terra"].split("/synced/")[1].split("/output")[0]
-        # name_3cam = config_3cam["terra"].split("/sem_avg_fixed/")[1].split("/output")[0]
-        name_3cam = config_3cam["terra"].split("/synced/")[1].split("/output")[0]
+    for config_3cam in configs_3cam:
 
-        print(f"\nProcessing configs: {name_1cam} and {name_3cam}")
+        terra_paths = config_3cam["terra"] # list of paths
+        for tp in terra_paths:
+            name = tp.split("nodist1img_")[1].split("cluster.pkl")[0]
+            print(f"\nProcessing config: {name}")
 
-        # agg_1cam_config = RegionQueryingConfig(
-        #     name = name_1cam + " Agglomerative 1 Cam",
-        #     terra_path=config_1cam["terra"],
-        #     region_tasks=config_1cam["region_tasks"],
-        #     prediction_method=config_1cam["prediction_method"]
-        # )
+            config = RegionQueryingConfig(
+                name = name,
+                terra_path=tp,
+                region_tasks=config_3cam["region_tasks"],
+                prediction_method=config_3cam["prediction_method"]
+            )
 
-        # spec_1cam_terra_path = config_1cam["terra"].replace("agglomerative", "spectral")
-        # spec_1cam_config = RegionQueryingConfig(
-        #     name = name_1cam + " Spectral 1 Cam",
-        #     terra_path=spec_1cam_terra_path,
-        #     region_tasks=config_1cam["region_tasks"],
-        #     prediction_method=config_1cam["prediction_method"]
-        # )
-
-        # aib_1cam_config = RegionQueryingConfig(
-        #     name = name_1cam + " AIB 1 Cam",
-        #     terra_path=config_1cam["terra"],
-        #     region_tasks=config_1cam["region_tasks"],
-        #     prediction_method="aib"
-        # )
-
-        agg_3cam_config = RegionQueryingConfig(
-            name = name_3cam + " Agglomerative 3 Cam",
-            terra_path=config_3cam["terra"],
-            region_tasks=config_3cam["region_tasks"],
-            prediction_method=config_3cam["prediction_method"]
-            # prediction_method="test"
-        )
-
-
-        spec_3cam_terra_path = config_3cam["terra"].replace("agglomerative", "spectral")
-        spec_3cam_config = RegionQueryingConfig(
-            name = name_3cam + " Spectral 3 Cam",
-            terra_path=spec_3cam_terra_path,
-            region_tasks=config_3cam["region_tasks"],
-            prediction_method=config_3cam["prediction_method"]
-        )
-
-        aib_3cam_config = RegionQueryingConfig(
-            name = name_3cam + " AIB 3 Cam",
-            terra_path=config_3cam["terra"],
-            region_tasks=config_3cam["region_tasks"],
-            prediction_method="aib"
-        )
-
-        # configs.append(agg_1cam_config)
-        # configs.append(spec_1cam_config)
-        # configs.append(aib_1cam_config)
-        configs.append(agg_3cam_config)
-        configs.append(spec_3cam_config)
-        # configs.append(aib_3cam_config)
+            configs.append(config)
 
     for config in configs:
         for task_index, task in enumerate(config.region_tasks):
@@ -419,8 +289,6 @@ if __name__ == '__main__':
             
             config.place_nodes_dict[task_index] = place_nodes
 
-            print(f"Task: {task['task']} number of place nodes: {len(place_nodes)} for config: {config.name}")
-
         config.input_task_clip_embs = [clip_model.encode_text(clip.tokenize([tsk]).to(device)).float() for tsk in config.tasks]
         config.input_task_clip_tensor = torch.vstack(config.input_task_clip_embs) # (num_input_classes, 512)
         config.input_task_clip_tensor.div_(config.input_task_clip_tensor.norm(dim=-1,keepdim=True))
@@ -431,7 +299,8 @@ if __name__ == '__main__':
     # alpha_values = np.linspace(0.2, 0.35, 16)
     alpha_values = [0.26]
     k_values = np.linspace(1, 15, 15)
-    # k_values = [11]
+    # k_values = [4]
+
 
     # Find the best alpha and k based on evaluation metrics
     for config in configs:
@@ -439,6 +308,7 @@ if __name__ == '__main__':
 
         #Get number of place nodes and region nodes
         print_number_of_place_and_region_nodes(config)
+
 
         for alpha in alpha_values:
             config.terra.alpha = alpha
@@ -469,23 +339,12 @@ if __name__ == '__main__':
                 print(f"Predicting regions with alpha: {alpha:0.2f}, k: {k}")
                 config.terra.reset_region_tasks()
                 # Prediction regions given prompts
-                if config.prediction_method == "test":
-                    score_comparison_results = config.terra.predict_regions(
-                        config.input_task_clip_tensor,
-                        config.tasks,
-                        config.prediction_method,
-                        K = int(k),
-                        gt_place_nodes = config.place_nodes_dict
-                    )
-                    config.score_comparison_results.append(score_comparison_results)
-                else:
-                    config.terra.predict_regions(
-                        config.input_task_clip_tensor, 
-                        config.tasks, 
-                        config.prediction_method,
-                        K = int(k),
-                        gt_place_nodes = config.place_nodes_dict
-                    )
+                config.terra.predict_regions(
+                    config.input_task_clip_tensor, 
+                    config.tasks, 
+                    config.prediction_method,
+                    K = int(k)
+                )
 
                 pred_places = config.terra.task_relevant_place_nodes
 
@@ -527,11 +386,6 @@ if __name__ == '__main__':
 
 
     # Find the best parameters for each task and print them out
-    # agg_tps, agg_fps, agg_fns = 0,0,0
-    # spec_tps, spec_fps, spec_fns = 0,0,0
-    # agg_task_F1s, agg_task_precs, agg_task_recs = [], [], []
-    # spec_task_F1s, spec_task_precs, spec_task_recs = [], [], []
-
     for config in configs:
         print(f"\n\n{config.name.upper()}:")
         tps, fps, fns = 0,0,0
@@ -559,16 +413,7 @@ if __name__ == '__main__':
             tps += best_task_tps
             fps += best_task_fps
             fns += best_task_fns
-
-
-        # if "spectral" in config.name.lower():
-        #     spec_tps += tps
-        #     spec_fps += fps
-        #     spec_fns += fns
-        # elif "agglomerative" in config.name.lower():
-        #     agg_tps += tps
-        #     agg_fps += fps
-        #     agg_fns += fns
+        
         overall_prec, overall_rec, overall_f1 = compute_precision_recall_f1(tps, fps, fns)
 
 
@@ -602,9 +447,6 @@ if __name__ == '__main__':
 
         print(f"---Overall Micro Best Metrics of alpha {config.best_alpha:0.2f} and K {int(config.best_k)} => Precision: {config.best_precision:.3f}, Recall: {config.best_recall:.3f}, F1: {config.best_f1:.3f}, Runtime: {runtime_micro_ms:.2f} ms---")
         print(f"---Overall Macro Best Metrics of alpha {config.macro_best_alpha:0.2f} and K {int(config.macro_best_k)} => Precision: {config.macro_best_precision:.3f} ± {config.macro_best_prec_std:.3f}, Recall: {config.macro_best_recall:.3f} ± {config.macro_best_rec_std:.3f}, F1: {config.macro_best_f1:.3f} ± {config.macro_best_f1_std:.3f}, Runtime: {runtime_macro_ms:.2f} ms---")
-
-    
-    # print_all_score_comparison_results(configs)
 
     
     # #Display ground truth place nodes for each task in the first config
@@ -649,7 +491,7 @@ if __name__ == '__main__':
 
 
     plot_k_graphs(configs, k_values, method="micro")
-    plot_k_graphs(configs, k_values, method="macro")
+    # plot_k_graphs(configs, k_values, method="macro")
 
     # #Plot grid of 4 plots of F1 vs K with best Alpha for each configuration
     # fig, axs = plt.subplots(2, 1, figsize=(12, 10))

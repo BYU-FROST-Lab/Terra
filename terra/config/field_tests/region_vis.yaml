@@ -1,0 +1,29 @@
+# # #Utah Lake Park P1
+# terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# gps_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
+# enu_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
+# transformation: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/pc_to_enu_transformation_marina_p1.pkl
+
+# # Utah Lake Park P2
+# terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# gps_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_gps_dict_marina_p2.pkl
+# enu_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_enu_dict_marina_p2.pkl
+# transformation: /Data/Terra_Field_Tests/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/pc_to_enu_transformation_marina_p2.pkl
+
+# # Rock Canyon Park
+# terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# gps_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam/node_gps_dict_rock_canyon.pkl 
+# enu_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam/node_enu_dict_rock_canyon.pkl
+# transformation: /Data/Terra_Field_Tests/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam/pc_to_enu_transformation_rock_canyon.pkl
+
+#Provo River Trail
+terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+gps_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/node_gps_dict_provo_river.pkl
+enu_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/node_enu_dict_provo_river.pkl
+transformation: /Data/Terra_Field_Tests/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/pc_to_enu_transformation_provo_river.pkl
+
+# #Nunns Park
+# terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# gps_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/node_gps_dict_nunns_park.pkl
+# enu_dict: /Data/Terra_Field_Tests/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/node_enu_dict_nunns_park.pkl
+# transformation: /Data/Terra_Field_Tests/synced/sem_avg_fixed/nunns_park_p2_10_15_25/output/3_cam/pc_to_enu_transformation_nunns_park.pkl

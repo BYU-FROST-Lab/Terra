@@ -102,17 +102,29 @@ class Terra():
             self.terra_3dsg.add_edge(self.max_nid, closest_place_node)
         self.nodeid_2_objectidx = {nid: obj_idx for obj_idx, nid in self.objectidx_2_nodeid.items()}
         
-    def predict_regions(self, tasks_tensor, task_names, method="max", K=1):
+    def predict_regions(self, tasks_tensor, task_names, method="max", K=1, gt_place_nodes=None):
         self.region_tasks.extend(task_names)
         self.prev_region_task_idx = len(self.region_tasks) - len(task_names)
         
-        pred_place_nodes = self.region_predictor.predict(
-            tasks_tensor,
-            method,
-            K,
-            tasks_names=task_names
-        )
-        self.update_task_relevant_place_nodes(pred_place_nodes)
+        if method == "test":
+            pred_place_nodes, score_comparison_results = self.region_predictor.predict(
+                tasks_tensor,
+                method,
+                K,
+                tasks_names=task_names,
+                gt_place_nodes=gt_place_nodes
+            )
+            self.update_task_relevant_place_nodes(pred_place_nodes)
+            return score_comparison_results
+        else:
+            pred_place_nodes = self.region_predictor.predict(
+                tasks_tensor,
+                method,
+                K,
+                tasks_names=task_names,
+                gt_place_nodes=gt_place_nodes
+            )
+            self.update_task_relevant_place_nodes(pred_place_nodes)
     
     def update_task_relevant_place_nodes(self, pred_place_nodes):
         for curr_task_idx, place_nodes in pred_place_nodes.items():

@@ -53,18 +53,26 @@ if __name__ == '__main__':
     # terra.visualizer.level_offset = 0.0  # Set level offset for better visualization
 
 
-    # Dispplay just LiDAR point cloud
-    terra.display_point_cloud(ms_map=False)
+    # # Dispplay just LiDAR point cloud
+    # terra.display_point_cloud(ms_map=False)
 
-    # Display MS Map
-    terra.visualizer.num_terrains = 7
-    terra.display_point_cloud(ms_map=True)
+    # # Display MS Map
+    # terra.visualizer.num_terrains = 7
+    # terra.display_point_cloud(ms_map=True)
     
-    # Display just place nodes
-    terra.display_places(
-        display_pc=False,
-        plot_ids=False
-    )
+    # # Display just place nodes
+    # terra.display_places(
+    #     display_pc=False,
+    #     plot_ids=False
+    # )
 
     # Display Place nodes with pc
-    terra.display_3dsg()
+    terra.visualizer.level_offset = 0.0  # Set level offset for better visualization
+    terra.display_3dsg(
+        display_pc=True
+    )
+
+    terra.display_places(
+        display_pc=False,
+        plot_ids=True
+    )

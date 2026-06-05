@@ -346,43 +346,43 @@ if __name__ == '__main__':
     # )
 
 
-    ##### Rock Canyon Campground #####
-    # Red region
-    red_gps_coords = [
-        [40.29119988211638, -111.60698558288246],
-        [40.29095897669601, -111.6069661368664],
-        [40.29099068828662, -111.60673412577825],
-        [40.29104439336583, -111.60673814909191],
-        [40.29109400659155, -111.60684543745637],
-        [40.291187095226064, -111.60669523374614],
-        [40.291231082118635, -111.6067267497032],
-        [40.2912776263575, -111.6069205393115]
-    ]
-    red_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(red_gps_coords)
-    print(f"Red Nodes: {red_nodes}")
-    terra.visualizer.display_selected_nodes(
-        terra.terra_3dsg,
-        red_nodes
-    )
+    # ##### Rock Canyon Campground #####
+    # # Red region
+    # red_gps_coords = [
+    #     [40.29119988211638, -111.60698558288246],
+    #     [40.29095897669601, -111.6069661368664],
+    #     [40.29099068828662, -111.60673412577825],
+    #     [40.29104439336583, -111.60673814909191],
+    #     [40.29109400659155, -111.60684543745637],
+    #     [40.291187095226064, -111.60669523374614],
+    #     [40.291231082118635, -111.6067267497032],
+    #     [40.2912776263575, -111.6069205393115]
+    # ]
+    # red_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(red_gps_coords)
+    # print(f"Red Nodes: {red_nodes}")
+    # terra.visualizer.display_selected_nodes(
+    #     terra.terra_3dsg,
+    #     red_nodes
+    # )
 
-    # Green region
-    green_gps_coords = [
-        [40.29165060612899, -111.60819801239231],
-        [40.29123247095061, -111.60784840111937],
-        [40.29105601173413, -111.60751714829912],
-        [40.29100997881833, -111.60732805255952],
-        [40.2911951332394, -111.60718455437204],
-        [40.29124525783098, -111.60727574947909],
-        [40.29131379547587, -111.607442046444],
-        [40.2914089297036, -111.60771697287794],
-        [40.29165750560202, -111.60782292013783]
-    ]
-    green_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(green_gps_coords)
-    print(f"Green Nodes: {green_nodes}")
-    terra.visualizer.display_selected_nodes(
-        terra.terra_3dsg,
-        green_nodes
-    )
+    # # Green region
+    # green_gps_coords = [
+    #     [40.29165060612899, -111.60819801239231],
+    #     [40.29123247095061, -111.60784840111937],
+    #     [40.29105601173413, -111.60751714829912],
+    #     [40.29100997881833, -111.60732805255952],
+    #     [40.2911951332394, -111.60718455437204],
+    #     [40.29124525783098, -111.60727574947909],
+    #     [40.29131379547587, -111.607442046444],
+    #     [40.2914089297036, -111.60771697287794],
+    #     [40.29165750560202, -111.60782292013783]
+    # ]
+    # green_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(green_gps_coords)
+    # print(f"Green Nodes: {green_nodes}")
+    # terra.visualizer.display_selected_nodes(
+    #     terra.terra_3dsg,
+    #     green_nodes
+    # )
          
 
 
@@ -458,3 +458,80 @@ if __name__ == '__main__':
     #     terra.terra_3dsg,
     #     purple_nodes
     # )
+
+
+    ##### Provo River #####
+    # Red region
+    red_gps_coords = [
+         [40.24181861674022, -111.68626048647668],
+         [40.24161899529548, -111.6864361711735],
+         [40.241525838419854, -111.68625512205847],
+         [40.24173979193236, -111.6860418864341]
+    ]
+    red_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(red_gps_coords)
+    print(f"Red Nodes: {red_nodes}")
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        red_nodes,
+        pc=terra.pc
+    )
+
+    # Green region
+    green_gps_coords = [
+        [40.24175412372867, -111.68605127416532],
+        [40.242069422346525, -111.68669902765231],
+        [40.24261658480747, -111.68622829996741],
+        [40.24229412290208, -111.68558322868729],
+    ]
+    green_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(green_gps_coords)
+    print(f"Green Nodes: {green_nodes}")
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        green_nodes,
+        pc=terra.pc
+    )
+
+    # Blue region
+    blue_gps_coords = [
+        [40.24145291029915, -111.68569179339279],
+        [40.24135361096384, -111.68563814921058],
+        [40.24108437595075, -111.68584870262585],
+        [40.240936961649666, -111.68610485359599],
+        [40.240843803835546, -111.6863261358477],
+        [40.240990194628736, -111.68642135427115],
+        [40.24112634801944, -111.68622421190145],
+        [40.2412440744147, -111.68601768179985],
+        [40.24138739322829, -111.68596001430397]
+    ]
+    blue_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(blue_gps_coords)
+    print(f"Blue Nodes: {blue_nodes}")
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        blue_nodes,
+        pc=terra.pc
+    )
+
+    # Purple region
+    purple_gps_coords = [
+        [40.24219713883745, -111.68548928661745],
+        [40.2419545232841, -111.68578835293339],
+        [40.241867509055815, -111.6858674781055],
+        [40.241828608540274, -111.6857575075286],
+        [40.24178356581082, -111.68552683754501],
+        [40.241868532752704, -111.68544637127167],
+        [40.2417436415483, -111.68533237738443],
+        [40.24181939525716, -111.68519022030152],
+        [40.2419453100181, -111.68531628412975],
+        [40.24204767956985, -111.68521972460174],
+        [40.24214595419391, -111.68530019087508]
+    ]
+    purple_nodes = region_gps_visualizer.get_nodes_in_polygon_from_refs(purple_gps_coords)
+    print(f"Purple Nodes: {purple_nodes}")
+    terra.visualizer.display_selected_nodes(
+        terra.terra_3dsg,
+        purple_nodes,
+        pc=terra.pc
+    )
+         
+    
+    

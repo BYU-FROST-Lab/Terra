@@ -17,14 +17,23 @@
 #     GPS: [40.24086723540858, -111.74647210484386]
 
 
-#Provo River Trail
-# terra: /Data/Terra_Field_Tests/synced/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
-terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
-nodes_with_GPS:
-  - node_id: 476
-    GPS: [40.24209422196873, -111.68563227816115]
-  - node_id: 347
-    GPS: [40.24135846017628, -111.68508896649031]
+# # Rock Canyon Campground
+# # terra: /Data/Terra_Field_Tests/synced/rock_canyon_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# nodes_with_GPS:
+#   - node_id: 69
+#     GPS: [40.291590608766526, -111.60811309375451]
+#   - node_id: 162
+#     GPS: [40.289423338101, -111.60639935277345]
+
+# #Provo River Trail
+# # terra: /Data/Terra_Field_Tests/synced/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# terra: /Data/Terra_Field_Tests/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+# nodes_with_GPS:
+#   - node_id: 476
+#     GPS: [40.24209422196873, -111.68563227816115]
+#   - node_id: 347
+#     GPS: [40.24135846017628, -111.68508896649031]
 
 
 # #Nunns Park
