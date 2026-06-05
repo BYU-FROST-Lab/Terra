@@ -9,9 +9,10 @@ from matplotlib import cm
 
 import open3d as o3d
 import networkx as nx
+import torch
 
 from visualize_terra import TerraVisualizer
-from utils import tensor_cosine_similarity
+from utils import tensor_cosine_similarity, chunked_tensor_cosine_similarity
 
 def invert_transform(T):
     """Invert a 4x4 homogeneous transformation matrix."""
@@ -108,6 +109,11 @@ def plot_heatmap(matrix, title="Confusion Matrix", labels=None, cmap_min=None, c
         cbar.set_ticks(np.arange(0.0, 2.0 + 0.25, 0.25))
         cbar.ax.tick_params(labelsize=15)
         # cbar.set_label("Distance", fontsize=15)
+    elif cmap_min is not None and cmap_max is None:
+        cmap_max = 1.0
+        im = ax.imshow(matrix, interpolation="nearest", vmin=cmap_min, vmax=cmap_max)
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.ax.tick_params(labelsize=15)
     else:
         cmap_min = 0.0
         cmap_max = 1.0
@@ -198,6 +204,32 @@ def load_and_transform_terra_graphs(cfg, display=False):
         
     return terra_v1_aligned, terra_v2_aligned, terra_v3_aligned, terra_v4_aligned
     
+def compute_min_sim(terra_1, terra_2):
+    place_nodes_1 = [n for n, d in terra_1.nodes(data=True) if d["level"] == 1]
+    place_nodes_2 = [n for n, d in terra_2.nodes(data=True) if d["level"] == 1]
+
+    emb1 = torch.stack([
+        terra_1.nodes[n]["embedding"]
+        for n in place_nodes_1
+    ])  # (N, D)
+
+    emb2 = torch.stack([
+        terra_2.nodes[n]["embedding"]
+        for n in place_nodes_2
+    ])  # (M, D)
+
+    min_similarity = 1.0
+
+    # Chunked cosine similarity computation
+    for _, cos_sim_chunk in chunked_tensor_cosine_similarity(
+        emb1,
+        emb2,
+        chunk_size=64,
+    ):
+        chunk_min = torch.abs(cos_sim_chunk).min().item()
+        min_similarity = min(min_similarity, chunk_min)
+
+    return min_similarity
 
 def associate_place_nodes_1_to_2(terra_1, terra_2):
     """Given two Terra graphs, find the place node associations."""
@@ -282,7 +314,7 @@ def count_associated_place_nodes(place_nodes_1, place_nodes_2, place_association
         if k in place_nodes_1 and v in place_nodes_2:
             count += 1
     return count
-
+    
 
 def graph_consistency_eval(terras, place_associations, region_associations):
     """Check consistency of graph structures across terrains."""
@@ -361,7 +393,7 @@ def geometric_consistency_eval(terras, associations):
     )
 
 
-def semantic_consistency_eval(terras, associations):
+def semantic_consistency_eval(terras, associations, min_sim):
     # Mean cosine_similarity scores across all associations
     scores = []
     for i in range(len(associations)):
@@ -379,6 +411,7 @@ def semantic_consistency_eval(terras, associations):
         scores, 
         title="Mean Place Node Cosine Similarity", 
         labels=[f"V{i+1}" for i in range(len(associations))],
+        cmap_min=min_sim,
     )
     
     # Number of matching terrain IDs
@@ -412,6 +445,7 @@ def main(yaml_file):
     # Define place node associations
     place_associations = []
     region_associations = []
+    min_sim = 1.0
     for i in range(4):
         place_row = []
         region_row = []
@@ -419,12 +453,16 @@ def main(yaml_file):
             print("Associating graphs v{} and v{}".format(i+1, j+1))
             place_row.append(associate_place_nodes_1_to_2(terras[i], terras[j]))
             region_row.append(associate_region_nodes_1_to_2(terras[i], terras[j]))
+            print("Compute min similarity between v{} and v{}".format(i+1, j+1))
+            min_sim = min(min_sim, compute_min_sim(terras[i], terras[j]))
+            print("Current min similarity:", min_sim)
+        
         place_associations.append(place_row)
         region_associations.append(region_row)
     
     graph_consistency_eval(terras, place_associations, region_associations)
     geometric_consistency_eval(terras, place_associations)
-    semantic_consistency_eval(terras, place_associations)
+    semantic_consistency_eval(terras, place_associations, min_sim)
 
 
 if __name__ == "__main__":

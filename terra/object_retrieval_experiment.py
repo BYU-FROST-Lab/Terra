@@ -425,7 +425,7 @@ class ObjectEvaluator():
     
     def _show_image_batch(self, img_buffer, obj_idx, task_idx):
         """
-        Display up to 6 images in a 3x3 subplot figure.
+        Display up to 9 images in a 3x3 subplot figure.
         """
         fig, axes = plt.subplots(3, 3, figsize=(10, 15))
         axes = axes.flatten()

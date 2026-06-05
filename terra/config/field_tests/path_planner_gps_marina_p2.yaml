@@ -1,0 +1,69 @@
+---
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_gps_dict_marina_p2.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/node_enu_dict_marina_p2.pkl
+
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.26
+topk: 3 # number of top place nodes to select based on the prediction method
+prediction_method: "ms_max" # [places, ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+
+#        preferred : set of terrain_ids that should have no penalty (default: None)
+#        forbidden : set of terrain_ids that should not be used (default: None)
+#        penalties : dict mapping terrain_id -> penalty cost (default: None)'
+terrain_preferences:
+  preferred:
+    # - 0
+  forbidden:
+    # - 2
+  penalties:
+    # 0: 1.0
+    # 1: 5.0
+
+# [1_short, 1_long, object_context]
+unique_object_approach: "1_short"
+gamma_obj: 0.7
+# start_nodes: [380,147,692]
+start_nodes: [[40.237309, -111.739510], # init parking lot (380)
+              [40.238687, -111.740057], # peninsula (147)
+              [40.237031, -111.743206]] # dirt road elbow (692)
+tasks:
+  ## Option 1.1: 1 prompt-short
+  - {
+    query_destination: "building" # brick, green roof
+    }
+  - {
+    query_destination: "dumpsters" # n/a
+    }
+  - {
+    query_destination: "buoy" # white round, on road, says SLOW NO WAKE 
+    }
+  
+  # ## Option 1.2: 1 prompt-long
+  # - {
+  #   query_destination: "go to the brick building with a green roof"
+  #   }
+  # - {
+  #   query_destination: "go to the dumpsters"
+  #   }
+  # - {
+  #   query_destination: "go to the white round buoy on road that says SLOW NO WAKE"
+  #   }
+
+  # ## Option 2: Separate object from context
+  # - {
+  #   object: "building",
+  #   # context: "brick building with a green roof"
+  #   context: "brick with a green roof" # no obj
+  # }
+  # - {
+  #   object: "dumpsters",
+  #   # context: "dumpsters by building"
+  #   context: "by building" # no obj
+  # }
+  # - {
+  #   object: "buoy",
+  #   # context: "white round buoy on road that says SLOW NO WAKE"
+  #   context: "white round on road that says SLOW NO WAKE" # no obj
+  # }
+  

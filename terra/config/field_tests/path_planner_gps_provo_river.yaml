@@ -1,0 +1,91 @@
+---
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/node_gps_dict_provo_river.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/node_enu_dict_provo_river.pkl
+
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.26
+topk: 3 # number of top place nodes to select based on the prediction method
+prediction_method: "ms_max" # [places, ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+
+#        preferred : set of terrain_ids that should have no penalty (default: None)
+#        forbidden : set of terrain_ids that should not be used (default: None)
+#        penalties : dict mapping terrain_id -> penalty cost (default: None)'
+terrain_preferences:
+  preferred:
+    # - 0
+  forbidden:
+    # - 2
+  penalties:
+    # 0: 1.0
+    # 1: 5.0
+
+# [1_short, 1_long, object_context]
+unique_object_approach: "1_short"
+gamma_obj: 0.7
+# start_nodes: [103,462,145]
+start_nodes: [[40.241050, -111.685218], # init parking lot (103)
+              [40.241836, -111.685585], # grass open area by large pav (462)
+              [40.241668, -111.687042]] # grass area near end pav (145)
+tasks:
+  ## Option 1.1: 1 prompt-short
+  - {
+    query_destination: "bridge" # brown, over river
+    }
+  - {
+    query_destination: "bridge" # white, curved
+    }
+  - {
+    query_destination: "playground" 
+    }
+  - {
+    query_destination: "garbage" # parking lot 
+    }
+  - {
+    query_destination: "garbage" # red bldg, bathrooms 
+    }
+  
+  # ## Option 1.2: 1 prompt-long
+  # - {
+  #   query_destination: "go to the large brown bridge over the river"
+  #   }
+  # - {
+  #   query_destination: "go to the small white bridge in the woods"
+  #   }
+  # - {
+  #   query_destination: "go to the playground"
+  #   }
+  # - {
+  #   query_destination: "go to the garbage in the parking lot"
+  #   }
+  # - {
+  #   query_destination: "go to the garbage by the red building"
+  #   }
+
+  # ## Option 2: Separate object from context
+  # - {
+  #   object: "bridge",
+  #   # context: "large brown bridge over the river"
+  #   context: "large brown over the river" # no obj
+  # }
+  # - {
+  #   object: "bridge",
+  #   # context: "small white bridge in the woods"
+  #   context: "small white in the woods" # no obj
+  # }
+  # - {
+  #   object: "playground",
+  #   # context: "playground in sand"
+  #   context: "in sand" # no obj
+  # }
+  # - {
+  #   object: "garbage",
+  #   # context: "garbage in the parking lot"
+  #   context: "in the parking lot" # no obj
+  # }
+  # - {
+  #   object: "garbage",
+  #   # context: "garbage by the red building"
+  #   context: "by the red building" # no obj
+  # }
+  

@@ -1,0 +1,78 @@
+---
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25
+place_nodes_gps: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_gps_dict_marina_p1.pkl
+place_nodes_enu: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/node_enu_dict_marina_p1.pkl
+
+terra: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam/Terra_20.0mimgembs_nodist1img_agglomerativecluster.pkl
+alpha: 0.26
+topk: 3 # number of top place nodes to select based on the prediction method
+prediction_method: "ms_max" # [places, ms_avg, ms_max, 3dsg_avg, 3dsg_max]
+
+#        preferred : set of terrain_ids that should have no penalty (default: None)
+#        forbidden : set of terrain_ids that should not be used (default: None)
+#        penalties : dict mapping terrain_id -> penalty cost (default: None)'
+terrain_preferences:
+  preferred:
+    # - 0
+  forbidden:
+    # - 2
+  penalties:
+    # 0: 1.0
+    # 1: 5.0
+
+unique_object_approach: "object_context" # [1_short, 1_long, object_context]
+gamma_obj: 0.7
+# start_nodes: [193,1170,892]
+start_nodes: [[40.238981, -111.735399], # init parking lot (193)
+              [40.240126, -111.739242], # mid parking lot (1170)
+              [40.237298, -111.738474]] # end parking lot (892)
+tasks:
+  # ## Option 1.1: 1 prompt-short
+  # - {
+  #   query_destination: "dumpster" # at end of the road
+  #   }
+  # - {
+  #   query_destination: "stop sign"
+  #   }
+  # - {
+  #   query_destination: "fire hydrant" 
+  #   }
+  # - {
+  #   query_destination: "dumpster" # by white fence
+  #   }
+  
+  # ## Option 1.2: 1 prompt-long
+  # - {
+  #   query_destination: "go to the dumpster at end of road by rocks and water"
+  #   }
+  # - {
+  #   query_destination: "go to the stop sign"
+  #   }
+  # - {
+  #   query_destination: "go to the fire hydrant"
+  #   }
+  # - {
+  #   query_destination: "go to the dumpster in white fence by tree"
+  #   }
+
+  ## Option 2: Separate object from context
+  - {
+    object: "dumpster",
+    # context: "dumpster near the end of a road by rocks and water"
+    context: "near the end of a road by rocks and water"
+  }
+  - {
+    object: "stop sign",
+    # context: "stop sign by road"
+    context: "by road"
+  }
+  - {
+    object: "fire hydrant",
+    # context: "fire hydrant on grass in RV park"
+    context: "on grass in RV park"
+  }
+  - {
+    object: "dumpster",
+    # context: "dumpster in white fence by tree"
+    context: "in white fence by tree"
+  }

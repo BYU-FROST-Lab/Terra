@@ -1,6 +1,6 @@
-data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned
-output_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/provo_river_p1_11_3_25_cleaned/output/3_cam_discrete
-save_average_embeddings: true
+data_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/rock_canyon_campground_11_3_25
+output_folder: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam
+save_average_embeddings: false # true
 debug: false
 cam2point_dist_threshold: 20.0 # [m] same as in msmap.yaml
 

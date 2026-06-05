@@ -1,7 +1,8 @@
 import torch
 import torch.nn.functional as F
 from scipy.spatial import KDTree
-from sklearn.cluster import HDBSCAN
+# from sklearn.cluster import HDBSCAN
+import hdbscan
 import numpy as np
 import open3d as o3d
 import pickle as pkl
@@ -190,26 +191,29 @@ def compute_hdbscan_embedding(X, w, min_cluster_size=2, selection="weight", num_
     wn = w / w.sum()
     Xw = Xn * wn.unsqueeze(1)
     Xw_np = Xw.detach().cpu().numpy()
-    labels = HDBSCAN(
-        min_cluster_size=min_cluster_size,
-        min_samples=1,
-        metric="euclidean"
-    ).fit_predict(Xw_np)
+    Xn_np = Xn.detach().cpu().numpy()
+    labels = hdbscan.HDBSCAN(
+        metric='euclidean',
+        min_cluster_size=2,
+        min_samples=2, #2
+    ).fit_predict(Xn_np)#Xw_np)
     # group clusters
     clusters = {}
     for i, l in enumerate(labels):
         if l != -1:
             clusters.setdefault(l, []).append(i)
 
-    # fallback → your strongest baseline
+    # fallback
     if not clusters:
         return (X * w.unsqueeze(1)).sum(0) / w.sum()
+        # return X
 
     # pick cluster
     if selection == "size": # pick cluster with most elements
         best = max(clusters, key=lambda c: len(clusters[c]))
         idx = clusters[best]
         Xc, wc = X[idx], w[idx]
+        # out = Xc.sum(0) / Xc.shape[0]
         out = (Xc * wc.unsqueeze(1)).sum(0) / wc.sum()
     elif selection == "average": # average across clusters
         out = torch.zeros(X.shape[1], device=X.device)
@@ -228,6 +232,7 @@ def compute_hdbscan_embedding(X, w, min_cluster_size=2, selection="weight", num_
         idx = clusters[best]
         Xc, wc = X[idx], w[idx]
         out = (Xc * wc.unsqueeze(1)).sum(0) / wc.sum()
+        # out = Xc.sum(0) / Xc.shape[0]
     return out / (out.norm() + 1e-8)
 
 def build_hdbscan_tensor(gidx_2_clipcounts, clip_segs, semantic_gidxs, 
@@ -338,30 +343,30 @@ class ObjectPredictor:
         else:
             print("Unrecognized object prediction method. Should be: [ms_avg, ms_max, 3dsg_avg, 3dsg_max, aib]")
             exit()
-        print("Returning objects to Terra class")
+        print(f"Detected {len(self.objects)} objects")
         return self.objects
             
     def _predict_ms(self, tasks_tensor, use_avg_clipids, place_nodes_dict=None):
         if place_nodes_dict is None and use_avg_clipids: # use averaged clip_ids
-            ## MS-AVG
-            idx_scores = {}
-            matched_idxs = []
-            for start, scores in chunked_tensor_cosine_similarity(
-                self.terra.semantic_gidx_avgclip,
-                tasks_tensor,
-                chunk_size=8192
-            ):
-                max_scores, max_tasks = scores.max(dim=1)
-                mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
-                valid_idxs = mask.nonzero(as_tuple=True)[0]
-                for local_idx in valid_idxs:
-                    idx_filt = start + local_idx.item()
-                    idx = self.terra.semantic_gidxs[idx_filt]
-                    # Move small data to CPU immediately
-                    idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
-                    matched_idxs.append(idx)
-                # free GPU memory
-                del scores
+            # ## MS-AVG
+            # idx_scores = {}
+            # matched_idxs = []
+            # for start, scores in chunked_tensor_cosine_similarity(
+            #     self.terra.semantic_gidx_avgclip,
+            #     tasks_tensor,
+            #     chunk_size=8192
+            # ):
+            #     max_scores, max_tasks = scores.max(dim=1)
+            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
+            #     for local_idx in valid_idxs:
+            #         idx_filt = start + local_idx.item()
+            #         idx = self.terra.semantic_gidxs[idx_filt]
+            #         # Move small data to CPU immediately
+            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+            #         matched_idxs.append(idx)
+            #     # free GPU memory
+            #     del scores
             
             # ## MS-AVG-WITH-DISTANCE_WEIGHTS
             # print("Running MS-Avg-Dist Method")
@@ -504,36 +509,36 @@ class ObjectPredictor:
             #     # free GPU memory
             #     del scores
             
-            # ## MS-HDBSCAN
-            # print("Running HDBSCAN Method")
-            # idx_scores = {}
-            # matched_idxs = []
-            # selection_method = "average" # ["size","weight","average"]
-            # print("Selection method:",selection_method)
-            # hdb_tensor = build_hdbscan_tensor(
-            #     self.terra.gidx_2_clipcounts, 
-            #     self.terra.clip_segs,
-            #     self.terra.semantic_gidxs,
-            #     min_cluster_size=2,
-            #     selection=selection_method,
-            #     num_terrain=self.terra.num_terrain
-            # )
-            # print("Finished building hdbscan tensor")
-            # for start, scores in chunked_tensor_cosine_similarity(
-            #     hdb_tensor,
-            #     tasks_tensor,
-            #     chunk_size=8192
-            # ):
-            #     max_scores, max_tasks = scores.max(dim=1)
-            #     mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
-            #     valid_idxs = mask.nonzero(as_tuple=True)[0]
-            #     for local_idx in valid_idxs:
-            #         idx_filt = start + local_idx.item()
-            #         idx = self.terra.semantic_gidxs[idx_filt]
-            #         idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
-            #         matched_idxs.append(idx)
-            #     # free GPU memory
-            #     del scores
+            ## MS-HDBSCAN
+            print("Running HDBSCAN Method")
+            idx_scores = {}
+            matched_idxs = []
+            selection_method = "size" # ["size","weight","average"]
+            print("Selection method:",selection_method)
+            hdb_tensor = build_hdbscan_tensor(
+                self.terra.gidx_2_clipcounts, 
+                self.terra.clip_segs,
+                self.terra.semantic_gidxs,
+                min_cluster_size=2,
+                selection=selection_method,
+                num_terrain=self.terra.num_terrain
+            )
+            print("Finished building hdbscan tensor")
+            for start, scores in chunked_tensor_cosine_similarity(
+                hdb_tensor,
+                tasks_tensor,
+                chunk_size=8192
+            ):
+                max_scores, max_tasks = scores.max(dim=1)
+                mask = (max_tasks >= self.terra.num_terrain) & (max_scores > self.terra.alpha)
+                valid_idxs = mask.nonzero(as_tuple=True)[0]
+                for local_idx in valid_idxs:
+                    idx_filt = start + local_idx.item()
+                    idx = self.terra.semantic_gidxs[idx_filt]
+                    idx_scores[idx] = scores[local_idx, self.terra.num_terrain:].cpu()
+                    matched_idxs.append(idx)
+                # free GPU memory
+                del scores
             
         elif place_nodes_dict is None and not use_avg_clipids: # use max_clipid
 
@@ -669,8 +674,9 @@ class ObjectPredictor:
         # Cluster object points & extract bounding boxes from clusters
         if len(matched_idxs) == 0:
             print("No similar MS-Map indices detected")
-            exit()
-        print("Made it to start clustering points into bboxes")
+            # exit()
+            return
+        
         self._cluster_into_bboxes(list(matched_idxs), idx_scores)
         print("Finished clustering points into bboxes")
         

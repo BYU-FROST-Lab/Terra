@@ -9,7 +9,8 @@ import networkx as nx
 from visualize_terra import TerraVisualizer
 from object_predictor import ObjectPredictor
 from region_predictor import RegionPredictor
-from terra_utils import TerraObject, TerraOBB, load_terra
+from terra_utils import TerraObject, TerraOBB, load_terra 
+from utils import tensor_cosine_similarity
 
 
 class Terra():
@@ -138,28 +139,128 @@ class Terra():
                             start_node=None):
         self.path_node_list = []
         
-        place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
-        place_subgraph = self.terra_3dsg.subgraph(place_nodes)
-        
+        # Assumes only a single start and destination
+        assert task_tensor.shape[0] in [self.num_terrain + 1, self.num_terrain + 2], "Expected task tensor to contain optionally 1 start query and 1 destination query"
+                
+        selected_nodes = self._select_best_place_nodes(
+            task_tensor,
+            method
+        )
         if task_tensor.shape[0] == self.num_terrain + 2:
-            self.start_node = self._select_best_place_node(
-                task_tensor[:-1,:], # skip destination query embedding
-                method
-            )
-            mask = torch.ones(task_tensor.size(0), dtype=torch.bool, device=task_tensor.device)
-            mask[-2] = False # remove source query embedding
-            task_tensor_excluded = task_tensor[mask]   # shape: (N-1, 512)
-            self.dest_node = self._select_best_place_node(
-                task_tensor_excluded,
-                method
-            )
+            self.start_node = selected_nodes[0][0]
+            self.dest_node = selected_nodes[1][0]
         else:
+            place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
             self.start_node = place_nodes[0] if start_node is None else start_node
-            self.dest_node = self._select_best_place_node(
+            self.dest_node = selected_nodes[0][0]
+        
+        self._plan_path_astar(self.start_node, self.dest_node, terrain_preferences) 
+
+    def _select_best_place_nodes(self, task_tensor, method="ms_avg", topk=1):
+        place_nodes = [
+            n for n, d in self.terra_3dsg.nodes(data=True)
+            if d["level"] == 1
+        ]
+        if len(place_nodes) == 0:
+            return {}    
+        
+        if method == "places":
+            place_embeddings = torch.vstack([self.terra_3dsg.nodes[n]["embedding"] for n in place_nodes])
+            scores = tensor_cosine_similarity(
+                place_embeddings, 
+                task_tensor[self.num_terrain:,:]
+            ) # (num_place_nodes, num_tasks)
+            
+            selected_places = {}
+            for task_idx in range(scores.shape[1]):
+                task_scores = scores[:, task_idx]
+
+                # Filter by alpha threshold
+                valid_mask = task_scores > self.alpha
+                print(torch.count_nonzero(valid_mask).item(), f"place nodes above alpha threshold for task {task_idx}")
+                print("Number of place nodes:", len(place_nodes))
+
+                if torch.any(valid_mask):
+                    valid_scores = task_scores[valid_mask]
+                    valid_indices = torch.nonzero(valid_mask).squeeze(1)
+
+                    k = min(topk, len(valid_scores))
+
+                    top_vals, top_indices = torch.topk(valid_scores, k=k)
+
+                    top_place_node_indices = valid_indices[top_indices]
+
+                    selected_places[task_idx] = [
+                        place_nodes[i]
+                        for i in top_place_node_indices.tolist()
+                    ]
+                else:
+                    print(f"No place nodes above alpha threshold for task {task_idx}. Returning top-{topk} place nodes.")
+                    # fallback: still return top-k globally
+                    k = min(topk, len(task_scores))
+
+                    _, top_idx = torch.topk(task_scores, k=k)
+
+                    selected_places[task_idx] = [
+                        place_nodes[i]
+                        for i in top_idx.tolist()
+                    ]
+
+        else:
+            pos_destination_objects = self.object_predictor.predict(
                 task_tensor,
                 method
             )
-        
+            place_pos = np.array([
+                self.terra_3dsg.nodes[n]["pos"]
+                for n in place_nodes
+            ])
+            kdt = KDTree(place_pos)
+            
+            obj_scores = {}
+            for i, tobj in enumerate(pos_destination_objects):
+                curr_task = tobj.get_task_idx()
+                curr_score = tobj.get_top_score()
+                
+                if curr_task not in obj_scores:
+                    obj_scores[curr_task] = {}
+                
+                obj_scores[curr_task][i] = curr_score
+            
+            # Get top-k object indices per task
+            topk_obj_indices = {}
+            for task_idx, score_dict in obj_scores.items():
+                k = min(topk, len(score_dict))
+
+                # Sort descending by score
+                sorted_items = sorted(
+                    score_dict.items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+                topk_items = sorted_items[:k]
+                
+                topk_obj_indices[task_idx] = [
+                    obj_idx for obj_idx, _ in topk_items
+                ]
+            
+            selected_places = {}
+            for task_idx, obj_indices in topk_obj_indices.items():
+                for obj_idx in obj_indices:
+                    chosen_obb = pos_destination_objects[obj_idx].get_bbox()
+                    obb_center = chosen_obb.center[:2]
+                    dist, idx = kdt.query(obb_center)
+                    if task_idx not in selected_places:
+                        selected_places[task_idx] = []
+                    
+                    selected_places[task_idx].append(place_nodes[idx])
+
+        return selected_places
+           
+    def _plan_path_astar(self, start_node, dest_node, terrain_preferences): 
+        place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
+        place_subgraph = self.terra_3dsg.subgraph(place_nodes)
+
         terrain_weight = self._make_terrain_weight(
             preferred=terrain_preferences.get("preferred", None),
             forbidden=terrain_preferences.get("forbidden", None),
@@ -167,32 +268,12 @@ class Terra():
         )
         self.path_node_list = nx.astar_path(
             place_subgraph, 
-            source=self.start_node, 
-            target=self.dest_node, 
+            source=start_node, 
+            target=dest_node, 
             weight=terrain_weight
         )
-    
-    def _select_best_place_node(self, task_tensor, method="ms_avg"):
-        pos_destination_objects = self.object_predictor.predict(
-            task_tensor,
-            method
-        )
-        max_dest_score = 0.0
-        max_dest_obj_idx = -1
-        for i, tobj in enumerate(pos_destination_objects):
-            if tobj.get_top_score() > max_dest_score:
-                max_dest_score = tobj.get_top_score()
-                max_dest_obj_idx = i
-        chosen_obb = pos_destination_objects[max_dest_obj_idx].get_bbox()
-        obb_center = chosen_obb.center[:2]
-        place_nodes = [n for n, d in self.terra_3dsg.nodes(data=True) if d["level"] == 1]
-        place_pos = np.array([self.terra_3dsg.nodes[n]["pos"] for n in place_nodes])
-        kdt = KDTree(place_pos)
-        dist, idx = kdt.query(obb_center)
-        
-        best_place_node = place_nodes[idx]
-        return best_place_node
-        
+
+
     def _make_terrain_weight(self, preferred=None, forbidden=None, penalties=None):
         """
         Returns a weight function for A* that accounts for terrain types.

@@ -148,11 +148,14 @@ class MSMap:
 
             #Initialize data structures
             self.clip_segs = torch.vstack(yolo_clip_embs) # (num_classes, 512)
-            self.gidx2clipcounts_dict = defaultdict(int_defaultdict)  # {point_index: {clip_id: count}}
+            self.gidx2clipcounts_dict = {}  # {point_index: {clip_id: count}}
+            self.gidx2clipdists_dict = {}  # {point_index: {clip_id: dist}}
+            self.gidx2clipmaskidx_dict = {}  # {point_index: {clip_id: [mask_indices]}} # TODO: new
             self.num_scans = 0
             self.last_scan_idx = 0
             self.clip_imgs = []
             self.saved_img_names = []
+            self.saved_fastsam_mask_names = [] # TODO: new
             self.map_globalidx2imgidx = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2imgidx_nodistthresh = {} # map from global_index to img_index {g_idx: set(0,34,2), ...}
             self.map_globalidx2dist_nodistthresh = {} # map from global_index to img_index {g_idx: dist_m, ...}
@@ -178,13 +181,13 @@ class MSMap:
             lidar_pc_file = os.path.join(self.lidar_pc_folder, f'lidar_pc_{closest_lidar_pc_timestamp:.6f}.npy') #TODO Change this back to 4 decimal places
                         
             all_cameras_aligned = True
-            camera_image_files = []
+            self.camera_image_files = []
             for nc, (cam_timestamps, folder) in enumerate(zip(self.camera_timestamps_list, self.camera_folders)):
                 closest_ts = min(cam_timestamps, key=lambda x: abs(x - float(timestamp)))
                 if abs(closest_ts - float(timestamp)) > self.unaligned_threshold:
                     print("Camera stream unaligned")
                     all_cameras_aligned = False
-                camera_image_files.append(os.path.join(folder, f"cam{nc+1}_img_{closest_ts:.6f}.jpg"))
+                self.camera_image_files.append(os.path.join(folder, f"cam{nc+1}_img_{closest_ts:.6f}.jpg"))
             if not all_cameras_aligned:
                 print("Skipping to next scan")
                 continue
@@ -201,14 +204,14 @@ class MSMap:
                 print("Skipping to next scan")
                 continue
             
-            if len(camera_image_files) == 0 or len(transform_lidar_to_cam_files) == 0:
+            if len(self.camera_image_files) == 0 or len(transform_lidar_to_cam_files) == 0:
                 continue
             
             ## Load synced data ##
-            self.load_synced_data(lidar_pc_file, camera_image_files, transform_lidar_to_cam_files, transform_lidar2global_file)
+            self.load_synced_data(lidar_pc_file, self.camera_image_files, transform_lidar_to_cam_files, transform_lidar2global_file)
 
             ## CLIP vector of base image ##
-            self.clip_base_image(camera_image_files)
+            self.clip_base_image(self.camera_image_files)
 
             ## Keep only 3D Points in Image ##
             pcl_in_image_t0 = time.time()
@@ -350,6 +353,12 @@ class MSMap:
 
             # LiDAR → global (N,3)
             p_Gs = points_xyz @ self.transform_lidar_to_global[:3, :3].T + self.transform_lidar_to_global[:3, 3]
+            
+            # ## TODO: debugging
+            # # display point cloud grey and also a pcd of p_Gs colored red
+            # g_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(self.global_pc[:, :3])).paint_uniform_color([0.5, 0.5, 0.5])
+            # p_Gs_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(p_Gs)).paint_uniform_color([1.0, 0.0, 0.0])
+            # o3d.visualization.draw_geometries([g_pcd, p_Gs_pcd])
 
             # Batch KD-tree query
             dists, g_indices = self.global_kdtree.query(p_Gs)
@@ -362,7 +371,7 @@ class MSMap:
                 self.map_lidar2globalidx[pt_idx] = g_idx
                 self._pixel_to_global_idx[cam_idx][y, x] = g_idx
                 
-                # store closest LiDAR distance per global index
+                # store closest LiDAR distance per global index  # TODO: new
                 if g_idx not in self.map_globalidx2pldist:
                     self.map_globalidx2pldist[g_idx] = p_L_dist
                 else:
@@ -425,14 +434,41 @@ class MSMap:
                 class_name = self.yolo_model.names
                 for cls_id, mask in self.yolo_masks[cam_idx].items():
                     filtered_lidar_img = np.bitwise_and(self.lidar_imgs_bool[cam_idx], mask.astype(bool))
-
+                    
+                    # TODO: new
+                    mask_u8 = (mask > 0).astype(np.uint8) * 255
+                    terrain_image = cv2.bitwise_and(img, img, mask=mask_u8)
+                    img_path = Path(self.camera_image_files[cam_idx])
+                    mask_folder_name = f"{img_path.parent.name.replace('_images', '_masks')}"
+                    masks_dir = img_path.parent.parent / mask_folder_name
+                    masks_dir.mkdir(parents=True, exist_ok=True)
+                    mask_path = masks_dir / f"{img_path.stem}_terrain{cls_id}.jpg"
+                    cv2.imwrite(str(mask_path), terrain_image)
+                    self.saved_fastsam_mask_names.append(f"{mask_folder_name}/{img_path.stem}_terrain{cls_id}.jpg") 
+                    # end new
+                    
                     if self.DEBUG_MODE and (scan_idx % self.scan_step_sz == 0):
                         self.display_image(f"Filtered LiDAR Image {class_name[cls_id]}", (filtered_lidar_img.astype(np.uint8)*255))
 
                     y_indices, x_indices = np.where(filtered_lidar_img > 0)
                     for y, x in zip(y_indices, x_indices):
                         g_idx = self.map_lidar2globalidx[self.map_yx2idx[cam_idx][(y,x)]]
-                        self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                        if g_idx in self.gidx2clipcounts_dict:
+                            if cls_id in self.gidx2clipcounts_dict[g_idx]:
+                                self.gidx2clipcounts_dict[g_idx][cls_id] += 1
+                            else:
+                                self.gidx2clipcounts_dict[g_idx][cls_id] = 1
+                            self.gidx2clipdists_dict[g_idx][cls_id] = self.map_globalidx2pldist[g_idx]
+                            if cls_id in self.gidx2clipmaskidx_dict[g_idx]:
+                                self.gidx2clipmaskidx_dict[g_idx][cls_id].add(len(self.saved_fastsam_mask_names) - 1) # TODO: new
+                            else:
+                                self.gidx2clipmaskidx_dict[g_idx][cls_id] = set([len(self.saved_fastsam_mask_names) - 1]) # TODO: new
+                        else:
+                            self.gidx2clipcounts_dict[g_idx] = {cls_id: 1}
+                            self.gidx2clipdists_dict[g_idx] = {cls_id: self.map_globalidx2pldist[g_idx]}
+                            self.gidx2clipmaskidx_dict[g_idx] = {cls_id: set([len(self.saved_fastsam_mask_names) - 1])} # TODO: new
+                            
+                            
                         if g_idx in self.map_globalidx2pldist:
                             self.clipid2distances[cls_id].append(
                                 self.map_globalidx2pldist[g_idx]
@@ -456,7 +492,8 @@ class MSMap:
             self.extract_mask_embs_times.append(extract_mask_embs_t1 - extract_mask_embs_t0)
 
             if clip_embs_tensor.shape[0] > 0:  # Only update if we have valid embeddings
-                self.update_clip_and_gidx2clipcounts_dict(clip_embs_tensor, global_idxs)
+                self.save_fastsam_masks(cam_idx) # TODO: new
+                self.update_clip_and_gidx2clipcounts_dict(clip_embs_tensor, global_idxs, cam_idx)
 
     def prepare_filtered_image(self, cam_idx, scan_idx):
         """
@@ -529,6 +566,8 @@ class MSMap:
 
         clip_input_list = []
         valid_masks_global_idxs = []
+        self.fastsam_masks = [] # TODO: new
+        self.mask_cnt = {}
 
         for mask in fastsam_masks:
             mask_bool = (mask.cpu().numpy() > 0)
@@ -573,6 +612,10 @@ class MSMap:
             candidate_global_idxs = candidate_global_idxs[candidate_global_idxs >= 0]
             if candidate_global_idxs.size == 0:
                 continue
+            
+            # ## TODO: debugging
+            # if 62799 in candidate_global_idxs:
+            #     self.display_image(f"mask{len(self.fastsam_masks)}",cropped_bb)
 
             # --- DBSCAN per-mask (reverted to original behavior) ---
             if self.use_dbscan:
@@ -592,10 +635,17 @@ class MSMap:
                 largest_global_pt_indices = candidate_global_idxs[labels == largest_label].tolist()
             else:
                 largest_global_pt_indices = candidate_global_idxs.tolist()
+            
+            # # TODO: debug: color largest_global_pt_indices in red on global point cloud and visualize with open3d to verify correct associations
+            # if 62799 in largest_global_pt_indices:
+            #     global_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(self.global_pc[:, :3])).paint_uniform_color([0.5, 0.5, 0.5])
+            #     largest_pts_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(self.global_pc[largest_global_pt_indices, :3])).paint_uniform_color([1.0, 0.0, 0.0])
+            #     o3d.visualization.draw_geometries([global_pcd, largest_pts_pcd])   
 
             if not largest_global_pt_indices:
                 continue
-
+            
+            self.fastsam_masks.append(cropped_bb) # TODO: new
             clip_input_list.append(pil_crop)
             valid_masks_global_idxs.append(largest_global_pt_indices)
 
@@ -614,7 +664,7 @@ class MSMap:
         )
         return fastsam_clip_embs_tensor, valid_masks_global_idxs
 
-    def update_clip_and_gidx2clipcounts_dict(self, clip_embs_tensor, global_idxs):
+    def update_clip_and_gidx2clipcounts_dict(self, clip_embs_tensor, global_idxs, cam_idx):
         """
         Compares embeddings to existing CLIP tensor and updates:
             - CLIP embeddings
@@ -623,38 +673,68 @@ class MSMap:
         device = clip_embs_tensor.device
         num_masks = clip_embs_tensor.shape[0]
         
-        # Track best match per mask
-        best_scores = torch.full((num_masks,), 0.0, device=device)
-        best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
+        # # Track best match per mask
+        # best_scores = torch.full((num_masks,), 0.0, device=device)
+        # best_clip_ids = torch.full((num_masks,), -1, dtype=torch.long, device=device)
         
-        for start, scores in chunked_tensor_cosine_similarity(
-            clip_embs_tensor,          # (num_masks, D)
-            self.clip_segs,          # (num_existing, D)
-            chunk_size=8192
-        ): # scores: (num_masks, chunk)
+        # for start, scores in chunked_tensor_cosine_similarity(
+        #     self.clip_segs,          # (num_existing, D)
+        #     clip_embs_tensor,          # (num_masks, D)
+        #     chunk_size=4096
+        # ): # scores: (num_masks, chunk)
+        #     chunk_max_scores, chunk_max_ids = scores.max(dim=0)
+        #     chunk_max_ids += start  # convert chunk → full clip id
 
-            chunk_max_scores, chunk_max_ids = scores.max(dim=1)
-            chunk_max_ids += start  # convert local → global clip id
+        #     better = chunk_max_scores > best_scores
+        #     best_scores[better] = chunk_max_scores[better]
+        #     best_clip_ids[better] = chunk_max_ids[better]
 
-            better = chunk_max_scores > best_scores
-            best_scores[better] = chunk_max_scores[better]
-            best_clip_ids[better] = chunk_max_ids[better]
-
-            del scores  # free GPU memory
+        #     del scores  # free GPU memory
         
         for mask_idx in range(num_masks):
-            if best_scores[mask_idx] > self.theta_cos_sim:
-                max_clip_id = best_clip_ids[mask_idx].item()
-            else:
-                self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
-                max_clip_id = self.clip_segs.shape[0] - 1
+            # if best_scores[mask_idx] > self.theta_cos_sim:
+            #     max_clip_id = best_clip_ids[mask_idx].item()
+            # else:
+            #     self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0)
+            #     max_clip_id = self.clip_segs.shape[0] - 1
+            self.clip_segs = torch.cat([self.clip_segs, clip_embs_tensor[mask_idx, :].unsqueeze(0)], dim=0) # TODO: new
+            max_clip_id = self.clip_segs.shape[0] - 1 # TODO: new
+            
 
             for g_idx in global_idxs[mask_idx]:
-                self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                if g_idx in self.gidx2clipcounts_dict:
+                    if max_clip_id in self.gidx2clipcounts_dict[g_idx]:
+                        self.gidx2clipcounts_dict[g_idx][max_clip_id] += 1
+                    else:
+                        self.gidx2clipcounts_dict[g_idx][max_clip_id] = 1
+                    self.gidx2clipdists_dict[g_idx][max_clip_id] = self.map_globalidx2pldist[g_idx]
+                    if max_clip_id in self.gidx2clipmaskidx_dict[g_idx]:
+                        self.gidx2clipmaskidx_dict[g_idx][max_clip_id].add(len(self.saved_fastsam_mask_names) - num_masks + mask_idx) # TODO: new
+                    else:
+                        self.gidx2clipmaskidx_dict[g_idx][max_clip_id] = set([len(self.saved_fastsam_mask_names) - num_masks + mask_idx]) # TODO: new
+                else:
+                    self.gidx2clipcounts_dict[g_idx] = {max_clip_id: 1}
+                    self.gidx2clipdists_dict[g_idx] = {max_clip_id: self.map_globalidx2pldist[g_idx]}                    
+                    self.gidx2clipmaskidx_dict[g_idx] = {max_clip_id: set([len(self.saved_fastsam_mask_names) - num_masks + mask_idx])} # TODO: new
+
                 if g_idx in self.map_globalidx2pldist:
                     self.clipid2distances[max_clip_id].append(
                         self.map_globalidx2pldist[g_idx]
                     )
+        # print(f"\n\nCLIP SEGS size: {self.clip_segs.shape}\n\n")
+
+    def save_fastsam_masks(self, cam_idx):
+        img_path = Path(self.camera_image_files[cam_idx])
+        
+        mask_folder_name = f"{img_path.parent.name.replace('_images', '_masks')}"
+        masks_dir = img_path.parent.parent / mask_folder_name
+        masks_dir.mkdir(parents=True, exist_ok=True)
+        
+        for mask_idx, mask in enumerate(self.fastsam_masks):
+            # Create output filename
+            mask_path = masks_dir / f"{img_path.stem}_mask{mask_idx}.jpg"
+            cv2.imwrite(str(mask_path), mask)
+            self.saved_fastsam_mask_names.append(f"{mask_folder_name}/{img_path.stem}_mask{mask_idx}.jpg") 
 
     def save_semantic_pcl(self, itr):
         ## Save Semantic Point Cloud
@@ -674,6 +754,12 @@ class MSMap:
             
         with open(self.output_folder+f"/clipid2distances_itr{itr}.pkl", "wb") as f:
             pkl.dump(self.clipid2distances, f)
+        with open(self.output_folder+f"/gidx2clipdists_dict_itr{itr}.pkl", "wb") as f:
+            pkl.dump(self.gidx2clipdists_dict, f)
+        with open(self.output_folder+f"/gidx2clipmaskidx_dict_itr{itr}.pkl", "wb") as f:
+            pkl.dump(self.gidx2clipmaskidx_dict, f)
+        with open(self.output_folder+f"/saved_fastsam_mask_names_itr{itr}.pkl","wb") as f:
+            pkl.dump(self.saved_fastsam_mask_names, f)
 
         print(f"\nSaved gidx2clipcounts_dict and clip_segs at iteration {itr}\n")
        
@@ -798,6 +884,12 @@ class MSMap:
         
         with open(self.output_folder+f"/clipid2distances_itr{self.last_scan_idx}.pkl", "rb") as f:
             self.clipid2distances = pkl.load(f)
+        with open(self.output_folder+f"/gidx2clipdists_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+            self.gidx2clipdists_dict = pkl.load(f)
+        with open(self.output_folder+f"/gidx2clipmaskidx_dict_itr{self.last_scan_idx}.pkl", "rb") as f:
+            self.gidx2clipmaskidx_dict = pkl.load(f)
+        with open(self.output_folder+f"/saved_fastsam_mask_names_itr{self.last_scan_idx}.pkl","rb") as f:
+            self.saved_fastsam_mask_names = pkl.load(f)
         
         self.num_scans = self.last_scan_idx + 1
 
