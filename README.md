@@ -1,5 +1,6 @@
-# Terra
-This repository contains the code for *Terra: Hierarchical Terrain-Aware 3D Scene Graph for Task-Agnostic Outdoor Mapping*
+# Terra: Hierarchical Terrain-Aware 3D Scene Graph for Task-Agnostic Outdoor Mapping
+This repository contains the code for *Terra: Hierarchical Terrain-Aware 3D Scene Graph for Task-Agnostic Outdoor Mapping*.
+Terra is an open-source 3D Scene Graph (3DSG) framework developed by the BYU FROST Lab for robotics. It enables robots to build semantic, hierarchical, and persistent scene representations for navigation, mapping, planning, and long-term autonomy.
 
 ![Terra](./assets/method_fig.png)
 
