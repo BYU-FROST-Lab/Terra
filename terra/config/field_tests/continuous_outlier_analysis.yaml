@@ -9,18 +9,18 @@ datasets:
     itr: 1558
     global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/nunns_park_p2_10_15_25/global_pc/global_pc_1760562375.670389.npy
   
-  # - dataset: Marina Part 1
-  #   output_dir: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam_continuous_dist_fsam/
-  #   itr: 2851
-  #   global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/global_pc/global_pc_1762452610.092441.npy
+  - dataset: Marina Part 1
+    output_dir: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/output/3_cam_continuous_dist_fsam/
+    itr: 2851
+    global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p1_11_6_25/global_pc/global_pc_1762452610.092441.npy
   
-  # - dataset: Marina Part 2
-  #   output_dir: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam_continuous_dist_fsam/
-  #   itr: 1786
-  #   global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/global_pc/global_pc_1762454076.177655.npy
+  - dataset: Marina Part 2
+    output_dir: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/output/3_cam_continuous_dist_fsam/
+    itr: 1786
+    global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/utah_lake_park_p2_11_6_25/global_pc/global_pc_1762454076.177655.npy
   
-  # - dataset: Rock Canyon Campground
-  #   output_dir: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam_continuous_dist_fsam/
-  #   itr: 2230
-  #   global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/global_pc/global_pc_1762199432.427814.npy
+  - dataset: Rock Canyon Campground
+    output_dir: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/output/3_cam_continuous_dist_fsam/
+    itr: 2230
+    global_pc: /ros2_bags/metric_data_0.5s/synced/sem_avg_fixed/rock_canyon_campground_11_3_25/global_pc/global_pc_1762199432.427814.npy
   
