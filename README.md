@@ -18,7 +18,7 @@ Terra is an open-source 3D Scene Graph (3DSG) framework developed by the BYU FRO
 
 # Paper
 
-**Main Paper:**
+### Main Paper
 
 > C. R. Samuelson, A. Austin, S. Knoop, B. Romrell, G. R. Slade, T. W. McLain, and J. G. Mangelson, 
 > “Terra: Hierarchical Terrain-Aware 3D Scene Graph for Task-Agnostic Outdoor Mapping,” 
